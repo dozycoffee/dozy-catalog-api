@@ -1,0 +1,55 @@
+[versions]
+kotlin = "2.3.21"
+spring-boot = "4.1.0"
+spring-dependency-management = "1.1.7"
+exposed = "1.4.0"
+# spring-boot-dependencies(4.1.0)의 testcontainers.version과 동일하게 맞춤 — io.spring.dependency-management가
+# 중첩 BOM(testcontainers-bom) 버전까지는 못 끌어와서 명시. Boot 업그레이드 시 같이 갱신할 것.
+testcontainers = "2.0.5"
+ktlint-gradle = "14.2.0"
+
+[libraries]
+# presentation / application — 리액티브 웹, 보안
+spring-boot-starter-webflux = { module = "org.springframework.boot:spring-boot-starter-webflux" }
+spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+reactor-kotlin-extensions = { module = "io.projectreactor.kotlin:reactor-kotlin-extensions" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
+kotlinx-coroutines-reactor = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactor" }
+jackson-module-kotlin = { module = "tools.jackson.module:jackson-module-kotlin" }
+
+# infrastructure/persistence — R2DBC ConnectionFactory(Spring Boot 자동구성) + Exposed DSL
+spring-boot-starter-r2dbc = { module = "org.springframework.boot:spring-boot-starter-r2dbc" }
+exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
+exposed-r2dbc = { module = "org.jetbrains.exposed:exposed-r2dbc", version.ref = "exposed" }
+postgresql = { module = "org.postgresql:postgresql" }
+r2dbc-postgresql = { module = "org.postgresql:r2dbc-postgresql" }
+
+# local dev
+spring-boot-devtools = { module = "org.springframework.boot:spring-boot-devtools" }
+spring-boot-docker-compose = { module = "org.springframework.boot:spring-boot-docker-compose" }
+
+# infrastructure/config — @ConfigurationProperties 메타데이터 생성
+spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor" }
+
+# test
+spring-boot-starter-webflux-test = { module = "org.springframework.boot:spring-boot-starter-webflux-test" }
+spring-boot-starter-security-test = { module = "org.springframework.boot:spring-boot-starter-security-test" }
+kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+
+# test — 영속성 통합 테스트 (Testcontainers 2.x, 아티팩트명이 testcontainers-* 접두어로 변경됨)
+spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
+testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainers" }
+# Spring Boot의 R2DBC @ServiceConnection이 내부적으로 org.testcontainers.r2dbc.R2DBCDatabaseContainer를 찾음 — 없으면 ClassNotFoundException
+testcontainers-r2dbc = { module = "org.testcontainers:testcontainers-r2dbc", version.ref = "testcontainers" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-plugin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint-gradle" }

@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: 'postgres:18'
+    environment:
+      - 'POSTGRES_DB=${POSTGRES_DB:-dozy_catalog}'
+      - 'POSTGRES_USER=${POSTGRES_USER:-dozy_catalog}'
+      - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?.env.example을 .env로 복사하고 값을 채워주세요}'
+    ports:
+      - '5432'

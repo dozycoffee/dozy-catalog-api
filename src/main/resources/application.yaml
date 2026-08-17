@@ -1,0 +1,25 @@
+# local(default) — 프로파일 미지정 시. spring-boot-docker-compose가 compose.yaml의 postgres 컨테이너를
+# 자동 기동/탐지해 R2DBC ConnectionFactory 빈을 구성하므로 여기엔 접속 정보를 두지 않는다.
+# 개인용 오버라이드가 필요하면 application-local.yaml(.gitignore 처리됨)을 만들어 사용할 것.
+spring:
+  application:
+    name: dozy-catalog-api
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  docker:
+    compose:
+      enabled: false
+  r2dbc:
+    url: r2dbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
