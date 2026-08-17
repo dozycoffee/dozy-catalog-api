@@ -26,7 +26,10 @@
 cp .env.example .env
 # .env를 열어 POSTGRES_PASSWORD 등 값을 채워주세요.
 
-# 2. 애플리케이션 실행
+# 2. pre-commit 훅 설치 (최초 1회 — .git/hooks는 저장소에 커밋되지 않으므로 클론할 때마다 실행 필요)
+./gradlew addKtlintFormatGitPreCommitHook
+
+# 3. 애플리케이션 실행
 ./gradlew bootRun
 ```
 
@@ -48,6 +51,8 @@ cp .env.example .env
 ```
 
 `./gradlew build`(CI에서 실행하는 명령)는 컴파일, `ktlintCheck`, `test`를 모두 포함합니다.
+
+pre-commit 훅(`./gradlew addKtlintFormatGitPreCommitHook`으로 설치, [시작하기](#시작하기) 참고)이 커밋 시 변경된 Kotlin 파일에 `ktlintFormat`을 자동 적용하고 재스테이징합니다.
 
 ## 프로젝트 구조
 
