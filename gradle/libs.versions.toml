@@ -3,6 +3,7 @@ kotlin = "2.3.21"
 spring-boot = "4.1.0"
 spring-dependency-management = "1.1.7"
 exposed = "1.4.0"
+kotlin-logging = "8.0.4"
 # spring-boot-dependencies(4.1.0)의 testcontainers.version과 동일하게 맞춤 — io.spring.dependency-management가
 # 중첩 BOM(testcontainers-bom) 버전까지는 못 끌어와서 명시. Boot 업그레이드 시 같이 갱신할 것.
 testcontainers = "2.0.5"
@@ -17,6 +18,7 @@ reactor-kotlin-extensions = { module = "io.projectreactor.kotlin:reactor-kotlin-
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
 kotlinx-coroutines-reactor = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactor" }
 jackson-module-kotlin = { module = "tools.jackson.module:jackson-module-kotlin" }
+kotlin-logging-jvm = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
 
 # infrastructure/persistence — R2DBC ConnectionFactory(Spring Boot 자동구성) + Exposed DSL
 spring-boot-starter-r2dbc = { module = "org.springframework.boot:spring-boot-starter-r2dbc" }

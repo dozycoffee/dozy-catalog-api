@@ -38,6 +38,7 @@ dependencies {
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines.reactor)
     implementation(libs.jackson.module.kotlin)
+    implementation(libs.kotlin.logging.jvm)
 
     // infrastructure/persistence — R2DBC ConnectionFactory(Spring Boot 자동구성) + Exposed DSL
     implementation(libs.spring.boot.starter.r2dbc)
