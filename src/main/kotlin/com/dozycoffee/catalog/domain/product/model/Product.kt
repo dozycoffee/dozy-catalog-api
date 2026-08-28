@@ -1,0 +1,236 @@
+package com.dozycoffee.catalog.domain.product.model
+
+import com.dozycoffee.catalog.domain.category.CategoryId
+import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
+import com.dozycoffee.catalog.domain.optiongroup.OptionKey
+import com.dozycoffee.catalog.domain.product.event.ProductActivated
+import com.dozycoffee.catalog.domain.product.event.ProductDiscontinued
+import com.dozycoffee.catalog.domain.product.event.ProductStoreScopeChanged
+import com.dozycoffee.catalog.domain.product.exception.DuplicateOptionGroupLinkException
+import com.dozycoffee.catalog.domain.product.exception.InvalidProductStatusTransitionException
+import com.dozycoffee.catalog.domain.product.exception.NoSelectableOptionException
+import com.dozycoffee.catalog.domain.product.exception.ProductNotDeletableException
+import com.dozycoffee.catalog.domain.product.exception.ProductOptionGroupNotLinkedException
+import com.dozycoffee.catalog.domain.productgroup.ProductGroupId
+import com.dozycoffee.catalog.domain.shared.AggregateRoot
+import com.dozycoffee.catalog.domain.shared.Money
+import com.dozycoffee.catalog.domain.tag.TagId
+
+class Product internal constructor(
+    id: ProductId,
+    sku: Sku?,
+    name: String,
+    categoryId: CategoryId,
+    description: String?,
+    imageUrl: String?,
+    basePrice: Money,
+    val tracksInventory: Boolean,
+    tagIds: Set<TagId> = emptySet(),
+    groupIds: Set<ProductGroupId> = emptySet(),
+    optionGroupLinks: List<ProductOptionGroupLink> = emptyList(),
+    status: ProductStatus = ProductStatus.DRAFT,
+    storeScope: StoreScope = StoreScope.All,
+) : AggregateRoot<ProductId>(id) {
+    var sku: Sku? = sku
+        private set
+    var name: String = name
+        private set
+    var categoryId: CategoryId = categoryId
+        private set
+    var description: String? = description
+        private set
+    var imageUrl: String? = imageUrl
+        private set
+    var basePrice: Money = basePrice
+        private set
+    var tagIds: Set<TagId> = tagIds
+        private set
+    var groupIds: Set<ProductGroupId> = groupIds
+        private set
+    var optionGroupLinks: List<ProductOptionGroupLink> = optionGroupLinks
+        private set
+    var status: ProductStatus = status
+        private set
+    var storeScope: StoreScope = storeScope
+        private set
+
+    fun rename(newName: String) {
+        this.name = newName
+    }
+
+    fun changeCategory(newCategoryId: CategoryId) {
+        this.categoryId = newCategoryId
+    }
+
+    fun changeDescription(newDescription: String?) {
+        this.description = newDescription
+    }
+
+    fun changeImage(newImageUrl: String?) {
+        this.imageUrl = newImageUrl
+    }
+
+    fun changeBasePrice(newBasePrice: Money) {
+        this.basePrice = newBasePrice
+    }
+
+    fun changeTags(newTagIds: Set<TagId>) {
+        this.tagIds = newTagIds
+    }
+
+    fun changeGroups(newGroupIds: Set<ProductGroupId>) {
+        this.groupIds = newGroupIds
+    }
+
+    // 어떤 매장이 새로 제외됐는지는 domain이 전체 매장 목록을 알지 못해 계산할 수
+    // 없다 — 구독 측(application)이 기존 StoreProductListing과 newScope를
+    // 대조해 판단하도록 이벤트에는 새 판매범위만 담는다.
+    fun changeStoreScope(newScope: StoreScope) {
+        this.storeScope = newScope
+        registerEvent(ProductStoreScopeChanged(id, newScope))
+    }
+
+    fun activate() {
+        if (status == ProductStatus.ACTIVE) {
+            throw InvalidProductStatusTransitionException(id, status, ProductStatus.ACTIVE)
+        }
+        status = ProductStatus.ACTIVE
+        registerEvent(ProductActivated(id))
+    }
+
+    fun discontinue() {
+        if (status != ProductStatus.ACTIVE) {
+            throw InvalidProductStatusTransitionException(id, status, ProductStatus.DISCONTINUED)
+        }
+        status = ProductStatus.DISCONTINUED
+        registerEvent(ProductDiscontinued(id))
+    }
+
+    // Draft가 아닌 상품은 단종 처리(discontinue)를 이용해야 한다.
+    fun delete() {
+        if (status != ProductStatus.DRAFT) {
+            throw ProductNotDeletableException(id, status)
+        }
+    }
+
+    fun linkOptionGroup(
+        optionGroupId: OptionGroupId,
+        displayOrder: Int,
+    ) {
+        if (optionGroupLinks.any { it.id == optionGroupId }) {
+            throw DuplicateOptionGroupLinkException(optionGroupId)
+        }
+        optionGroupLinks = optionGroupLinks + ProductOptionGroupLink(optionGroupId, displayOrder)
+    }
+
+    fun unlinkOptionGroup(optionGroupId: OptionGroupId) {
+        optionGroupLinks = optionGroupLinks.filterNot { it.id == optionGroupId }
+    }
+
+    fun reorderOptionGroups(order: List<OptionGroupId>) {
+        val linksById = optionGroupLinks.associateBy { it.id }
+        optionGroupLinks =
+            order.mapIndexed { index, optionGroupId ->
+                linksById.getValue(optionGroupId).also { it.displayOrder = index }
+            }
+    }
+
+    fun overrideOptionPrice(
+        optionGroupId: OptionGroupId,
+        optionKey: OptionKey,
+        price: Money,
+    ) {
+        replaceOverride(optionGroupId, OptionOverride.Price(optionKey, price))
+    }
+
+    // remainingSelectableOptionKeys: 이 제외를 반영했을 때 이 상품에서 남는
+    // 선택 가능한 옵션 키 집합. OptionGroup의 전체 옵션 목록을 알아야 계산
+    // 가능한 cross-aggregate 값이라 application이 계산해 전달한다.
+    fun excludeOption(
+        optionGroupId: OptionGroupId,
+        optionKey: OptionKey,
+        remainingSelectableOptionKeys: Set<OptionKey>,
+    ) {
+        if (remainingSelectableOptionKeys.isEmpty()) {
+            throw NoSelectableOptionException(id, optionGroupId)
+        }
+        replaceOverride(optionGroupId, OptionOverride.Exclude(optionKey))
+    }
+
+    fun removeOverride(
+        optionGroupId: OptionGroupId,
+        optionKey: OptionKey,
+    ) {
+        val link = linkOf(optionGroupId)
+        link.replaceOverrides(link.overrides.filterNot { it.optionKey == optionKey })
+    }
+
+    private fun replaceOverride(
+        optionGroupId: OptionGroupId,
+        override: OptionOverride,
+    ) {
+        val link = linkOf(optionGroupId)
+        link.replaceOverrides(link.overrides.filterNot { it.optionKey == override.optionKey } + override)
+    }
+
+    private fun linkOf(optionGroupId: OptionGroupId): ProductOptionGroupLink =
+        optionGroupLinks.firstOrNull { it.id == optionGroupId }
+            ?: throw ProductOptionGroupNotLinkedException(id, optionGroupId)
+
+    class NewProduct private constructor(
+        val sku: Sku?,
+        val name: String,
+        val categoryId: CategoryId,
+        val description: String?,
+        val imageUrl: String?,
+        val basePrice: Money,
+        val tracksInventory: Boolean,
+        val tagIds: Set<TagId>,
+        val groupIds: Set<ProductGroupId>,
+        val optionGroupIds: List<OptionGroupId>,
+    ) {
+        companion object {
+            // 검증을 거치지 않고는 인스턴스를 만들 수 없는 유일한 생성 경로
+            fun of(
+                sku: Sku?,
+                name: String,
+                categoryId: CategoryId,
+                description: String?,
+                imageUrl: String?,
+                basePrice: Money,
+                tracksInventory: Boolean,
+                tagIds: Set<TagId> = emptySet(),
+                groupIds: Set<ProductGroupId> = emptySet(),
+                optionGroupIds: List<OptionGroupId> = emptyList(),
+            ): NewProduct {
+                validateNoDuplicateOptionGroup(optionGroupIds)
+                return NewProduct(
+                    sku,
+                    name,
+                    categoryId,
+                    description,
+                    imageUrl,
+                    basePrice,
+                    tracksInventory,
+                    tagIds,
+                    groupIds,
+                    optionGroupIds,
+                )
+            }
+        }
+    }
+
+    private companion object {
+        fun validateNoDuplicateOptionGroup(optionGroupIds: List<OptionGroupId>) {
+            val duplicateId =
+                optionGroupIds
+                    .groupBy { it }
+                    .entries
+                    .firstOrNull { it.value.size > 1 }
+                    ?.key
+            if (duplicateId != null) {
+                throw DuplicateOptionGroupLinkException(duplicateId)
+            }
+        }
+    }
+}
