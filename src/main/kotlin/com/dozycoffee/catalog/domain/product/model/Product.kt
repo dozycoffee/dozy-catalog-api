@@ -7,6 +7,7 @@ import com.dozycoffee.catalog.domain.product.event.ProductActivated
 import com.dozycoffee.catalog.domain.product.event.ProductDiscontinued
 import com.dozycoffee.catalog.domain.product.event.ProductStoreScopeChanged
 import com.dozycoffee.catalog.domain.product.exception.DuplicateOptionGroupLinkException
+import com.dozycoffee.catalog.domain.product.exception.InvalidOptionGroupOrderException
 import com.dozycoffee.catalog.domain.product.exception.InvalidProductStatusTransitionException
 import com.dozycoffee.catalog.domain.product.exception.NoSelectableOptionException
 import com.dozycoffee.catalog.domain.product.exception.ProductNotDeletableException
@@ -127,7 +128,13 @@ class Product internal constructor(
         optionGroupLinks = optionGroupLinks.filterNot { it.id == optionGroupId }
     }
 
+    // order는 연결된 옵션 그룹 전체를 정확히 한 번씩 담은 순열이어야 한다. 일부만 담은
+    // 요청을 받아들이면 빠진 링크가 그 링크의 예외 설정(overrides)과 함께 조용히 사라지므로 거부한다.
     fun reorderOptionGroups(order: List<OptionGroupId>) {
+        order.forEach { linkOf(it) }
+        if (order.size != optionGroupLinks.size || order.distinct().size != order.size) {
+            throw InvalidOptionGroupOrderException(id, optionGroupLinks.map { it.id }, order)
+        }
         val linksById = optionGroupLinks.associateBy { it.id }
         optionGroupLinks =
             order.mapIndexed { index, optionGroupId ->
