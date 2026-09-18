@@ -71,14 +71,23 @@ com.dozycoffee.catalog
 │   │   ├── ScheduledChange.kt
 │   │   └── ScheduledChangeRepository.kt
 │   │
-│   ├── storeproductlisting/
+│   ├── storedisplay/                              # 점주의 매장별 진열 설정
 │   │   ├── model/
-│   │   │   ├── StoreProductListing.kt            # Aggregate Root
+│   │   │   ├── StoreDisplaySetting.kt            # Aggregate Root
+│   │   │   ├── StoreDisplaySettingId.kt
 │   │   │   ├── Visibility.kt
-│   │   │   └── StockStatus.kt
+│   │   │   └── StoreVisibility.kt                # 노출 판단 결과
 │   │   ├── service/
-│   │   │   └── ProductVisibilityPolicy.kt        # 순수 도메인 서비스
-│   │   └── StoreProductListingRepository.kt
+│   │   │   └── ProductVisibilityPolicy.kt        # 순수 도메인 서비스 (Product·진열 설정·판매 가능 여부를 함께 봄)
+│   │   └── StoreDisplaySettingRepository.kt
+│   │
+│   ├── storeavailability/                         # 매장별 판매 가능 여부 (평평 + exception/)
+│   │   ├── StoreProductAvailability.kt           # Aggregate Root
+│   │   ├── StoreProductAvailabilityId.kt         # (storeId, productId) 복합 식별자
+│   │   ├── AvailabilitySource.kt                 # INVENTORY / OWNER
+│   │   ├── StockStatus.kt
+│   │   ├── StoreProductAvailabilityRepository.kt
+│   │   └── exception/
 │   │
 │   └── shared/
 │       ├── AggregateRoot.kt / Entity.kt
@@ -112,8 +121,12 @@ com.dozycoffee.catalog
 │   ├── scheduledchange/
 │   │   └── ScheduledChangeBatchApplicationService.kt
 │   │
-│   ├── storeproductlisting/
-│   │   ├── StoreProductListingApplicationService.kt
+│   ├── storedisplay/
+│   │   ├── StoreDisplaySettingApplicationService.kt
+│   │   └── command/ ...
+│   │
+│   ├── storeavailability/
+│   │   ├── StoreProductAvailabilityApplicationService.kt   # 점주 수동 품절 + 재고 이벤트 반영
 │   │   └── command/ ...
 │   │
 │   ├── eventhandler/
@@ -131,7 +144,8 @@ com.dozycoffee.catalog
 │   ├── persistence/
 │   │   ├── product/ ├── optiongroup/ ├── category/ ├── tag/ ├── productgroup/
 │   │   ├── scheduledchange/
-│   │   └── storeproductlisting/                  # Exposed Table 객체 + row 매핑 + Repository 구현체
+│   │   ├── storedisplay/ ├── storeavailability/
+│   │   └── (각 모듈)                             # Exposed Table 객체 + row 매핑 + Repository 구현체
 │   ├── acl/
 │   │   ├── StoreBcClient.kt                      # ValidateStoreExistsPort + StoreEligibilityChecker 구현
 │   │   └── InventoryServiceEventTranslator.kt
@@ -152,13 +166,13 @@ com.dozycoffee.catalog
     │   ├── ScheduledChangeController.kt
     │   └── ExposureController.kt
     ├── franchisee/
-    │   └── StoreProductListingController.kt
+    │   └── StoreProductController.kt              # 진열 설정·수동 품절
     └── dto/
 ```
 
 ## 설계 메모
 
-- **애그리거트 간 협력은 직접 호출/도메인 이벤트로**: `product`가 `optiongroup`을 참조하거나, `storeproductlisting`이 `product`의 상태를 읽어야 할 때 별도 포트를 만들지 않는다. 같은 서비스·같은 트랜잭션 경계 안이므로 `application` 레이어에서 서로의 Repository/ApplicationService를 직접 호출하거나, `domain.shared.DomainEvent`를 통해 이벤트로 처리한다.
+- **애그리거트 간 협력은 직접 호출/도메인 이벤트로**: `product`가 `optiongroup`을 참조하거나, `storedisplay`가 `product`의 상태를 읽어야 할 때 별도 포트를 만들지 않는다. 같은 서비스·같은 트랜잭션 경계 안이므로 `application` 레이어에서 서로의 Repository/ApplicationService를 직접 호출하거나, `domain.shared.DomainEvent`를 통해 이벤트로 처리한다.
 - **외부 시스템 연동만 포트화**: Store BC(매장 존재/자격 검증), 재고관리 서비스(이벤트 구독), POS/정산(이벤트 발행)처럼 네트워크 경계를 넘는 지점만 `application/*/port` 인터페이스로 감싸고 `infrastructure/acl`, `infrastructure/messaging`, `infrastructure/eventing`에서 구현한다. domain 레이어에는 외부 연동 인터페이스를 두지 않는다 — 도메인 로직이 직접 호출하지 않는 한 domain에 둘 근거가 없고, 같은 외부 BC 호출이 레이어별로 흩어지는 것을 막기 위함.
 - **exposure**는 쓰기 로직이 없는 순수 조회 모듈이라 domain 레이어 없이 application(query)+infrastructure(persistence)만 존재.
 - 예외 클래스와 `ErrorCode` 배치 규칙은 [예외 구조](exception.md)를 따른다.

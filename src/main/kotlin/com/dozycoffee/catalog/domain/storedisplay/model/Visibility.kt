@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.storeproductlisting.model
+package com.dozycoffee.catalog.domain.storedisplay.model
 
 // 점주의 노출 의도만 담는다. 본사 단종으로 인한 비노출은 이 값에 반영하지 않는다
 // — 단종 여부는 Product.status가 이미 갖고 있고, ProductVisibilityPolicy가
