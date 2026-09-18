@@ -127,12 +127,14 @@ flowchart LR
 
 ### 도메인 서비스에서 강제 (cross-aggregate)
 
+판단은 도메인 서비스, 오케스트레이션과 트랜잭션 경계는 application에 둔다.
+
 여러 애그리거트를 함께 봐야 하지만 저장소 없이 넘겨받은 값만으로 판단할 수 있는 규칙은 도메인 서비스에 둔다. application은 필요한 애그리거트를 조회·잠금해 넘기고 결과대로 저장·삭제만 한다. 넘겨받은 값이 어긋나는 것(다른 상품의 데이터가 섞임 등)은 호출 코드 오류이므로 `require`로 거부한다([예외 구조](architecture/exception.md)). 선택 가능한 옵션 판단은 모두 model의 같은 기준(예외를 반영했을 때 제외되지 않은 옵션)을 쓴다.
 
 | 규칙 | 도메인 서비스 | 처리 방식 |
 |---|---|---|
-| 옵션 변경(즉시·예약 스냅샷)으로 어떤 연결 상품의 선택 가능 옵션이 0개가 되면 거부 (요구사항 1.9) | `OptionListReplacer` | `replace(optionGroup, newOptions, linkedProducts)`가 이 그룹을 연결한 모든 상품(상태 무관)마다 새 목록 기준으로 선택 가능한 옵션을 계산해 0개면 거부 (`NoSelectableOptionException`). 거부되면 아무것도 바꾸지 않는다. 연결하지 않은 상품이 섞이면 `require`로 거부 |
-| 옵션 변경으로 사라진 옵션 키의 상품별 예외는 함께 삭제 (요구사항 1.9) | `OptionListReplacer` | 같은 `replace()`가 교체 후 상품마다 `Product.removeOverridesOfMissingOptions()` 호출. application은 옵션 그룹과 연결 상품을 같은 트랜잭션에서 저장 |
+| 옵션 변경(즉시·예약 스냅샷)으로 어떤 연결 상품의 선택 가능 옵션이 0개가 되면 거부 (요구사항 1.9) | `OptionReplacementPolicy` | `check(optionGroup, newOptions, linkedProducts)`가 새 목록 자체를 검증한 뒤 이 그룹을 연결한 모든 상품(상태 무관)마다 새 목록 기준으로 선택 가능한 옵션을 계산해 0개면 거부 (`NoSelectableOptionException`). 판단만 하고 어떤 애그리거트도 바꾸지 않는다. 연결하지 않은 상품이 섞이면 `require`로 거부 |
+| 옵션 변경으로 사라진 옵션 키의 상품별 예외는 함께 삭제 (요구사항 1.9) | `OptionReplacementPolicy` | 같은 `check()`가 사라지는 옵션 키를 `OptionReplacementPlan`으로 돌려준다. application이 `OptionGroup.replaceOptions()` 후 상품마다 `Product.removeOverrides(optionGroupId, removedOptionKeys)`를 호출해 한 트랜잭션에서 저장 ("주요 결정" 참고) |
 | 유효 옵션 구성 계산에 넘긴 옵션 그룹은 상품의 연결과 정확히 일치 | `EffectiveOptionResolver` | `resolve()`가 검증. 어긋나면 application이 옵션 그룹을 잘못 불러온 것이므로 `require`로 거부 |
 | 판매 범위에서 빠진 매장은 진열 설정과 `OWNER` 판매 가능 여부를 초기화하고 `INVENTORY`는 유지 (요구사항 1.5) | `StoreScopeCleanupPolicy` | 새 판매 범위와 이 상품의 진열 설정·판매 가능 여부를 받아 삭제할 ID를 고른다. 다른 상품의 설정이 섞이면 `require`로 거부. application은 즉시 변경·예약 적용 모두 이 결과대로 삭제 |
 
@@ -237,6 +239,10 @@ stateDiagram-v2
 단종 중 폐기처럼 비활성 기간의 재고 변동도 이벤트로 계속 반영되므로 재판매 시점에 정확하다. 출처별로 타입을 나누지 않은 이유는, 노출 판단이 결국 두 저장소를 모두 봐야 해서 품절 개념을 한곳에 모으려던 목적이 사라지기 때문이다.
 
 **향후 과제 — 재동기화**: 이벤트 유실이나 Catalog 장애로 투영이 어긋날 수 있다. 재고관리 서비스의 다매장 재고 일괄 조회 API가 확정되면, 재활성화·판매 범위 재포함 시점에 해당 매장들의 재고를 조회해 투영을 맞춘다. 조회 실패 시에는 기존 값을 유지하고 재시도한다(재활성화 자체는 막지 않는다).
+
+### 옵션 목록 교체는 OptionGroup과 연결 Product들을 한 트랜잭션에서 바꾼다 (요구사항 1.9)
+
+요구사항 1.9는 옵션 변경으로 연결 상품 중 하나라도 선택 가능한 옵션이 0개가 되면 변경 전체를 거부한다. 그래서 연결 상품 검증과 옵션 목록 교체, 사라진 키의 상품별 예외 삭제가 원자적이어야 하고, 여러 애그리거트(OptionGroup과 연결 Product들)를 한 트랜잭션에서 바꾼다. 이 트랜잭션은 application 서비스가 연다. 옵션 그룹을 잠그고 연결 상품 전체를 누락 없이 조회한 뒤 `OptionReplacementPolicy.check()` → `OptionGroup.replaceOptions()` → 상품마다 `Product.removeOverrides()` → 저장 순으로 처리하며, 즉시 교체와 예약 스냅샷 적용이 같은 흐름을 쓴다. 도메인 서비스는 판단(거부 여부, 사라지는 키)만 하고 애그리거트를 바꾸지 않는다.
 
 ## 타입으로 표현한 모델링 결정
 

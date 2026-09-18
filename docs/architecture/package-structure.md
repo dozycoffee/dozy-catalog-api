@@ -45,7 +45,7 @@ com.dozycoffee.catalog
 │   │   ├── service/                             # 순수 도메인 서비스 (Product·OptionGroup을 함께 봄)
 │   │   │   ├── EffectiveOptionResolver.kt        # 유효 옵션 구성·표시용 시작가 계산
 │   │   │   ├── EffectiveOptionConfig.kt          # 계산 결과 (그룹·옵션·자동 선택)
-│   │   │   └── OptionListReplacer.kt             # 옵션 목록 교체 + 연결 상품 검증 + 예외 정리
+│   │   │   └── OptionReplacementPolicy.kt        # 옵션 목록 교체 판단 (연결 상품 검증 + 사라지는 옵션 키)
 │   │   └── ProductRepository.kt                 # Repository는 최상위에 (model과 짝이라 바로 보이게)
 │   │
 │   ├── optiongroup/                              # 평평 (파일 5개, 기준 미달)

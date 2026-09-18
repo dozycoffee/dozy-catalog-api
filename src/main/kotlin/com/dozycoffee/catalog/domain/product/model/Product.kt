@@ -181,11 +181,14 @@ class Product internal constructor(
     }
 
     // 옵션 목록 교체로 옵션 그룹에서 사라진 옵션 키의 예외를 삭제한다(요구사항 1.9).
-    // optionGroup은 교체가 반영된 상태여야 한다. 이후 같은 키가 다시 생겨도 복원하지 않는다.
-    fun removeOverridesOfMissingOptions(optionGroup: OptionGroup) {
-        val link = linkOf(optionGroup.id)
-        val existingKeys = optionGroup.options.map { it.optionKey }.toSet()
-        link.replaceOverrides(link.overrides.filter { it.optionKey in existingKeys })
+    // 삭제할 키는 OptionReplacementPolicy.check()가 계산한 결과를 받는다. 옵션 그룹의 현재 상태를
+    // 보지 않으므로 옵션 그룹 교체와의 호출 순서에 의존하지 않는다. 이후 같은 키가 다시 생겨도 복원하지 않는다.
+    fun removeOverrides(
+        optionGroupId: OptionGroupId,
+        optionKeys: Set<OptionKey>,
+    ) {
+        val link = linkOf(optionGroupId)
+        link.replaceOverrides(link.overrides.filterNot { it.optionKey in optionKeys })
     }
 
     private fun requireOptionKeyExists(

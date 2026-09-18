@@ -359,7 +359,7 @@ class ProductTest {
         }
 
         @Test
-        fun `옵션 그룹에서 사라진 옵션 키의 예외만 삭제한다`() {
+        fun `주어진 옵션 키의 예외만 삭제하고 나머지는 유지한다`() {
             val product =
                 product(
                     links =
@@ -367,12 +367,16 @@ class ProductTest {
                             ProductOptionGroupLink(
                                 OptionGroupId(1),
                                 0,
-                                listOf(OptionOverride.Exclude(OptionKey("TALL")), OptionOverride.Price(OptionKey("GRANDE"), Money(700))),
+                                listOf(
+                                    OptionOverride.Exclude(OptionKey("TALL")),
+                                    OptionOverride.Price(OptionKey("GRANDE"), Money(700)),
+                                    OptionOverride.Price(OptionKey("VENTI"), Money(900)),
+                                ),
                             ),
                         ),
                 )
 
-            product.removeOverridesOfMissingOptions(optionGroup(1, "GRANDE", "VENTI"))
+            product.removeOverrides(OptionGroupId(1), setOf(OptionKey("TALL"), OptionKey("VENTI")))
 
             assertEquals(
                 listOf(OptionKey("GRANDE")),
@@ -381,6 +385,35 @@ class ProductTest {
                     .overrides
                     .map { it.optionKey },
             )
+        }
+
+        @Test
+        fun `다른 옵션 그룹의 예외는 건드리지 않는다`() {
+            val product =
+                product(
+                    links =
+                        listOf(
+                            ProductOptionGroupLink(OptionGroupId(1), 0, listOf(OptionOverride.Exclude(OptionKey("TALL")))),
+                            ProductOptionGroupLink(OptionGroupId(2), 1, listOf(OptionOverride.Exclude(OptionKey("TALL")))),
+                        ),
+                )
+
+            product.removeOverrides(OptionGroupId(1), setOf(OptionKey("TALL")))
+
+            assertEquals(emptyList(), product.optionGroupLinks.first { it.id == OptionGroupId(1) }.overrides)
+            assertEquals(
+                listOf(OptionOverride.Exclude(OptionKey("TALL"))),
+                product.optionGroupLinks.first { it.id == OptionGroupId(2) }.overrides,
+            )
+        }
+
+        @Test
+        fun `연결되지 않은 옵션 그룹의 예외는 삭제할 수 없다`() {
+            val product = product(links = listOf(link(1, 0)))
+
+            assertFailsWith<ProductOptionGroupNotLinkedException> {
+                product.removeOverrides(OptionGroupId(99), setOf(OptionKey("TALL")))
+            }
         }
     }
 
