@@ -60,6 +60,6 @@ Thumbs.db
 *.log
 logs/
 
-### Agent context (local reference only, not for repo) ###
+### Agent local-only context (personal, not for repo) ###
 /context/
-/CLAUDE.md
+/CLAUDE.local.md

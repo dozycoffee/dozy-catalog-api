@@ -43,6 +43,15 @@ cp .env.example .env
 
 영속성 코드를 다루는 테스트는 Testcontainers로 PostgreSQL 컨테이너를 직접 띄워 검증합니다 (`compose.yaml`과는 무관하게 동작).
 
+### 빌드·테스트 주의사항
+
+`build.gradle.kts`, `gradle/libs.versions.toml`을 수정할 때 알아 둘 것들입니다. `DozyCatalogApiApplicationTests`에서 실제로 검증했습니다.
+
+- **Testcontainers 2.x부터 모듈 아티팩트 이름에 `testcontainers-` 접두어가 붙습니다.** `org.testcontainers:postgresql`이 `org.testcontainers:testcontainers-postgresql`로 바뀌었고, `junit-jupiter`도 마찬가지입니다. 예전 문서의 좌표를 그대로 쓰면 404가 납니다.
+- **Testcontainers 버전은 `libs.versions.toml`에 직접 적습니다.** `spring-boot-dependencies`가 `testcontainers-bom`을 import하지만, `io.spring.dependency-management` 플러그인은 이 BOM의 버전을 가져오지 못합니다. Spring Boot를 업그레이드할 때 함께 갱신해야 합니다.
+- **`org.testcontainers:testcontainers-r2dbc`가 추가로 필요합니다.** R2DBC `@ServiceConnection`이 참조하는 `R2DBCDatabaseContainer` 클래스는 `testcontainers-postgresql`이 아니라 이 모듈에 있습니다. 없으면 컨텍스트 로딩 때 `ClassNotFoundException`으로 실패합니다.
+- **`spring-boot-docker-compose`는 테스트 클래스패스에서 제외합니다.** Spring Boot Gradle 플러그인은 기본적으로 `developmentOnly`를 `testRuntimeClasspath`까지 전파합니다. 그러면 테스트 중에도 `compose.yaml` 컨테이너를 띄우려고 해서 Testcontainers와 역할이 겹치고, CI에서는 `.env`가 없어 `POSTGRES_PASSWORD` 누락으로 실패합니다. `build.gradle.kts`의 `configurations { testRuntimeOnly { exclude(...) } }`로 제외합니다.
+
 ## 코드 스타일 검사
 
 ```bash
@@ -65,6 +74,12 @@ com.dozycoffee.catalog
 ├── infrastructure/      # Exposed 영속성 구현, 외부 시스템 어댑터(acl/messaging/eventing), 스케줄러, 설정
 └── presentation/        # REST 컨트롤러, 요청/응답 DTO
 ```
+
+자세한 원칙과 전체 패키지 트리는 [docs/architecture/package-structure.md](docs/architecture/package-structure.md)를 참고하세요.
+
+## 문서
+
+도메인 요구사항, 시나리오, 도메인 모델, ERD, 아키텍처 문서는 [`docs/`](docs/README.md)에 있습니다. 명세의 원본은 이 저장소이며, 설계를 바꾸는 PR에서는 관련 문서도 함께 수정합니다.
 
 ## CI
 
