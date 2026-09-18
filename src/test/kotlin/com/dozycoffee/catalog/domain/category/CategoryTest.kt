@@ -1,11 +1,14 @@
 package com.dozycoffee.catalog.domain.category
 
+import com.dozycoffee.catalog.domain.category.exception.CategoryNotAssignableException
 import com.dozycoffee.catalog.domain.category.exception.InvalidParentCategoryException
+import com.dozycoffee.catalog.domain.category.exception.ReferencedCategoryNotPromotableException
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 
 @DisplayName("Category")
 class CategoryTest {
@@ -72,13 +75,46 @@ class CategoryTest {
         }
 
         @Test
-        fun `대분류로 승격하면 부모가 사라진다`() {
+        fun `상품이 참조하지 않는 소분류는 대분류로 승격하면 부모가 사라진다`() {
             val child = ChildCategory(CategoryId(1), "커피", parentId = CategoryId(2))
 
-            val topLevel = child.becomeTopLevel()
+            val topLevel = child.becomeTopLevel(hasProducts = false)
 
             assertEquals(CategoryId(1), topLevel.id)
             assertEquals("커피", topLevel.name)
+        }
+
+        @Test
+        fun `상품이 참조 중인 소분류는 대분류로 승격할 수 없다`() {
+            // 승격되면 이 소분류를 참조하던 상품들이 대분류를 참조하게 된다(1.6).
+            val child = ChildCategory(CategoryId(1), "커피", parentId = CategoryId(2))
+
+            assertFailsWith<ReferencedCategoryNotPromotableException> {
+                child.becomeTopLevel(hasProducts = true)
+            }
+
+            assertEquals("커피", child.name)
+            assertEquals(CategoryId(2), child.parentId)
+        }
+    }
+
+    @Nested
+    @DisplayName("상품에 지정 가능한 카테고리 확인")
+    inner class RequireChild {
+        @Test
+        fun `소분류는 그대로 반환한다`() {
+            val child: Category = ChildCategory(CategoryId(1), "커피", parentId = CategoryId(2))
+
+            assertSame(child, child.requireChild())
+        }
+
+        @Test
+        fun `대분류는 상품에 지정할 수 없다`() {
+            val topLevel: Category = TopLevelCategory(CategoryId(1), "음료")
+
+            assertFailsWith<CategoryNotAssignableException> {
+                topLevel.requireChild()
+            }
         }
     }
 }

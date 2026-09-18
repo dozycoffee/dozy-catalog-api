@@ -111,9 +111,11 @@ flowchart LR
 | Product | 연결되지 않은 옵션 그룹에는 예외(가격/제외)를 지정할 수 없다 | `ProductOptionGroupNotLinkedException` |
 | Product | 옵션 그룹 순서 변경 요청은 연결된 옵션 그룹 전체를 정확히 한 번씩 담아야 한다 (일부만 담으면 빠진 연결과 예외 설정이 사라지므로 거부) | `InvalidOptionGroupOrderException`, 연결되지 않은 그룹이 있으면 `ProductOptionGroupNotLinkedException` |
 | Product | 상품별 옵션 예외는 옵션 키당 최대 1건 (새 예외가 기존 것을 대체) | — (구조로 보장) |
+| Product | 카테고리는 소분류만 지정할 수 있다 (등록·카테고리 변경 모두) | — (`ChildCategory`만 받아 타입으로 보장) |
 | OptionGroup | 옵션은 최소 1개 (생성·교체 모두) | `EmptyOptionGroupException` |
 | OptionGroup | 그룹 안에서 optionKey는 유일 | `DuplicateOptionKeyException` |
 | Category | 2단계 계층만 허용 — 자기 자신을 부모로 지정 불가, 하위를 가진 대분류는 소분류가 될 수 없음 | `InvalidParentCategoryException` |
+| Category | 상품이 참조 중인 소분류는 대분류가 될 수 없다 | `ReferencedCategoryNotPromotableException` |
 | ScheduledChange | `PENDING` 상태에서만 취소/적용/실패 처리 가능 | `NoPendingScheduleException` / `InvalidScheduleStatusTransitionException` |
 | StoreProductAvailability | `INVENTORY` 출처(재고 추적 상품)의 품절 상태는 점주가 바꿀 수 없다 | `StockStatusNotManuallyEditableException` |
 | StoreProductAvailability | `OWNER` 출처(재고 미추적 상품)에는 재고 이벤트를 반영할 수 없다 | `InventoryEventNotApplicableException` |
@@ -129,6 +131,8 @@ flowchart LR
 | 옵션 변경으로 사라진 옵션 키의 상품별 예외는 함께 삭제 (요구사항 1.9) | 이 그룹을 연결한 모든 상품의 예외 | 같은 트랜잭션에서 application이 연결 상품마다 `Product.removeOverride()` 호출 |
 | 상품별 예외는 옵션 그룹에 존재하는 옵션 키에만 지정 가능 | OptionGroup의 옵션 키 목록 | application 검증 (예외 예약은 적용 시점에 다시 확인, 없으면 `실패`) |
 | 하위 카테고리를 가진 대분류는 소분류로 이동 불가 | 하위 카테고리 존재 여부 | application이 조회해 `becomeChildOf(hasChildren)`에 전달 |
+| 상품이 참조 중인 소분류는 대분류로 승격 불가 | 참조 상품 존재 여부 | application이 조회해 `becomeTopLevel(hasProducts)`에 전달 |
+| 상품 등록·카테고리 변경(예약 적용 포함)은 소분류만 지정 가능 | 요청한 카테고리가 소분류인지 | application이 카테고리를 불러와 `requireChild()`로 얻은 `ChildCategory`를 Product에 전달, 대분류면 `CategoryNotAssignableException` |
 | 상품이 참조 중인 소분류 삭제 불가 | 참조 상품 존재 여부 | application 검증 (`CategoryStillReferencedException`) |
 | 소분류를 가진 대분류 삭제 불가 | 하위 카테고리 존재 여부 | application 검증 (`CategoryHasChildrenException`) |
 | 상품이 연결한 옵션 그룹 삭제 불가 | 연결 상품 존재 여부 | application 검증 (`OptionGroupStillReferencedException`) |
