@@ -93,12 +93,12 @@ flowchart LR
   - `INVENTORY`(재고 추적 상품): 재고관리 서비스 이벤트로만 바뀐다. 기본값은 품절(처음 재고 0)이다. 상품 상태·판매 범위와 무관하게 항상 반영하고, 판매 범위에서 빠져도 지우지 않는다.
   - `OWNER`(재고 미추적 상품): 점주가 수동으로만 바꾼다. 기본값은 판매중이다. 판매 범위에서 빠지면 진열 설정과 함께 초기화한다.
 - **옵션 구조**: Option(개별 옵션)과 OptionGroup(선택 방식·필수 여부를 가진 묶음)을 분리하고, Product는 ProductOptionGroupLink로 옵션 그룹을 참조한다. 예외가 없으면 옵션 그룹의 구성과 가격을 그대로 따르고, 필요한 상품만 `OptionOverride`(가격/제외)로 예외를 둔다. "기본 선택값" 개념은 없고 필수·복수 여부만 표현한다. 필수 그룹에 옵션이 1개면 자동 선택으로 본다.
-- **최종 판매가**: 기준가 + 선택한 옵션들의 가격 합(상품별 가격 예외 반영). 옵션 가격과 예외 가격이 0 이상이므로 기준가 아래로 내려가지 않는다.
+- **유효 옵션 구성과 가격**: 연결된 옵션 그룹에 상품별 예외(제외·가격)를 반영한 결과를 도메인 서비스 `EffectiveOptionResolver`가 계산한다. 그룹은 상품의 연결 순서, 옵션은 옵션 그룹의 순서를 따르고, 필수 그룹에 유효 옵션이 1개면 자동 선택으로 본다. 표시용 시작가는 기준가 + 필수 그룹별 최저가다. 최종 판매가(기준가 + 선택한 옵션 가격 합)는 규칙으로만 두고 Catalog는 계산하지 않는다 — 조합 금액 계산·선택 검증·주문 시점 가격 스냅샷은 주문·POS의 책임이다(요구사항 1.9). 옵션 가격과 예외 가격이 0 이상이므로 어떤 조합도 기준가 아래로 내려가지 않는다.
 - **옵션 키(optionKey)**: 옵션 목록 교체로 물리 id가 바뀌어도 상품별 예외의 참조가 끊기지 않도록 유지되는 논리 식별자. 교체로 사라진 키의 예외는 함께 삭제한다(요구사항 1.9).
 
 ## 불변식과 강제 위치
 
-애그리거트 혼자 지킬 수 있는 규칙은 애그리거트 메서드 안에서 강제하고, 다른 애그리거트나 저장소를 봐야 판단할 수 있는 규칙은 application 레이어가 필요한 값을 조회해 넘기거나 직접 검증한다.
+애그리거트 혼자 지킬 수 있는 규칙은 애그리거트 메서드 안에서 강제한다. 여러 애그리거트를 함께 봐야 하지만 I/O 없이 판단할 수 있는 규칙은 도메인 서비스가, 저장소 조회가 필요한 규칙은 application 레이어가 필요한 값을 조회해 넘기거나 직접 검증한다.
 
 ### 애그리거트 내부에서 강제
 
@@ -109,6 +109,8 @@ flowchart LR
 | Product | `DRAFT`가 아닌 상품은 삭제할 수 없다 | `ProductNotDeletableException` |
 | Product | 같은 옵션 그룹을 두 번 연결할 수 없다 (등록 시점 포함) | `DuplicateOptionGroupLinkException` |
 | Product | 연결되지 않은 옵션 그룹에는 예외(가격/제외)를 지정할 수 없다 | `ProductOptionGroupNotLinkedException` |
+| Product | 예외(가격/제외)는 옵션 그룹에 존재하는 옵션 키에만 지정할 수 있다 (옵션 그룹을 인자로 받아 검증만 하고 보관하지 않음) | `OptionKeyNotFoundException` |
+| Product | 제외로 그 상품의 선택 가능한 옵션이 0개가 되면 거부 (옵션 그룹을 인자로 받아 `EffectiveOptionResolver`로 계산) | `NoSelectableOptionException` |
 | Product | 옵션 그룹 순서 변경 요청은 연결된 옵션 그룹 전체를 정확히 한 번씩 담아야 한다 (일부만 담으면 빠진 연결과 예외 설정이 사라지므로 거부) | `InvalidOptionGroupOrderException`, 연결되지 않은 그룹이 있으면 `ProductOptionGroupNotLinkedException` |
 | Product | 상품별 옵션 예외는 옵션 키당 최대 1건 (새 예외가 기존 것을 대체) | — (구조로 보장) |
 | OptionGroup | 옵션은 최소 1개 (생성·교체 모두) | `EmptyOptionGroupException` |
@@ -120,14 +122,22 @@ flowchart LR
 | StoreProductAvailability | 이미 반영한 것보다 오래되었거나 같은 시각의 재고 이벤트는 무시한다 | — (반영 여부를 반환) |
 | Money | 금액은 0 이상 (기준가, 옵션 가격, 상품별 가격 예외 모두) | `InvalidMoneyAmountException` |
 
+### 도메인 서비스에서 강제 (cross-aggregate, I/O 없음)
+
+필요한 애그리거트는 application이 조회·잠금해 넘기고, 판단과 변경은 도메인 서비스가 한다. 모두 유효 옵션 구성 계산(`EffectiveOptionResolver`) 위에서 판단한다.
+
+| 규칙 | 필요한 정보 | 처리 방식 |
+|---|---|---|
+| 옵션 변경(즉시·예약 스냅샷)으로 어떤 연결 상품의 선택 가능 옵션이 0개가 되면 거부 | 이 그룹을 연결한 모든 상품(상태 무관)의 예외 | `OptionListReplacer.replace(optionGroup, newOptions, linkedProducts)`가 상품마다 새 목록으로 유효 구성을 계산해 빈 그룹이 있으면 거부 (`NoSelectableOptionException`). 거부되면 아무것도 바꾸지 않는다 |
+| 옵션 변경으로 사라진 옵션 키의 상품별 예외는 함께 삭제 (요구사항 1.9) | 이 그룹을 연결한 모든 상품의 예외 | 같은 `OptionListReplacer.replace()`가 교체 후 상품마다 `Product.removeOverridesOfMissingOptions()` 호출. application은 옵션 그룹과 연결 상품을 같은 트랜잭션에서 저장 |
+| 유효 옵션 구성 계산에 넘긴 옵션 그룹은 상품의 연결과 정확히 일치 | 상품에 연결된 옵션 그룹 전체 | `EffectiveOptionResolver.resolve()`가 검증 (연결되지 않은 그룹 `ProductOptionGroupNotLinkedException`, 빠진 그룹 `LinkedOptionGroupNotFoundException`) |
+
+예외 예약의 적용 시점에 옵션 키가 이미 사라졌으면 `Product`의 키 검증에 걸려 예약이 `실패`로 기록된다(요구사항 1.4, 1.9).
+
 ### application 레이어에서 강제 (cross-aggregate)
 
 | 규칙 | 필요한 정보 | 처리 방식 |
 |---|---|---|
-| 제외 지정으로 상품의 선택 가능 옵션이 0개가 되면 거부 | OptionGroup의 전체 옵션 목록 | application이 남는 옵션 키 집합을 계산해 `Product.excludeOption()`에 전달, 비었으면 도메인이 거부 |
-| 옵션 변경으로 어떤 연결 상품의 선택 가능 옵션이 0개가 되면 거부 | 이 그룹을 연결한 모든 상품의 제외 설정 | application이 연결 상품 전체를 조회해 검증 (`NoSelectableOptionException`) |
-| 옵션 변경으로 사라진 옵션 키의 상품별 예외는 함께 삭제 (요구사항 1.9) | 이 그룹을 연결한 모든 상품의 예외 | 같은 트랜잭션에서 application이 연결 상품마다 `Product.removeOverride()` 호출 |
-| 상품별 예외는 옵션 그룹에 존재하는 옵션 키에만 지정 가능 | OptionGroup의 옵션 키 목록 | application 검증 (예외 예약은 적용 시점에 다시 확인, 없으면 `실패`) |
 | 하위 카테고리를 가진 대분류는 소분류로 이동 불가 | 하위 카테고리 존재 여부 | application이 조회해 `becomeChildOf(hasChildren)`에 전달 |
 | 상품이 참조 중인 소분류 삭제 불가 | 참조 상품 존재 여부 | application 검증 (`CategoryStillReferencedException`) |
 | 소분류를 가진 대분류 삭제 불가 | 하위 카테고리 존재 여부 | application 검증 (`CategoryHasChildrenException`) |
@@ -253,6 +263,8 @@ stateDiagram-v2
 | 옵션 키 | `OptionKey` | 옵션 교체에도 유지되는 논리 식별자 |
 | 단일 선택 / 복수 선택 | `SelectionType.SINGLE` / `MULTI` | 옵션 그룹의 선택 방식 |
 | 옵션 예외 (가격 / 제외) | `OptionOverride.Price` / `Exclude` | 특정 상품에만 적용하는 옵션 가격 변경 또는 선택 불가 처리 |
+| 유효 옵션 구성 | `EffectiveOptionConfig` (`EffectiveOptionResolver`) | 연결된 옵션 그룹에 상품별 예외를 반영한 결과. 그룹별 유효 옵션과 자동 선택 옵션 |
+| 표시용 시작가 | `EffectiveOptionConfig.displayStartingPrice` | 기준가 + 필수 그룹마다 유효 옵션 중 최저가. 선택 그룹은 더하지 않음 |
 | 대분류 / 소분류 | `TopLevelCategory` / `ChildCategory` | 2단계 카테고리 |
 | 태그 | `Tag` | 마케팅용 라벨 (신메뉴, 시즌한정 등) |
 | 상품 그룹 | `ProductGroup` | 본사 내부 관리용 분류, 점주·손님에게 비노출 |
