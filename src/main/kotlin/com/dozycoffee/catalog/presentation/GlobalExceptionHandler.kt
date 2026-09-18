@@ -14,9 +14,9 @@ private val logger = KotlinLogging.logger {}
 class GlobalExceptionHandler {
     @ExceptionHandler(DomainException::class)
     fun handleDomainException(e: DomainException): ResponseEntity<ErrorResponse> {
-        logger.warn(e) { "도메인 규칙 위반: ${e.code}" }
+        logger.warn(e) { "도메인 규칙 위반: ${e.errorCode.code}" }
         return ResponseEntity
             .status(HttpStatus.BAD_REQUEST)
-            .body(ErrorResponse(code = e.code, message = e.message ?: e.code))
+            .body(ErrorResponse(code = e.errorCode.code, message = e.message ?: e.errorCode.code))
     }
 }
