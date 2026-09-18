@@ -12,6 +12,7 @@ enum class ProductErrorCode(
     NO_SELECTABLE_OPTION(ErrorType.BUSINESS_RULE_VIOLATION),
     PRODUCT_OPTION_GROUP_NOT_LINKED(ErrorType.NOT_FOUND),
     INVALID_OPTION_GROUP_ORDER(ErrorType.INVALID_INPUT),
+    OPTION_KEY_NOT_FOUND(ErrorType.NOT_FOUND),
     ;
 
     override val code: String get() = name

@@ -2,8 +2,11 @@ package com.dozycoffee.catalog.domain.product.model
 
 import com.dozycoffee.catalog.domain.category.CategoryId
 import com.dozycoffee.catalog.domain.category.ChildCategory
+import com.dozycoffee.catalog.domain.optiongroup.Option
+import com.dozycoffee.catalog.domain.optiongroup.OptionGroup
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
+import com.dozycoffee.catalog.domain.optiongroup.SelectionType
 import com.dozycoffee.catalog.domain.product.event.ProductActivated
 import com.dozycoffee.catalog.domain.product.event.ProductDiscontinued
 import com.dozycoffee.catalog.domain.product.event.ProductStoreScopeChanged
@@ -11,8 +14,10 @@ import com.dozycoffee.catalog.domain.product.exception.DuplicateOptionGroupLinkE
 import com.dozycoffee.catalog.domain.product.exception.InvalidOptionGroupOrderException
 import com.dozycoffee.catalog.domain.product.exception.InvalidProductStatusTransitionException
 import com.dozycoffee.catalog.domain.product.exception.NoSelectableOptionException
+import com.dozycoffee.catalog.domain.product.exception.OptionKeyNotFoundException
 import com.dozycoffee.catalog.domain.product.exception.ProductNotDeletableException
 import com.dozycoffee.catalog.domain.product.exception.ProductOptionGroupNotLinkedException
+import com.dozycoffee.catalog.domain.shared.ErrorType
 import com.dozycoffee.catalog.domain.shared.Money
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -210,11 +215,13 @@ class ProductTest {
     @Nested
     @DisplayName("상품별 옵션 예외")
     inner class OptionOverrides {
+        private val sizeGroup = optionGroup(1, "TALL", "GRANDE")
+
         @Test
         fun `특정 옵션의 가격을 이 상품에서만 다르게 지정한다`() {
             val product = product(links = listOf(link(1, 0)))
 
-            product.overrideOptionPrice(OptionGroupId(1), OptionKey("SHOT"), Money(700))
+            product.overrideOptionPrice(sizeGroup, OptionKey("GRANDE"), Money(700))
 
             val override =
                 assertIs<OptionOverride.Price>(
@@ -223,16 +230,16 @@ class ProductTest {
                         .overrides
                         .single(),
                 )
-            assertEquals(OptionKey("SHOT"), override.optionKey)
+            assertEquals(OptionKey("GRANDE"), override.optionKey)
             assertEquals(Money(700), override.price)
         }
 
         @Test
         fun `같은 옵션에 예외를 다시 지정하면 누적되지 않고 교체된다`() {
             val product = product(links = listOf(link(1, 0)))
-            product.overrideOptionPrice(OptionGroupId(1), OptionKey("SHOT"), Money(700))
+            product.overrideOptionPrice(sizeGroup, OptionKey("GRANDE"), Money(700))
 
-            product.overrideOptionPrice(OptionGroupId(1), OptionKey("SHOT"), Money(900))
+            product.overrideOptionPrice(sizeGroup, OptionKey("GRANDE"), Money(900))
 
             val override =
                 assertIs<OptionOverride.Price>(
@@ -248,11 +255,7 @@ class ProductTest {
         fun `옵션을 이 상품에서만 제외한다`() {
             val product = product(links = listOf(link(1, 0)))
 
-            product.excludeOption(
-                OptionGroupId(1),
-                OptionKey("TALL"),
-                remainingSelectableOptionKeys = setOf(OptionKey("GRANDE")),
-            )
+            product.excludeOption(sizeGroup, OptionKey("TALL"))
 
             val override =
                 assertIs<OptionOverride.Exclude>(
@@ -265,15 +268,69 @@ class ProductTest {
         }
 
         @Test
-        fun `제외로 선택 가능한 옵션이 0개가 되면 거부된다`() {
+        fun `가격 예외가 있던 옵션을 제외하면 제외로 교체된다`() {
+            val product = product(links = listOf(link(1, 0)))
+            product.overrideOptionPrice(sizeGroup, OptionKey("TALL"), Money(300))
+
+            product.excludeOption(sizeGroup, OptionKey("TALL"))
+
+            assertIs<OptionOverride.Exclude>(
+                product.optionGroupLinks
+                    .single()
+                    .overrides
+                    .single(),
+            )
+        }
+
+        @Test
+        fun `제외로 선택 가능한 옵션이 0개가 되면 거부하고 기존 예외를 그대로 둔다`() {
+            val product = product(links = listOf(link(1, 0)))
+            product.excludeOption(sizeGroup, OptionKey("TALL"))
+
+            assertFailsWith<NoSelectableOptionException> {
+                product.excludeOption(sizeGroup, OptionKey("GRANDE"))
+            }
+            assertEquals(
+                listOf(OptionKey("TALL")),
+                product.optionGroupLinks
+                    .single()
+                    .overrides
+                    .map { it.optionKey },
+            )
+        }
+
+        @Test
+        fun `옵션이 1개뿐인 그룹에서 그 옵션을 제외하면 거부된다`() {
             val product = product(links = listOf(link(1, 0)))
 
             assertFailsWith<NoSelectableOptionException> {
-                product.excludeOption(
-                    OptionGroupId(1),
-                    OptionKey("TALL"),
-                    remainingSelectableOptionKeys = emptySet(),
-                )
+                product.excludeOption(optionGroup(1, "ONLY"), OptionKey("ONLY"))
+            }
+        }
+
+        @Test
+        fun `옵션 그룹에 없는 옵션 키에는 가격 예외를 지정할 수 없다`() {
+            val product = product(links = listOf(link(1, 0)))
+
+            val exception =
+                assertFailsWith<OptionKeyNotFoundException> {
+                    product.overrideOptionPrice(sizeGroup, OptionKey("VENTI"), Money(700))
+                }
+            assertEquals(ErrorType.NOT_FOUND, exception.errorCode.type)
+            assertTrue(
+                product.optionGroupLinks
+                    .single()
+                    .overrides
+                    .isEmpty(),
+            )
+        }
+
+        @Test
+        fun `옵션 그룹에 없는 옵션 키는 제외할 수 없다`() {
+            val product = product(links = listOf(link(1, 0)))
+
+            assertFailsWith<OptionKeyNotFoundException> {
+                product.excludeOption(sizeGroup, OptionKey("VENTI"))
             }
         }
 
@@ -282,22 +339,47 @@ class ProductTest {
             val product = product(links = listOf(link(1, 0)))
 
             assertFailsWith<ProductOptionGroupNotLinkedException> {
-                product.overrideOptionPrice(OptionGroupId(99), OptionKey("SHOT"), Money(700))
+                product.overrideOptionPrice(optionGroup(99, "SHOT"), OptionKey("SHOT"), Money(700))
             }
         }
 
         @Test
         fun `지정한 예외를 제거한다`() {
             val product = product(links = listOf(link(1, 0)))
-            product.overrideOptionPrice(OptionGroupId(1), OptionKey("SHOT"), Money(700))
+            product.overrideOptionPrice(sizeGroup, OptionKey("GRANDE"), Money(700))
 
-            product.removeOverride(OptionGroupId(1), OptionKey("SHOT"))
+            product.removeOverride(OptionGroupId(1), OptionKey("GRANDE"))
 
             assertTrue(
                 product.optionGroupLinks
                     .single()
                     .overrides
                     .isEmpty(),
+            )
+        }
+
+        @Test
+        fun `옵션 그룹에서 사라진 옵션 키의 예외만 삭제한다`() {
+            val product =
+                product(
+                    links =
+                        listOf(
+                            ProductOptionGroupLink(
+                                OptionGroupId(1),
+                                0,
+                                listOf(OptionOverride.Exclude(OptionKey("TALL")), OptionOverride.Price(OptionKey("GRANDE"), Money(700))),
+                            ),
+                        ),
+                )
+
+            product.removeOverridesOfMissingOptions(optionGroup(1, "GRANDE", "VENTI"))
+
+            assertEquals(
+                listOf(OptionKey("GRANDE")),
+                product.optionGroupLinks
+                    .single()
+                    .overrides
+                    .map { it.optionKey },
             )
         }
     }
@@ -413,6 +495,17 @@ class ProductTest {
         optionGroupId: Long,
         displayOrder: Int,
     ) = ProductOptionGroupLink(OptionGroupId(optionGroupId), displayOrder)
+
+    private fun optionGroup(
+        id: Long,
+        vararg keys: String,
+    ) = OptionGroup(
+        id = OptionGroupId(id),
+        name = "옵션 그룹 $id",
+        selectionType = SelectionType.SINGLE,
+        required = true,
+        options = keys.map { Option(OptionKey(it), name = it, price = Money(0)) },
+    )
 
     private fun childCategory(id: Long) = ChildCategory(CategoryId(id), "커피", parentId = CategoryId(1))
 
