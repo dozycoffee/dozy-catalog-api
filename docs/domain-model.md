@@ -68,6 +68,7 @@ flowchart LR
 | StoreProductAvailability | 출처별: 재고 추적 상품은 재고관리 서비스, 재고 미추적 상품은 점주 | 매장별 판매 가능 여부(판매중/품절). 처음 변경될 때 생성 | `AvailabilitySource`(INVENTORY/OWNER) |
 
 매장별 노출 판단(요구사항 3장)은 Product, StoreDisplaySetting, StoreProductAvailability를 함께 봐야 하므로 어느 한 애그리거트에 두지 않고 도메인 서비스 `ProductVisibilityPolicy`에 둔다.
+판매 범위에서 빠진 매장의 설정 정리(요구사항 1.5)도 StoreDisplaySetting과 StoreProductAvailability를 함께 보므로 도메인 서비스 `StoreScopeCleanupPolicy`가 지울 대상을 고른다.
 
 ## 변경 메커니즘
 
@@ -110,27 +111,30 @@ flowchart LR
 | Product | 같은 옵션 그룹을 두 번 연결할 수 없다 (등록 시점 포함) | `DuplicateOptionGroupLinkException` |
 | Product | 연결되지 않은 옵션 그룹에는 예외(가격/제외)를 지정할 수 없다 | `ProductOptionGroupNotLinkedException` |
 | Product | 예외(가격/제외)는 옵션 그룹에 존재하는 옵션 키에만 지정할 수 있다 (옵션 그룹을 인자로 받아 검증만 하고 보관하지 않음) | `OptionKeyNotFoundException` |
-| Product | 제외로 그 상품의 선택 가능한 옵션이 0개가 되면 거부 (옵션 그룹을 인자로 받아 `EffectiveOptionResolver`로 계산) | `NoSelectableOptionException` |
+| Product | 제외로 그 상품의 선택 가능한 옵션이 0개가 되면 거부 (옵션 그룹을 인자로 받아 선택 가능한 옵션을 계산) | `NoSelectableOptionException` |
 | Product | 옵션 그룹 순서 변경 요청은 연결된 옵션 그룹 전체를 정확히 한 번씩 담아야 한다 (일부만 담으면 빠진 연결과 예외 설정이 사라지므로 거부) | `InvalidOptionGroupOrderException`, 연결되지 않은 그룹이 있으면 `ProductOptionGroupNotLinkedException` |
 | Product | 상품별 옵션 예외는 옵션 키당 최대 1건 (새 예외가 기존 것을 대체) | — (구조로 보장) |
+| Product | 카테고리는 소분류만 지정할 수 있다 (등록·카테고리 변경 모두) | — (`ChildCategory`만 받아 타입으로 보장) |
 | OptionGroup | 옵션은 최소 1개 (생성·교체 모두) | `EmptyOptionGroupException` |
 | OptionGroup | 그룹 안에서 optionKey는 유일 | `DuplicateOptionKeyException` |
 | Category | 2단계 계층만 허용 — 자기 자신을 부모로 지정 불가, 하위를 가진 대분류는 소분류가 될 수 없음 | `InvalidParentCategoryException` |
+| Category | 상품이 참조 중인 소분류는 대분류가 될 수 없다 | `ReferencedCategoryNotPromotableException` |
 | ScheduledChange | `PENDING` 상태에서만 취소/적용/실패 처리 가능 | `NoPendingScheduleException` / `InvalidScheduleStatusTransitionException` |
 | StoreProductAvailability | `INVENTORY` 출처(재고 추적 상품)의 품절 상태는 점주가 바꿀 수 없다 | `StockStatusNotManuallyEditableException` |
 | StoreProductAvailability | `OWNER` 출처(재고 미추적 상품)에는 재고 이벤트를 반영할 수 없다 | `InventoryEventNotApplicableException` |
 | StoreProductAvailability | 이미 반영한 것보다 오래되었거나 같은 시각의 재고 이벤트는 무시한다 | — (반영 여부를 반환) |
 | Money | 금액은 0 이상 (기준가, 옵션 가격, 상품별 가격 예외 모두) | `InvalidMoneyAmountException` |
 
-### 도메인 서비스에서 강제 (cross-aggregate, I/O 없음)
+### 도메인 서비스에서 강제 (cross-aggregate)
 
-필요한 애그리거트는 application이 조회·잠금해 넘기고, 판단과 변경은 도메인 서비스가 한다. 선택 가능한 옵션 판단은 모두 model의 같은 기준(예외를 반영했을 때 제외되지 않은 옵션)을 쓴다.
+여러 애그리거트를 함께 봐야 하지만 저장소 없이 넘겨받은 값만으로 판단할 수 있는 규칙은 도메인 서비스에 둔다. application은 필요한 애그리거트를 조회·잠금해 넘기고 결과대로 저장·삭제만 한다. 넘겨받은 값이 어긋나는 것(다른 상품의 데이터가 섞임 등)은 호출 코드 오류이므로 `require`로 거부한다([예외 구조](architecture/exception.md)). 선택 가능한 옵션 판단은 모두 model의 같은 기준(예외를 반영했을 때 제외되지 않은 옵션)을 쓴다.
 
-| 규칙 | 필요한 정보 | 처리 방식 |
+| 규칙 | 도메인 서비스 | 처리 방식 |
 |---|---|---|
-| 옵션 변경(즉시·예약 스냅샷)으로 어떤 연결 상품의 선택 가능 옵션이 0개가 되면 거부 | 이 그룹을 연결한 모든 상품(상태 무관)의 예외 | `OptionListReplacer.replace(optionGroup, newOptions, linkedProducts)`가 상품마다 새 목록 기준으로 선택 가능한 옵션을 계산해 0개면 거부 (`NoSelectableOptionException`). 거부되면 아무것도 바꾸지 않는다. 연결하지 않은 상품이 섞이면 호출 코드 오류로 보고 `require`로 거부 |
-| 옵션 변경으로 사라진 옵션 키의 상품별 예외는 함께 삭제 (요구사항 1.9) | 이 그룹을 연결한 모든 상품의 예외 | 같은 `OptionListReplacer.replace()`가 교체 후 상품마다 `Product.removeOverridesOfMissingOptions()` 호출. application은 옵션 그룹과 연결 상품을 같은 트랜잭션에서 저장 |
-| 유효 옵션 구성 계산에 넘긴 옵션 그룹은 상품의 연결과 정확히 일치 | 상품에 연결된 옵션 그룹 전체 | `EffectiveOptionResolver.resolve()`가 검증. 어긋나면 application이 옵션 그룹을 잘못 불러온 호출 코드 오류이므로 `require`로 거부 ([예외 구조](architecture/exception.md)) |
+| 옵션 변경(즉시·예약 스냅샷)으로 어떤 연결 상품의 선택 가능 옵션이 0개가 되면 거부 (요구사항 1.9) | `OptionListReplacer` | `replace(optionGroup, newOptions, linkedProducts)`가 이 그룹을 연결한 모든 상품(상태 무관)마다 새 목록 기준으로 선택 가능한 옵션을 계산해 0개면 거부 (`NoSelectableOptionException`). 거부되면 아무것도 바꾸지 않는다. 연결하지 않은 상품이 섞이면 `require`로 거부 |
+| 옵션 변경으로 사라진 옵션 키의 상품별 예외는 함께 삭제 (요구사항 1.9) | `OptionListReplacer` | 같은 `replace()`가 교체 후 상품마다 `Product.removeOverridesOfMissingOptions()` 호출. application은 옵션 그룹과 연결 상품을 같은 트랜잭션에서 저장 |
+| 유효 옵션 구성 계산에 넘긴 옵션 그룹은 상품의 연결과 정확히 일치 | `EffectiveOptionResolver` | `resolve()`가 검증. 어긋나면 application이 옵션 그룹을 잘못 불러온 것이므로 `require`로 거부 |
+| 판매 범위에서 빠진 매장은 진열 설정과 `OWNER` 판매 가능 여부를 초기화하고 `INVENTORY`는 유지 (요구사항 1.5) | `StoreScopeCleanupPolicy` | 새 판매 범위와 이 상품의 진열 설정·판매 가능 여부를 받아 삭제할 ID를 고른다. 다른 상품의 설정이 섞이면 `require`로 거부. application은 즉시 변경·예약 적용 모두 이 결과대로 삭제 |
 
 예외 예약의 적용 시점에 옵션 키가 이미 사라졌으면 `Product`의 키 검증에 걸려 예약이 `실패`로 기록된다(요구사항 1.4, 1.9).
 
@@ -139,11 +143,12 @@ flowchart LR
 | 규칙 | 필요한 정보 | 처리 방식 |
 |---|---|---|
 | 하위 카테고리를 가진 대분류는 소분류로 이동 불가 | 하위 카테고리 존재 여부 | application이 조회해 `becomeChildOf(hasChildren)`에 전달 |
+| 상품이 참조 중인 소분류는 대분류로 승격 불가 | 참조 상품 존재 여부 | application이 조회해 `becomeTopLevel(hasProducts)`에 전달 |
+| 상품 등록·카테고리 변경(예약 적용 포함)은 소분류만 지정 가능 | 요청한 카테고리가 소분류인지 | application이 카테고리를 불러와 `requireChild()`로 얻은 `ChildCategory`를 Product에 전달, 대분류면 `CategoryNotAssignableException` |
 | 상품이 참조 중인 소분류 삭제 불가 | 참조 상품 존재 여부 | application 검증 (`CategoryStillReferencedException`) |
 | 소분류를 가진 대분류 삭제 불가 | 하위 카테고리 존재 여부 | application 검증 (`CategoryHasChildrenException`) |
 | 상품이 연결한 옵션 그룹 삭제 불가 | 연결 상품 존재 여부 | application 검증 (`OptionGroupStillReferencedException`) |
 | 판매 가능 여부의 출처는 상품의 재고 추적 여부를 따른다 | `Product.tracksInventory` | application이 처음 생성할 때 `AvailabilitySource.of(tracksInventory)`로 출처를 정한다 (재고 추적 여부는 바뀌지 않으므로 이후 불변) |
-| 판매 범위에서 빠진 매장은 진열 설정과 `OWNER` 판매 가능 여부를 초기화하고 `INVENTORY`는 유지 (요구사항 1.5) | 새 판매 범위, 이 상품의 진열 설정·판매 가능 여부 | `ProductStoreScopeChanged` 구독 측이 대조해 삭제 |
 | 판매 범위 대상 매장은 실제 존재하는 매장이어야 함 | Store BC | `ValidateStoreExistsPort`로 외부 검증 |
 | 동일 대상·필드의 PENDING 예약은 최대 1건 | 기존 PENDING 예약 | application이 기존 예약을 잠그고(`FOR UPDATE`) 취소 후 새로 등록, DB 부분 UNIQUE 제약으로 이중 보장 |
 | 태그 이름은 유일 (같은 이름이면 재사용) | 기존 태그 | `TagRegistrar`(도메인 서비스)가 `findOrCreateByName`으로 처리 |
@@ -197,7 +202,7 @@ stateDiagram-v2
 |---|---|---|---|
 | `ProductActivated` | `Product.activate()` (최초 활성화·재활성화) | productId | 외부 서비스(POS 등)에 상품 판매 개시 전파 |
 | `ProductDiscontinued` | `Product.discontinue()` | productId | 외부 서비스에 판매 중단 전파 |
-| `ProductStoreScopeChanged` | `Product.changeStoreScope()` | productId, newScope | 기존 진열 설정·판매 가능 여부와 newScope를 대조해 대상에서 빠진 매장의 진열 설정과 `OWNER` 판매 가능 여부 삭제 (재포함되어도 복원하지 않음, `INVENTORY`는 유지) |
+| `ProductStoreScopeChanged` | `Product.changeStoreScope()` | productId, newScope | `StoreScopeCleanupPolicy`로 대상에서 빠진 매장의 진열 설정과 `OWNER` 판매 가능 여부를 골라 삭제 (재포함되어도 복원하지 않음, `INVENTORY`는 유지) |
 | `TagDeleted` | `Tag.delete()` | tagId | 이 태그를 참조하던 모든 상품에서 태그 제거 |
 | `ProductGroupDeleted` | `ProductGroup.delete()` | groupId | 이 그룹을 참조하던 모든 상품에서 참조 제거 |
 

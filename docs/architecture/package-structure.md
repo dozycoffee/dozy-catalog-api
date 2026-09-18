@@ -82,7 +82,8 @@ com.dozycoffee.catalog
 │   │   │   ├── Visibility.kt
 │   │   │   └── StoreVisibility.kt                # 노출 판단 결과
 │   │   ├── service/
-│   │   │   └── ProductVisibilityPolicy.kt        # 순수 도메인 서비스 (Product·진열 설정·판매 가능 여부를 함께 봄)
+│   │   │   ├── ProductVisibilityPolicy.kt        # 순수 도메인 서비스 (Product·진열 설정·판매 가능 여부를 함께 봄)
+│   │   │   └── StoreScopeCleanupPolicy.kt        # 판매 범위에서 빠진 매장의 정리 대상 선택
 │   │   └── StoreDisplaySettingRepository.kt
 │   │
 │   ├── storeavailability/                         # 매장별 판매 가능 여부 (평평 + exception/)

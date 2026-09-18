@@ -1,6 +1,7 @@
 package com.dozycoffee.catalog.domain.product.model
 
 import com.dozycoffee.catalog.domain.category.CategoryId
+import com.dozycoffee.catalog.domain.category.ChildCategory
 import com.dozycoffee.catalog.domain.optiongroup.Option
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroup
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
@@ -400,6 +401,13 @@ class ProductTest {
             assertEquals("아메리카노", newProduct.name)
             assertEquals(listOf(OptionGroupId(1), OptionGroupId(2)), newProduct.optionGroupIds)
         }
+
+        @Test
+        fun `소분류를 카테고리로 지정해 등록하면 그 소분류의 ID를 참조한다`() {
+            val newProduct = newProduct(optionGroupIds = emptyList(), category = childCategory(id = 20))
+
+            assertEquals(CategoryId(20), newProduct.categoryId)
+        }
     }
 
     @Nested
@@ -447,12 +455,21 @@ class ProductTest {
 
             product.rename("디카페인 아메리카노")
             product.changeBasePrice(Money(5000))
-            product.changeCategory(CategoryId(99))
+            product.changeCategory(childCategory(id = 99))
 
             assertEquals("디카페인 아메리카노", product.name)
             assertEquals(Money(5000), product.basePrice)
             assertEquals(CategoryId(99), product.categoryId)
             assertEquals(ProductStatus.DISCONTINUED, product.status)
+        }
+
+        @Test
+        fun `카테고리를 다른 소분류로 바꾸면 그 소분류의 ID를 참조한다`() {
+            val product = product()
+
+            product.changeCategory(childCategory(id = 30))
+
+            assertEquals(CategoryId(30), product.categoryId)
         }
     }
 
@@ -490,15 +507,19 @@ class ProductTest {
         options = keys.map { Option(OptionKey(it), name = it, price = Money(0)) },
     )
 
-    private fun newProduct(optionGroupIds: List<OptionGroupId>) =
-        Product.NewProduct.of(
-            sku = null,
-            name = "아메리카노",
-            categoryId = CategoryId(10),
-            description = null,
-            imageUrl = null,
-            basePrice = Money(4500),
-            tracksInventory = false,
-            optionGroupIds = optionGroupIds,
-        )
+    private fun childCategory(id: Long) = ChildCategory(CategoryId(id), "커피", parentId = CategoryId(1))
+
+    private fun newProduct(
+        optionGroupIds: List<OptionGroupId>,
+        category: ChildCategory = childCategory(id = 10),
+    ) = Product.NewProduct.of(
+        sku = null,
+        name = "아메리카노",
+        category = category,
+        description = null,
+        imageUrl = null,
+        basePrice = Money(4500),
+        tracksInventory = false,
+        optionGroupIds = optionGroupIds,
+    )
 }

@@ -1,6 +1,7 @@
 package com.dozycoffee.catalog.domain.product.model
 
 import com.dozycoffee.catalog.domain.category.CategoryId
+import com.dozycoffee.catalog.domain.category.ChildCategory
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroup
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
@@ -61,8 +62,9 @@ class Product internal constructor(
         this.name = newName
     }
 
-    fun changeCategory(newCategoryId: CategoryId) {
-        this.categoryId = newCategoryId
+    // 소분류만 받도록 타입으로 강제하고, 저장은 ID로만 한다(애그리거트 간 ID 참조).
+    fun changeCategory(newCategory: ChildCategory) {
+        this.categoryId = newCategory.id
     }
 
     fun changeDescription(newDescription: String?) {
@@ -221,7 +223,7 @@ class Product internal constructor(
             fun of(
                 sku: Sku?,
                 name: String,
-                categoryId: CategoryId,
+                category: ChildCategory,
                 description: String?,
                 imageUrl: String?,
                 basePrice: Money,
@@ -234,7 +236,7 @@ class Product internal constructor(
                 return NewProduct(
                     sku,
                     name,
-                    categoryId,
+                    category.id,
                     description,
                     imageUrl,
                     basePrice,
