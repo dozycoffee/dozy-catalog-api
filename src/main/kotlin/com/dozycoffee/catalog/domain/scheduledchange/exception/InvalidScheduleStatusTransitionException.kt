@@ -7,6 +7,6 @@ class InvalidScheduleStatusTransitionException(
     from: ScheduleStatus,
     to: ScheduleStatus,
 ) : DomainException(
-        code = "INVALID_SCHEDULE_STATUS_TRANSITION",
+        errorCode = ScheduledChangeErrorCode.INVALID_SCHEDULE_STATUS_TRANSITION,
         message = "예약을 $from 에서 $to 로 전환할 수 없습니다",
     )

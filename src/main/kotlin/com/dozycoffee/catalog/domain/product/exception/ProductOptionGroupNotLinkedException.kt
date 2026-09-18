@@ -8,6 +8,6 @@ class ProductOptionGroupNotLinkedException(
     productId: ProductId,
     optionGroupId: OptionGroupId,
 ) : DomainException(
-        code = "PRODUCT_OPTION_GROUP_NOT_LINKED",
+        errorCode = ProductErrorCode.PRODUCT_OPTION_GROUP_NOT_LINKED,
         message = "상품(${productId.value})에 연결되지 않은 옵션 그룹입니다: ${optionGroupId.value}",
     )

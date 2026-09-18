@@ -9,6 +9,6 @@ class InvalidProductStatusTransitionException(
     from: ProductStatus,
     to: ProductStatus,
 ) : DomainException(
-        code = "INVALID_PRODUCT_STATUS_TRANSITION",
+        errorCode = ProductErrorCode.INVALID_PRODUCT_STATUS_TRANSITION,
         message = "상품(${productId.value})을 $from 에서 $to 로 전환할 수 없습니다",
     )

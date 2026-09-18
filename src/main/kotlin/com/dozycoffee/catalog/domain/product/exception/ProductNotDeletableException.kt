@@ -8,6 +8,6 @@ class ProductNotDeletableException(
     productId: ProductId,
     status: ProductStatus,
 ) : DomainException(
-        code = "PRODUCT_NOT_DELETABLE",
+        errorCode = ProductErrorCode.PRODUCT_NOT_DELETABLE,
         message = "Draft 상태가 아닌 상품은 삭제할 수 없습니다: ${productId.value} (현재 상태: $status)",
     )

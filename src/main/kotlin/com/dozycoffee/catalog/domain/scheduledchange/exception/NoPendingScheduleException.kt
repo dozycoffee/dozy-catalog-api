@@ -8,6 +8,6 @@ class NoPendingScheduleException(
     targetKind: TargetKind,
     fieldName: String,
 ) : DomainException(
-        code = "NO_PENDING_SCHEDULE",
+        errorCode = ScheduledChangeErrorCode.NO_PENDING_SCHEDULE,
         message = "대기 중인 예약이 없습니다: $targetKind($targetId)의 $fieldName 필드",
     )

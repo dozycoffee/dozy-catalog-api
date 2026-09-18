@@ -2,6 +2,7 @@ package com.dozycoffee.catalog.domain.optiongroup
 
 import com.dozycoffee.catalog.domain.optiongroup.exception.DuplicateOptionKeyException
 import com.dozycoffee.catalog.domain.optiongroup.exception.EmptyOptionGroupException
+import com.dozycoffee.catalog.domain.optiongroup.exception.OptionGroupErrorCode
 import com.dozycoffee.catalog.domain.shared.Money
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -38,7 +39,7 @@ class OptionGroupTest {
                     )
                 }
 
-            assertEquals("DUPLICATE_OPTION_KEY", exception.code)
+            assertEquals(OptionGroupErrorCode.DUPLICATE_OPTION_KEY, exception.errorCode)
         }
 
         @Test

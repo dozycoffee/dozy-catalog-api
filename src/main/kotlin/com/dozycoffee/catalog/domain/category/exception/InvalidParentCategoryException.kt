@@ -5,6 +5,6 @@ import com.dozycoffee.catalog.domain.shared.DomainException
 class InvalidParentCategoryException(
     message: String,
 ) : DomainException(
-        code = "INVALID_PARENT_CATEGORY",
+        errorCode = CategoryErrorCode.INVALID_PARENT_CATEGORY,
         message = message,
     )
