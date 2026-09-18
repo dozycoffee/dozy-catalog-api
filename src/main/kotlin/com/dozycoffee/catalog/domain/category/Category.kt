@@ -1,12 +1,15 @@
 package com.dozycoffee.catalog.domain.category
 
+import com.dozycoffee.catalog.domain.category.exception.CategoryNotAssignableException
 import com.dozycoffee.catalog.domain.category.exception.InvalidParentCategoryException
+import com.dozycoffee.catalog.domain.category.exception.ReferencedCategoryNotPromotableException
 import com.dozycoffee.catalog.domain.shared.AggregateRoot
 
 // categories는 2단계 계층만 허용한다(catalog-erd.md). TopLevelCategory/ChildCategory로
 // 타입을 나눠서 "부모가 이미 소분류인 경우"와 자기참조(하위 타입 간 전이 한정)를
 // 컴파일 타임에 표현 불가능하게 만든다. 유일하게 남는 런타임 검증은
-// TopLevelCategory.becomeChildOf의 자기참조/하위 카테고리 보유 여부뿐이다.
+// TopLevelCategory.becomeChildOf의 자기참조/하위 카테고리 보유 여부와
+// ChildCategory.becomeTopLevel의 상품 참조 여부뿐이다.
 sealed class Category(
     id: CategoryId,
     name: String,
@@ -17,6 +20,14 @@ sealed class Category(
     fun rename(newName: String) {
         this.name = newName
     }
+
+    // 상품에는 소분류만 지정할 수 있다(요구사항 1.6). application이 요청의 categoryId로
+    // 카테고리를 불러온 뒤 이 메서드로 ChildCategory를 얻어 Product에 넘긴다.
+    fun requireChild(): ChildCategory =
+        when (this) {
+            is ChildCategory -> this
+            is TopLevelCategory -> throw CategoryNotAssignableException(id)
+        }
 }
 
 class TopLevelCategory internal constructor(
@@ -47,5 +58,12 @@ class ChildCategory internal constructor(
 ) : Category(id, name) {
     fun changeParent(newParent: TopLevelCategory): ChildCategory = ChildCategory(id, name, parentId = newParent.id)
 
-    fun becomeTopLevel(): TopLevelCategory = TopLevelCategory(id, name)
+    // 승격을 허용하면 이 소분류를 참조하던 상품들이 대분류를 참조하게 된다.
+    // hasProducts는 DB 조회가 필요해 application 레이어가 미리 조회해 전달한다.
+    fun becomeTopLevel(hasProducts: Boolean): TopLevelCategory {
+        if (hasProducts) {
+            throw ReferencedCategoryNotPromotableException(id)
+        }
+        return TopLevelCategory(id, name)
+    }
 }
