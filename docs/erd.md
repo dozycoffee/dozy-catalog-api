@@ -15,8 +15,8 @@ erDiagram
     products ||--o{ product_groups_map : has
     products ||--o{ product_option_groups : has
     products ||--o{ product_option_overrides : has
-    products ||--o{ store_product_listings : has
-    products ||--o{ store_inventory_statuses : has
+    products ||--o{ store_display_settings : has
+    products ||--o{ store_product_availabilities : has
     products }o--|| categories : belongs_to
  
     categories ||--o{ categories : parent_of
@@ -133,20 +133,20 @@ erDiagram
         timestamp updated_at
     }
  
-    store_product_listings {
+    store_display_settings {
         bigint id PK
         bigint store_id
         bigint product_id FK
         integer display_order
         varchar visibility
-        varchar stock_status
         timestamp created_at
         timestamp updated_at
     }
 
-    store_inventory_statuses {
+    store_product_availabilities {
         bigint store_id PK
         bigint product_id PK
+        varchar source
         varchar stock_status
         timestamp last_event_at
         timestamp created_at
@@ -154,7 +154,7 @@ erDiagram
     }
 ```
 
-> `scheduled_changes`는 `target_id`가 `products.id` 또는 `option_groups.id`를 다형적으로 참조하므로(FK 아님), 다이어그램상 관계선으로 표시하지 않음. `store_product_listings.store_id`, `store_inventory_statuses.store_id`, `product_target_stores.store_id`는 Store BC(별도 서비스) 참조이므로 FK로 표시하지 않음.
+> `scheduled_changes`는 `target_id`가 `products.id` 또는 `option_groups.id`를 다형적으로 참조하므로(FK 아님), 다이어그램상 관계선으로 표시하지 않음. `store_display_settings.store_id`, `store_product_availabilities.store_id`, `product_target_stores.store_id`는 Store BC(별도 서비스) 참조이므로 FK로 표시하지 않음.
  
 ---
 
@@ -166,8 +166,9 @@ CREATE TYPE store_scope          AS ENUM ('ALL', 'LIMITED');
 CREATE TYPE selection_type       AS ENUM ('SINGLE', 'MULTI');
 CREATE TYPE schedule_target      AS ENUM ('PRODUCT', 'OPTION_GROUP', 'PRODUCT_OPTION_GROUP');
 CREATE TYPE schedule_status      AS ENUM ('PENDING', 'APPLIED', 'CANCELLED', 'FAILED');
-CREATE TYPE listing_visibility   AS ENUM ('VISIBLE', 'HIDDEN');
-CREATE TYPE listing_stock_status AS ENUM ('ON_SALE', 'SOLD_OUT');
+CREATE TYPE display_visibility   AS ENUM ('VISIBLE', 'HIDDEN');
+CREATE TYPE stock_status         AS ENUM ('ON_SALE', 'SOLD_OUT');
+CREATE TYPE availability_source  AS ENUM ('INVENTORY', 'OWNER');
 CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
 ```
 
@@ -291,7 +292,7 @@ CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
 | created_at / updated_at | TIMESTAMP | NOT NULL | |
 | 제약 | | `UNIQUE(target_id, target_kind, field_name) WHERE status='PENDING'` | 동일 대상·필드 Pending 최대 1건 |
 
-### store_product_listings — 매장별 진열/노출 (점주 소유, Lazy 생성)
+### store_display_settings — 매장별 진열 설정 (점주 소유, Lazy 생성)
 
 | 컬럼 | 타입 | 제약 | 설명 |
 |---|---|---|---|
@@ -299,22 +300,27 @@ CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
 | store_id | BIGINT | NOT NULL | Store BC 참조, FK 없음 |
 | product_id | BIGINT | FK → products.id, NOT NULL | |
 | display_order | INTEGER | NULL 허용 | |
-| visibility | listing_visibility | NOT NULL, 기본 `VISIBLE` | |
-| stock_status | listing_stock_status | NOT NULL, 기본 `ON_SALE` | 재고 미추적 상품의 점주 수동 품절에만 사용. 재고 추적 상품은 `store_inventory_statuses`를 따름 |
-| created_at / updated_at | TIMESTAMP | NOT NULL | row 부재 = 기본값으로 노출 중 |
+| visibility | display_visibility | NOT NULL, 기본 `VISIBLE` | 점주의 노출 의도 |
+| created_at / updated_at | TIMESTAMP | NOT NULL | row 부재 = 기본값(노출)으로 취급 중 |
 | 제약 | | `UNIQUE(store_id, product_id)` | |
 
-### store_inventory_statuses — 매장별 재고 상태 (재고관리 서비스 이벤트 투영)
+판매 범위에서 제외된 매장의 row는 삭제한다(요구사항 1.5).
 
-재고 추적 상품의 매장별 품절 여부. 원본은 재고관리 서비스이며, 이 테이블은 그 이벤트로만 갱신된다. 상품 상태·판매 범위와 무관하게 유지되며, 판매 범위 변경으로 `store_product_listings`가 삭제돼도 이 테이블은 삭제하지 않는다.
+### store_product_availabilities — 매장별 판매 가능 여부
+
+매장별 판매중/품절과 그 출처. 출처는 상품의 재고 추적 여부로 정해지며 이후 바뀌지 않는다.
+- `INVENTORY`(재고 추적 상품): 재고관리 서비스 이벤트로만 갱신한다. 상품 상태·판매 범위와 무관하게 유지하며, 판매 범위에서 빠져도 삭제하지 않는다.
+- `OWNER`(재고 미추적 상품): 점주가 수동으로 갱신한다. 판매 범위에서 빠지면 삭제(초기화)한다.
 
 | 컬럼 | 타입 | 제약 | 설명 |
 |---|---|---|---|
 | store_id | BIGINT | PK | Store BC 참조, FK 없음 |
 | product_id | BIGINT | PK, FK → products.id | 상품 삭제 시 함께 삭제 |
-| stock_status | listing_stock_status | NOT NULL | 재고 있음 = `ON_SALE`, 없음 = `SOLD_OUT` |
-| last_event_at | TIMESTAMP | NOT NULL | 마지막으로 반영한 재고 이벤트의 발생 시각. 이보다 오래된 이벤트는 무시(순서 역전 방지) |
-| created_at / updated_at | TIMESTAMP | NOT NULL | row 부재 = 재고 이벤트를 받은 적 없음 = 재고 0(품절) |
+| source | availability_source | NOT NULL | `INVENTORY` / `OWNER` |
+| stock_status | stock_status | NOT NULL | 판매중 = `ON_SALE`, 품절 = `SOLD_OUT` |
+| last_event_at | TIMESTAMP | NULL 허용 | 마지막으로 반영한 재고 이벤트의 발생 시각(`INVENTORY`만). 이보다 오래되었거나 같은 시각의 이벤트는 무시 |
+| created_at / updated_at | TIMESTAMP | NOT NULL | row 부재 = 출처별 기본값(`INVENTORY`는 품절, `OWNER`는 판매중) |
+| 제약 | | `CHECK (source = 'INVENTORY' OR last_event_at IS NULL)` | `OWNER` 출처에는 재고 이벤트 시각이 없다 |
  
 ---
 
@@ -324,8 +330,9 @@ CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
 |---|---|---|
 | `scheduled_changes` 취소 후 재등록 | Pending 중복 생성 위험 | `SELECT ... FOR UPDATE`로 기존 row 잠그고 한 트랜잭션 처리 |
 | `scheduled_changes` 00시 배치 적용 | 여러 워커의 중복 처리 | `SELECT ... FOR UPDATE SKIP LOCKED` |
-| `store_product_listings` Lazy 생성 | 동시 요청 시 중복 row | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE` |
-| `store_inventory_statuses` 재고 이벤트 반영 | 중복 수신·순서 역전으로 오래된 값이 덮어씀 | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE ... WHERE excluded.last_event_at > store_inventory_statuses.last_event_at` |
+| `store_display_settings` Lazy 생성 | 동시 요청 시 중복 row | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE` |
+| `store_product_availabilities` 재고 이벤트 반영 (`INVENTORY`) | 중복 수신·순서 역전으로 오래된 값이 덮어씀 | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE ... WHERE store_product_availabilities.last_event_at IS NULL OR excluded.last_event_at > store_product_availabilities.last_event_at` |
+| `store_product_availabilities` 점주 수동 품절 첫 생성 (`OWNER`) | 동시 요청 시 중복 row | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE` |
 | `options` 최소 1개/0개 검증 | 검증-실행 사이 레이스 | 옵션 그룹 단위 비관적 락 |
 | `products.status` 전이 검증 | 동시 요청 시 중복 전이 | Product row 단위 비관적 락 |
  

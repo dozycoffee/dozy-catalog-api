@@ -8,7 +8,7 @@
 
 - **Store(매장)**: 별도의 Store Management BC로 분리한다. Catalog Service는 `storeId`만 참조하며, 매장의 본질적 정보(주소, 영업시간, 계약 등)는 다루지 않는다.
 - **Product**: Catalog Service가 계속 소유한다. 다른 서비스(POS, 정산 등)가 상품 정보를 필요로 하는 경우, Catalog Service가 이벤트를 발행하고 해당 서비스가 구독하는 방식으로 연동한다. Product 자체를 별도 BC로 분리하지 않는다.
-- **"어떤 매장이 어떤 상품을 파는가"**: Catalog Service가 소유한다 (`StoreProductListing`). 이는 "상품이 어떻게 판매되는가"에 대한 관심사이지 "매장이라는 개체 자체"에 대한 관심사가 아니므로, Store BC가 아닌 Catalog BC에 속한다.
+- **"어떤 매장이 어떤 상품을 파는가"**: Catalog Service가 소유한다 (`StoreDisplaySetting`, `StoreProductAvailability`). 이는 "상품이 어떻게 판매되는가"에 대한 관심사이지 "매장이라는 개체 자체"에 대한 관심사가 아니므로, Store BC가 아닌 Catalog BC에 속한다.
 
 ```
 Store Management BC (별도, 미착수)
@@ -17,8 +17,8 @@ Store Management BC (별도, 미착수)
 
 Catalog Service BC (본 문서 대상)
 ├─ Product, Option, OptionGroup, Product_OptionGroup, Category, Tag, ProductGroup, ScheduledChange
-├─ StoreProductListing (storeId 참조)
-└─ StoreInventoryStatus (재고관리 서비스 이벤트 투영, storeId·productId 참조)
+├─ StoreDisplaySetting (점주의 매장별 진열 설정, storeId 참조)
+└─ StoreProductAvailability (매장별 판매 가능 여부, storeId 참조 — 재고 추적 상품은 재고관리 서비스 이벤트 투영)
 
 재고관리 서비스 BC (별도)
 └─ 매장 재고의 원본. storeId, productId 참조, 재고 변동 이벤트 발행
@@ -37,10 +37,10 @@ flowchart LR
         ScheduledChange
     end
     subgraph Store["점주 소유"]
-        StoreProductListing
+        StoreDisplaySetting
     end
-    subgraph Inv["재고관리 서비스 투영"]
-        StoreInventoryStatus["StoreInventoryStatus (예정)"]
+    subgraph Avail["점주 또는 재고관리 서비스 (출처별)"]
+        StoreProductAvailability
     end
 
     Product -- categoryId --> Category
@@ -50,8 +50,8 @@ flowchart LR
     Category -- parentId --> Category
     ScheduledChange -. "targetId (다형)" .-> Product
     ScheduledChange -. "targetId (다형)" .-> OptionGroup
-    StoreProductListing -- productId --> Product
-    StoreInventoryStatus -- productId --> Product
+    StoreDisplaySetting -- productId --> Product
+    StoreProductAvailability -- productId --> Product
 ```
 
 애그리거트끼리는 ID로만 참조한다. `storeId`는 모두 Store BC가 발급한 값이며 Catalog는 매장 자체를 모델링하지 않는다.
@@ -64,10 +64,10 @@ flowchart LR
 | Tag | 본사 | 마케팅 라벨. 이름으로 재사용 | — |
 | ProductGroup | 본사 | 내부 관리용 단일 레벨 분류 | — |
 | ScheduledChange | 본사 (적용은 예약 배치) | 필드 단위 예약의 수명(대기 → 적용완료/실패/취소) | — |
-| StoreProductListing | 점주 | 매장별 노출·진열 순서, 재고 미추적 상품의 수동 품절. 점주가 처음 바꿀 때 생성(Lazy) | — |
-| StoreInventoryStatus (예정, #25) | 재고관리 서비스 | 재고 추적 상품의 매장별 재고 유무. 재고 이벤트로만 갱신 | — |
+| StoreDisplaySetting | 점주 | 매장별 노출·숨김, 진열 순서. 점주가 처음 바꿀 때 생성(Lazy) | — |
+| StoreProductAvailability | 출처별: 재고 추적 상품은 재고관리 서비스, 재고 미추적 상품은 점주 | 매장별 판매 가능 여부(판매중/품절). 처음 변경될 때 생성 | `AvailabilitySource`(INVENTORY/OWNER) |
 
-매장별 노출 판단(요구사항 3장)은 Product, StoreProductListing, StoreInventoryStatus를 함께 봐야 하므로 어느 한 애그리거트에 두지 않고 도메인 서비스 `ProductVisibilityPolicy`에 둔다.
+매장별 노출 판단(요구사항 3장)은 Product, StoreDisplaySetting, StoreProductAvailability를 함께 봐야 하므로 어느 한 애그리거트에 두지 않고 도메인 서비스 `ProductVisibilityPolicy`에 둔다.
 
 ## 변경 메커니즘
 
@@ -88,8 +88,10 @@ flowchart LR
 
 ### 모델링 메커니즘
 
-- **Lazy 생성**: StoreProductListing은 점주가 처음 커스터마이징할 때 생긴다. row가 없으면 "기본값(노출)으로 취급 중"이다.
-- **재고 상태 투영**: 재고 추적 상품의 품절 여부는 StoreProductListing이 아니라 StoreInventoryStatus에 둔다. 재고 이벤트를 상품 상태·판매 범위와 무관하게 항상 반영하고, 판매 범위 변경으로 개별 설정이 삭제돼도 지우지 않는다. row가 없으면 재고 0(품절)이다.
+- **Lazy 생성**: StoreDisplaySetting은 점주가 노출·진열 순서를 처음 바꿀 때, StoreProductAvailability는 점주의 첫 수동 품절이나 첫 재고 이벤트 때 생긴다. row가 없으면 기본값으로 판단한다(진열: 노출, 판매 가능 여부: 출처별 기본값).
+- **판매 가능 여부와 출처**: 품절 여부는 진열 설정이 아니라 StoreProductAvailability에 둔다. 출처는 상품의 재고 추적 여부로 정해진다.
+  - `INVENTORY`(재고 추적 상품): 재고관리 서비스 이벤트로만 바뀐다. 기본값은 품절(처음 재고 0)이다. 상품 상태·판매 범위와 무관하게 항상 반영하고, 판매 범위에서 빠져도 지우지 않는다.
+  - `OWNER`(재고 미추적 상품): 점주가 수동으로만 바꾼다. 기본값은 판매중이다. 판매 범위에서 빠지면 진열 설정과 함께 초기화한다.
 - **옵션 구조**: Option(개별 옵션)과 OptionGroup(선택 방식·필수 여부를 가진 묶음)을 분리하고, Product는 ProductOptionGroupLink로 옵션 그룹을 참조한다. 예외가 없으면 옵션 그룹의 구성과 가격을 그대로 따르고, 필요한 상품만 `OptionOverride`(가격/제외)로 예외를 둔다. "기본 선택값" 개념은 없고 필수·복수 여부만 표현한다. 필수 그룹에 옵션이 1개면 자동 선택으로 본다.
 - **최종 판매가**: 기준가 + 선택한 옵션들의 가격 합(상품별 가격 예외 반영). 옵션 가격과 예외 가격이 0 이상이므로 기준가 아래로 내려가지 않는다.
 - **옵션 키(optionKey)**: 옵션 목록 교체로 물리 id가 바뀌어도 상품별 예외의 참조가 끊기지 않도록 유지되는 논리 식별자. 교체로 사라진 키의 예외는 함께 삭제한다(요구사항 1.9).
@@ -113,7 +115,9 @@ flowchart LR
 | OptionGroup | 그룹 안에서 optionKey는 유일 | `DuplicateOptionKeyException` |
 | Category | 2단계 계층만 허용 — 자기 자신을 부모로 지정 불가, 하위를 가진 대분류는 소분류가 될 수 없음 | `InvalidParentCategoryException` |
 | ScheduledChange | `PENDING` 상태에서만 취소/적용/실패 처리 가능 | `NoPendingScheduleException` / `InvalidScheduleStatusTransitionException` |
-| StoreProductListing | 재고 추적 상품의 품절 상태는 점주가 바꿀 수 없다 | `StockStatusNotManuallyEditableException` |
+| StoreProductAvailability | `INVENTORY` 출처(재고 추적 상품)의 품절 상태는 점주가 바꿀 수 없다 | `StockStatusNotManuallyEditableException` |
+| StoreProductAvailability | `OWNER` 출처(재고 미추적 상품)에는 재고 이벤트를 반영할 수 없다 | `InventoryEventNotApplicableException` |
+| StoreProductAvailability | 이미 반영한 것보다 오래되었거나 같은 시각의 재고 이벤트는 무시한다 | — (반영 여부를 반환) |
 | Money | 금액은 0 이상 (기준가, 옵션 가격, 상품별 가격 예외 모두) | `InvalidMoneyAmountException` |
 
 ### application 레이어에서 강제 (cross-aggregate)
@@ -128,7 +132,8 @@ flowchart LR
 | 상품이 참조 중인 소분류 삭제 불가 | 참조 상품 존재 여부 | application 검증 (`CategoryStillReferencedException`) |
 | 소분류를 가진 대분류 삭제 불가 | 하위 카테고리 존재 여부 | application 검증 (`CategoryHasChildrenException`) |
 | 상품이 연결한 옵션 그룹 삭제 불가 | 연결 상품 존재 여부 | application 검증 (`OptionGroupStillReferencedException`) |
-| 재고 추적 상품의 품절은 점주가 수정 불가 | `Product.tracksInventory` | application이 조회해 `changeStockStatusByOwner(tracksInventory)`에 전달 |
+| 판매 가능 여부의 출처는 상품의 재고 추적 여부를 따른다 | `Product.tracksInventory` | application이 처음 생성할 때 `AvailabilitySource.of(tracksInventory)`로 출처를 정한다 (재고 추적 여부는 바뀌지 않으므로 이후 불변) |
+| 판매 범위에서 빠진 매장은 진열 설정과 `OWNER` 판매 가능 여부를 초기화하고 `INVENTORY`는 유지 (요구사항 1.5) | 새 판매 범위, 이 상품의 진열 설정·판매 가능 여부 | `ProductStoreScopeChanged` 구독 측이 대조해 삭제 |
 | 판매 범위 대상 매장은 실제 존재하는 매장이어야 함 | Store BC | `ValidateStoreExistsPort`로 외부 검증 |
 | 동일 대상·필드의 PENDING 예약은 최대 1건 | 기존 PENDING 예약 | application이 기존 예약을 잠그고(`FOR UPDATE`) 취소 후 새로 등록, DB 부분 UNIQUE 제약으로 이중 보장 |
 | 태그 이름은 유일 (같은 이름이면 재사용) | 기존 태그 | `TagRegistrar`(도메인 서비스)가 `findOrCreateByName`으로 처리 |
@@ -166,17 +171,15 @@ stateDiagram-v2
 
 - `APPLIED` / `FAILED` / `CANCELLED`는 종료 상태로, 이후 어떤 전이도 허용하지 않는다.
 
-### StoreProductListing
+### StoreDisplaySetting
 
 - `visibility`(VISIBLE ⇄ HIDDEN): 점주가 자유롭게 전환.
-- `stockStatus`(ON_SALE ⇄ SOLD_OUT): 재고 미추적 상품만 사용하며 점주가 수동 전환.
-- 두 값은 서로 독립이다. 품절이어도 숨기지 않았다면 노출되며 구매 불가로 표시된다.
 
-### StoreInventoryStatus (예정)
+### StoreProductAvailability
 
-- 최초: row 없음 = 품절 (재고 0).
-- 재고 있음 이벤트(입고·재입고) → `ON_SALE`, 재고 없음 이벤트(소진·폐기) → `SOLD_OUT`.
-- 상품이 단종 중이거나 매장이 판매 범위 밖이어도 전이는 계속 일어난다.
+- `OWNER`: 최초(row 없음) 판매중. 점주가 `ON_SALE ⇄ SOLD_OUT`으로 자유롭게 전환.
+- `INVENTORY`: 최초(row 없음) 품절(재고 0). 재고 있음 이벤트(입고·재입고) → `ON_SALE`, 재고 없음 이벤트(소진·폐기) → `SOLD_OUT`. 상품이 단종 중이거나 매장이 판매 범위 밖이어도 전이는 계속 일어난다.
+- 노출 여부(진열 설정)와 판매 가능 여부는 서로 독립이다. 품절이어도 숨기지 않았다면 노출되며 구매 불가로 표시된다.
 
 ## 도메인 이벤트
 
@@ -184,7 +187,7 @@ stateDiagram-v2
 |---|---|---|---|
 | `ProductActivated` | `Product.activate()` (최초 활성화·재활성화) | productId | 외부 서비스(POS 등)에 상품 판매 개시 전파 |
 | `ProductDiscontinued` | `Product.discontinue()` | productId | 외부 서비스에 판매 중단 전파 |
-| `ProductStoreScopeChanged` | `Product.changeStoreScope()` | productId, newScope | 기존 StoreProductListing과 newScope를 대조해 대상에서 빠진 매장의 개별 설정 삭제 (재포함되어도 복원하지 않음, StoreInventoryStatus는 유지) |
+| `ProductStoreScopeChanged` | `Product.changeStoreScope()` | productId, newScope | 기존 진열 설정·판매 가능 여부와 newScope를 대조해 대상에서 빠진 매장의 진열 설정과 `OWNER` 판매 가능 여부 삭제 (재포함되어도 복원하지 않음, `INVENTORY`는 유지) |
 | `TagDeleted` | `Tag.delete()` | tagId | 이 태그를 참조하던 모든 상품에서 태그 제거 |
 | `ProductGroupDeleted` | `ProductGroup.delete()` | groupId | 이 그룹을 참조하던 모든 상품에서 참조 제거 |
 
@@ -195,22 +198,28 @@ stateDiagram-v2
 
 | 이벤트 (재고관리 서비스) | 반응 |
 |---|---|
-| 매장 재고 생김 (입고·재입고) | StoreInventoryStatus를 `ON_SALE`로 upsert |
-| 매장 재고 없음 (소진·폐기) | StoreInventoryStatus를 `SOLD_OUT`으로 upsert |
+| 매장 재고 생김 (입고·재입고) | StoreProductAvailability(`INVENTORY`)에 `ON_SALE` 반영 (없으면 생성) |
+| 매장 재고 없음 (소진·폐기) | StoreProductAvailability(`INVENTORY`)에 `SOLD_OUT` 반영 (없으면 생성) |
 
-- 상품 상태·판매 범위와 무관하게 항상 반영한다. Catalog에 없는 상품의 이벤트는 기록만 하고 무시한다.
+- 상품 상태·판매 범위와 무관하게 항상 반영한다. Catalog에 없는 상품이나 재고 미추적 상품의 이벤트는 기록만 하고 무시한다.
 - 발생 시각이 이미 반영한 것보다 오래된 이벤트는 무시한다(중복 수신·순서 역전 대비).
 - 이벤트 형식과 메시징 기술은 미정이다.
 
 ## 주요 결정
 
-### 단종·재활성화 때 매장 개별 설정을 바꾸지 않는다 (요구사항 1.3, 2.6)
+### 단종·재활성화 때 매장 설정을 바꾸지 않는다 (요구사항 1.3, 2.6)
 
-단종해도 개별 설정(`visibility`)을 숨김으로 바꾸지 않고 보존한다. 노출 판단 1단계에서 `Product.status != ACTIVE`면 이미 비노출이므로 단종 효과는 자동으로 나고, 재활성화하면 점주가 원래 설정한 값이 그대로 살아난다. `visibility`에 본사 단종을 기록하면 "점주가 원래 숨겼던 상품"과 "단종 때문에 숨겨진 상품"을 구분할 수 없어, 재활성화 시 점주가 숨겼던 상품까지 다시 노출되는 문제가 생긴다. 따라서 `ProductActivated`/`ProductDiscontinued`에 대한 내부 반응은 없고 외부 전파만 한다.
+단종해도 진열 설정(`visibility`)을 숨김으로 바꾸지 않고 보존한다. 노출 판단 1단계에서 `Product.status != ACTIVE`면 이미 비노출이므로 단종 효과는 자동으로 나고, 재활성화하면 점주가 원래 설정한 값이 그대로 살아난다. `visibility`에 본사 단종을 기록하면 "점주가 원래 숨겼던 상품"과 "단종 때문에 숨겨진 상품"을 구분할 수 없어, 재활성화 시 점주가 숨겼던 상품까지 다시 노출되는 문제가 생긴다. 따라서 `ProductActivated`/`ProductDiscontinued`에 대한 내부 반응은 없고 외부 전파만 한다.
 
-### 재고 상태를 점주 설정에서 분리한다 (요구사항 1.5, 2.4)
+### 진열 설정과 판매 가능 여부를 분리한다 (요구사항 1.5, 2.4, 2.5, #25)
 
-노출·진열 순서의 주인은 점주이고, 재고 품절 상태의 주인은 재고관리 서비스다. 둘을 한 row(StoreProductListing)에 두면 판매 범위에서 빠질 때 개별 설정과 함께 재고 상태까지 지워져, 매장이 다시 포함됐을 때 재고가 있어도 품절로 보인다. 그래서 재고 추적 상품의 재고 상태는 별도 투영(StoreInventoryStatus)으로 분리하고, 재고관리 서비스 이벤트로만 갱신한다. 단종 중 폐기처럼 비활성 기간의 재고 변동도 이벤트로 계속 반영되므로 재판매 시점에 정확하다.
+예전 `StoreProductListing`은 노출·진열 순서(주인: 점주), 수동 품절(주인: 점주), 재고 품절(주인: 재고관리 서비스)을 한 row에 담았다. 그러면 판매 범위에서 빠질 때 점주 설정과 함께 재고 상태까지 지워져, 매장이 다시 포함됐을 때 재고가 있어도 품절로 보인다. 재고 품절만 따로 떼어 내는 방법도 있지만, 그러면 "지금 살 수 있는가"라는 하나의 개념이 재고 추적 여부에 따라 저장 위치가 갈린다.
+
+그래서 둘로 나눴다.
+- **StoreDisplaySetting**: 점주의 진열 의도(노출·숨김, 진열 순서)만 담는다. 판매 범위에서 빠지면 삭제한다.
+- **StoreProductAvailability**: 판매 가능 여부와 출처(`INVENTORY`/`OWNER`)를 담는다. 출처에 따라 변경 경로, 기본값, 판매 범위 제외 시 처리가 다르다.
+
+단종 중 폐기처럼 비활성 기간의 재고 변동도 이벤트로 계속 반영되므로 재판매 시점에 정확하다. 출처별로 타입을 나누지 않은 이유는, 노출 판단이 결국 두 저장소를 모두 봐야 해서 품절 개념을 한곳에 모으려던 목적이 사라지기 때문이다.
 
 **향후 과제 — 재동기화**: 이벤트 유실이나 Catalog 장애로 투영이 어긋날 수 있다. 재고관리 서비스의 다매장 재고 일괄 조회 API가 확정되면, 재활성화·판매 범위 재포함 시점에 해당 매장들의 재고를 조회해 투영을 맞춘다. 조회 실패 시에는 기존 값을 유지하고 재시도한다(재활성화 자체는 막지 않는다).
 
@@ -223,7 +232,7 @@ stateDiagram-v2
 | `StoreScope` | sealed: `All` / `Limited(targetStoreIds)` | 대상 매장 목록은 `Limited`일 때만 의미가 있다. `All`인데 대상 매장이 있는 모순 상태를 막는다. `covers(storeId)`로 포함 여부를 판단하며, 빈 `Limited`는 어떤 매장도 포함하지 않는다. |
 | `OptionOverride` | sealed: `Price(optionKey, price)` / `Exclude(optionKey)` | ERD의 `CHECK (PRICE면 price 필수, EXCLUDE면 price 없음)`을 타입으로 표현한다. |
 | `Category` | sealed: `TopLevelCategory` / `ChildCategory(parentId)` | 2단계 계층을 타입으로 강제한다. 소분류의 부모는 `TopLevelCategory`만 받으므로 "소분류 밑의 소분류"는 컴파일되지 않는다. 상품은 소분류만 참조한다. |
-| `StoreVisibility` | sealed: `NotVisible` / `Visible(stockStatus)` | 노출 판단 결과. "비노출"과 "노출되지만 품절"을 Boolean 하나로는 구분할 수 없다. 품절 여부는 재고 미추적 상품이면 개별 설정(없으면 판매중), 재고 추적 상품이면 StoreInventoryStatus(없으면 품절)에서 온다. |
+| `StoreVisibility` | sealed: `NotVisible` / `Visible(stockStatus)` | 노출 판단 결과. "비노출"과 "노출되지만 품절"을 Boolean 하나로는 구분할 수 없다. 품절 여부는 StoreProductAvailability에서 오며, 없으면 출처별 기본값(재고 추적 상품은 품절, 재고 미추적 상품은 판매중)이다. |
 | `Option` | 물리 id 없는 Value Object (`optionKey`, `name`, `price`) | 옵션 목록은 항상 통째로 교체되고, 상품의 예외는 `optionKey`로 참조하므로 도메인에서 물리 id가 필요 없다. DB의 `options.id`는 영속성 계층에만 존재한다. |
 | `Money` | 0 이상 정수(원 단위) value class | 전 매장 동일가, 단일 통화. 음수 금액을 만들 수 없어 최종 판매가가 기준가 아래로 내려가지 않는다. |
 | ID 타입 | `ProductId`, `OptionGroupId`, `CategoryId`, `StoreId`, `OptionKey`, `Sku` 등 value class | 서로 다른 ID를 섞어 넘기는 실수를 컴파일 단계에서 막는다. `Sku`는 등록 시점에 미부여일 수 있어 nullable. |
@@ -249,8 +258,9 @@ stateDiagram-v2
 | 상품 그룹 | `ProductGroup` | 본사 내부 관리용 분류, 점주·손님에게 비노출 |
 | 예약 변경 | `ScheduledChange` | 지정 날짜 00시에 적용되는 필드 단위 변경 |
 | 즉시 반영 | PUT | 요청 시점 값 전체로 즉시 교체 |
-| 매장 개별 설정 (진열/노출 데이터) | `StoreProductListing` | 점주가 커스터마이징한 매장별 설정. 없으면 기본값(노출) |
-| 매장 재고 상태 | `StoreInventoryStatus` (예정) | 재고 추적 상품의 매장별 재고 유무. 재고관리 서비스 이벤트 투영, 없으면 품절 |
+| 매장 개별 설정 (진열/노출 데이터) | `StoreDisplaySetting` | 점주가 커스터마이징한 매장별 노출·진열 순서. 없으면 기본값(노출) |
+| 판매 가능 여부 | `StoreProductAvailability` | 매장별 판매중/품절. 없으면 출처별 기본값 |
+| 판매 가능 여부 출처 (재고 / 점주) | `AvailabilitySource.INVENTORY` / `OWNER` | 품절을 누가 바꾸는가. 상품의 재고 추적 여부로 정해짐 |
 | 노출 / 숨김 | `Visibility.VISIBLE` / `HIDDEN` | 점주의 노출 의도 |
 | 판매중 / 품절 | `StockStatus.ON_SALE` / `SOLD_OUT` | 매장별 구매 가능 여부 (노출 여부와 독립) |
 | 진열 순서 | `displayOrder` | 매장별 상품 표시 순서 |
