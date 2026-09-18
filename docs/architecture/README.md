@@ -26,6 +26,7 @@
 |---|---|---|
 | 메시징 기술 | 재고관리 서비스 이벤트 구독과 외부 이벤트 발행에 쓸 브로커(Kafka, RabbitMQ 등). `InventoryEventConsumer`, `DomainEventPublisher` 구현 전에 정해야 한다 | [기술 스택](tech-stack.md), [도메인 모델](../domain-model.md#외부에서-받는-이벤트) |
 | Store BC 호출 방식 | REST(WebClient)를 전제로 설계했으나 실제 프로토콜(REST, gRPC 등)은 미확정 | [패키지 구조](package-structure.md#외부-호출-지점-포트로-인터페이스화-대상) |
+| Store 정보 로컬 투영 도입 시점 | Catalog 규칙에 필요한 매장 사실(영업 상태, 지역·유형 등)만 Store BC 이벤트로 받아 Catalog 도메인의 로컬 투영(예: `CatalogStore`)으로 둔다. 번역은 `infrastructure/acl`, 갱신은 application이 맡는다. 매장 진열 설정·판매 가능 여부는 이 투영에 넣지 않고 storeId로 참조하는 별도 애그리거트로 유지한다. Store BC 연동 방식이 정해지거나, 매장 속성을 쓰는 규칙(지역 기반 판매 범위, 폐점 매장 처리 등)이 요구사항에 들어올 때 도입한다. 도입하면 `ValidateStoreExistsPort` 동기 호출을 로컬 조회로 대체할 수 있다(결과적 일관성 감수) | [도메인 모델](../domain-model.md#bc-경계), [패키지 구조](package-structure.md#외부-호출-지점-포트로-인터페이스화-대상) |
 | 인증·인가 방식 | JWT, 세션 등 구체 방식과 본사관리자·가맹점주 역할 표현 | [기술 스택](tech-stack.md) |
 | 예약 배치 스케줄러 | `@Scheduled` 단일 인스턴스 전제인지, 다중 인스턴스에서 스케줄러 자체의 중복 실행을 어떻게 막을지 (예약 row 단위 중복 처리는 `FOR UPDATE SKIP LOCKED`로 대응) | [ERD](../erd.md#동시성-처리) |
 | 재고 재동기화 | 재고관리 서비스의 다매장 재고 일괄 조회 API가 확정되면 재활성화·판매 범위 재포함 시점에 재고 투영을 다시 맞춘다 | [도메인 모델](../domain-model.md#주요-결정) |
