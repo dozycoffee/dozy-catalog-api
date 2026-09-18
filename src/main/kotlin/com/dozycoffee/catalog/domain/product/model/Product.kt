@@ -1,6 +1,7 @@
 package com.dozycoffee.catalog.domain.product.model
 
 import com.dozycoffee.catalog.domain.category.CategoryId
+import com.dozycoffee.catalog.domain.optiongroup.OptionGroup
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
 import com.dozycoffee.catalog.domain.product.event.ProductActivated
@@ -10,8 +11,10 @@ import com.dozycoffee.catalog.domain.product.exception.DuplicateOptionGroupLinkE
 import com.dozycoffee.catalog.domain.product.exception.InvalidOptionGroupOrderException
 import com.dozycoffee.catalog.domain.product.exception.InvalidProductStatusTransitionException
 import com.dozycoffee.catalog.domain.product.exception.NoSelectableOptionException
+import com.dozycoffee.catalog.domain.product.exception.OptionKeyNotFoundException
 import com.dozycoffee.catalog.domain.product.exception.ProductNotDeletableException
 import com.dozycoffee.catalog.domain.product.exception.ProductOptionGroupNotLinkedException
+import com.dozycoffee.catalog.domain.product.service.EffectiveOptionResolver
 import com.dozycoffee.catalog.domain.productgroup.ProductGroupId
 import com.dozycoffee.catalog.domain.shared.AggregateRoot
 import com.dozycoffee.catalog.domain.shared.Money
@@ -142,26 +145,30 @@ class Product internal constructor(
             }
     }
 
+    // optionGroup은 예외를 검증하는 데만 쓰고 보관하지 않는다(애그리거트 간에는 ID로만 참조).
+    // 옵션 그룹에 없는 옵션 키에는 예외를 지정할 수 없다.
     fun overrideOptionPrice(
-        optionGroupId: OptionGroupId,
+        optionGroup: OptionGroup,
         optionKey: OptionKey,
         price: Money,
     ) {
-        replaceOverride(optionGroupId, OptionOverride.Price(optionKey, price))
+        val link = linkOf(optionGroup.id)
+        requireOptionKeyExists(optionGroup, optionKey)
+        link.replaceOverrides(overridesReplacing(link, OptionOverride.Price(optionKey, price)))
     }
 
-    // remainingSelectableOptionKeys: 이 제외를 반영했을 때 이 상품에서 남는
-    // 선택 가능한 옵션 키 집합. OptionGroup의 전체 옵션 목록을 알아야 계산
-    // 가능한 cross-aggregate 값이라 application이 계산해 전달한다.
+    // 이 제외를 반영한 유효 옵션 구성을 계산해, 선택 가능한 옵션이 0개가 되면 거부한다.
     fun excludeOption(
-        optionGroupId: OptionGroupId,
+        optionGroup: OptionGroup,
         optionKey: OptionKey,
-        remainingSelectableOptionKeys: Set<OptionKey>,
     ) {
-        if (remainingSelectableOptionKeys.isEmpty()) {
-            throw NoSelectableOptionException(id, optionGroupId)
+        val link = linkOf(optionGroup.id)
+        requireOptionKeyExists(optionGroup, optionKey)
+        val newOverrides = overridesReplacing(link, OptionOverride.Exclude(optionKey))
+        if (EffectiveOptionResolver.resolveGroup(optionGroup, newOverrides).options.isEmpty()) {
+            throw NoSelectableOptionException(id, optionGroup.id)
         }
-        replaceOverride(optionGroupId, OptionOverride.Exclude(optionKey))
+        link.replaceOverrides(newOverrides)
     }
 
     fun removeOverride(
@@ -172,13 +179,27 @@ class Product internal constructor(
         link.replaceOverrides(link.overrides.filterNot { it.optionKey == optionKey })
     }
 
-    private fun replaceOverride(
-        optionGroupId: OptionGroupId,
-        override: OptionOverride,
-    ) {
-        val link = linkOf(optionGroupId)
-        link.replaceOverrides(link.overrides.filterNot { it.optionKey == override.optionKey } + override)
+    // 옵션 목록 교체로 옵션 그룹에서 사라진 옵션 키의 예외를 삭제한다(요구사항 1.9).
+    // optionGroup은 교체가 반영된 상태여야 한다. 이후 같은 키가 다시 생겨도 복원하지 않는다.
+    fun removeOverridesOfMissingOptions(optionGroup: OptionGroup) {
+        val link = linkOf(optionGroup.id)
+        val existingKeys = optionGroup.options.map { it.optionKey }.toSet()
+        link.replaceOverrides(link.overrides.filter { it.optionKey in existingKeys })
     }
+
+    private fun requireOptionKeyExists(
+        optionGroup: OptionGroup,
+        optionKey: OptionKey,
+    ) {
+        if (optionGroup.options.none { it.optionKey == optionKey }) {
+            throw OptionKeyNotFoundException(optionGroup.id, optionKey)
+        }
+    }
+
+    private fun overridesReplacing(
+        link: ProductOptionGroupLink,
+        override: OptionOverride,
+    ): List<OptionOverride> = link.overrides.filterNot { it.optionKey == override.optionKey } + override
 
     private fun linkOf(optionGroupId: OptionGroupId): ProductOptionGroupLink =
         optionGroupLinks.firstOrNull { it.id == optionGroupId }

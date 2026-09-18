@@ -57,8 +57,10 @@ class OptionGroup internal constructor(
         }
     }
 
-    private companion object {
-        fun validateOptions(options: List<Option>) {
+    internal companion object {
+        // 옵션 목록 교체를 연결 상품 검증과 묶어 처리하는 도메인 서비스(OptionListReplacer)가
+        // 상품 검증보다 먼저 목록 자체의 유효성을 확인할 수 있도록 internal로 연다.
+        internal fun validateOptions(options: List<Option>) {
             if (options.isEmpty()) {
                 throw EmptyOptionGroupException()
             }
