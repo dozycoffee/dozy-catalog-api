@@ -7,6 +7,7 @@ import com.dozycoffee.catalog.domain.product.event.ProductActivated
 import com.dozycoffee.catalog.domain.product.event.ProductDiscontinued
 import com.dozycoffee.catalog.domain.product.event.ProductStoreScopeChanged
 import com.dozycoffee.catalog.domain.product.exception.DuplicateOptionGroupLinkException
+import com.dozycoffee.catalog.domain.product.exception.InvalidOptionGroupOrderException
 import com.dozycoffee.catalog.domain.product.exception.InvalidProductStatusTransitionException
 import com.dozycoffee.catalog.domain.product.exception.NoSelectableOptionException
 import com.dozycoffee.catalog.domain.product.exception.ProductNotDeletableException
@@ -154,6 +155,54 @@ class ProductTest {
 
             assertEquals(listOf(OptionGroupId(2), OptionGroupId(1)), product.optionGroupLinks.map { it.id })
             assertEquals(listOf(0, 1), product.optionGroupLinks.map { it.displayOrder })
+        }
+
+        @Test
+        fun `다시 정렬해도 각 연결의 예외 설정은 유지된다`() {
+            val exclude = OptionOverride.Exclude(OptionKey("TALL"))
+            val product =
+                product(
+                    links =
+                        listOf(
+                            ProductOptionGroupLink(OptionGroupId(1), 0, listOf(exclude)),
+                            link(2, 1),
+                        ),
+                )
+
+            product.reorderOptionGroups(listOf(OptionGroupId(2), OptionGroupId(1)))
+
+            assertEquals(listOf(exclude), product.optionGroupLinks.single { it.id == OptionGroupId(1) }.overrides)
+        }
+
+        @Test
+        fun `연결된 그룹 일부만 담아 정렬하면 거부하고 기존 연결을 그대로 둔다`() {
+            val product = product(links = listOf(link(1, 0), link(2, 1)))
+
+            assertFailsWith<InvalidOptionGroupOrderException> {
+                product.reorderOptionGroups(listOf(OptionGroupId(1)))
+            }
+            assertEquals(listOf(OptionGroupId(1), OptionGroupId(2)), product.optionGroupLinks.map { it.id })
+            assertEquals(listOf(0, 1), product.optionGroupLinks.map { it.displayOrder })
+        }
+
+        @Test
+        fun `같은 그룹을 중복해 담으면 거부한다`() {
+            val product = product(links = listOf(link(1, 0), link(2, 1)))
+
+            assertFailsWith<InvalidOptionGroupOrderException> {
+                product.reorderOptionGroups(listOf(OptionGroupId(1), OptionGroupId(1)))
+            }
+            assertEquals(listOf(OptionGroupId(1), OptionGroupId(2)), product.optionGroupLinks.map { it.id })
+        }
+
+        @Test
+        fun `연결되지 않은 그룹을 담으면 연결되지 않은 옵션 그룹 예외로 거부한다`() {
+            val product = product(links = listOf(link(1, 0)))
+
+            assertFailsWith<ProductOptionGroupNotLinkedException> {
+                product.reorderOptionGroups(listOf(OptionGroupId(99)))
+            }
+            assertEquals(listOf(OptionGroupId(1)), product.optionGroupLinks.map { it.id })
         }
     }
 

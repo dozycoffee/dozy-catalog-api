@@ -107,6 +107,7 @@ flowchart LR
 | Product | `DRAFT`가 아닌 상품은 삭제할 수 없다 | `ProductNotDeletableException` |
 | Product | 같은 옵션 그룹을 두 번 연결할 수 없다 (등록 시점 포함) | `DuplicateOptionGroupLinkException` |
 | Product | 연결되지 않은 옵션 그룹에는 예외(가격/제외)를 지정할 수 없다 | `ProductOptionGroupNotLinkedException` |
+| Product | 옵션 그룹 순서 변경 요청은 연결된 옵션 그룹 전체를 정확히 한 번씩 담아야 한다 (일부만 담으면 빠진 연결과 예외 설정이 사라지므로 거부) | `InvalidOptionGroupOrderException`, 연결되지 않은 그룹이 있으면 `ProductOptionGroupNotLinkedException` |
 | Product | 상품별 옵션 예외는 옵션 키당 최대 1건 (새 예외가 기존 것을 대체) | — (구조로 보장) |
 | OptionGroup | 옵션은 최소 1개 (생성·교체 모두) | `EmptyOptionGroupException` |
 | OptionGroup | 그룹 안에서 optionKey는 유일 | `DuplicateOptionKeyException` |
