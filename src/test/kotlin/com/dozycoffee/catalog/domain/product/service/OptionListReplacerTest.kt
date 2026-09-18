@@ -8,7 +8,6 @@ import com.dozycoffee.catalog.domain.optiongroup.OptionKey
 import com.dozycoffee.catalog.domain.optiongroup.SelectionType
 import com.dozycoffee.catalog.domain.optiongroup.exception.EmptyOptionGroupException
 import com.dozycoffee.catalog.domain.product.exception.NoSelectableOptionException
-import com.dozycoffee.catalog.domain.product.exception.ProductOptionGroupNotLinkedException
 import com.dozycoffee.catalog.domain.product.model.OptionOverride
 import com.dozycoffee.catalog.domain.product.model.Product
 import com.dozycoffee.catalog.domain.product.model.ProductId
@@ -93,7 +92,8 @@ class OptionListReplacerTest {
                     tracksInventory = false,
                 )
 
-            assertFailsWith<ProductOptionGroupNotLinkedException> {
+            // 호출 코드 오류이므로 DomainException이 아닌 require로 거부한다.
+            assertFailsWith<IllegalArgumentException> {
                 OptionListReplacer.replace(group, listOf(option("GRANDE", 500)), listOf(unlinked))
             }
         }

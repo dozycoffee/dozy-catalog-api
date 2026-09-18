@@ -6,8 +6,6 @@ import com.dozycoffee.catalog.domain.optiongroup.OptionGroup
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
 import com.dozycoffee.catalog.domain.optiongroup.SelectionType
-import com.dozycoffee.catalog.domain.product.exception.LinkedOptionGroupNotFoundException
-import com.dozycoffee.catalog.domain.product.exception.ProductOptionGroupNotLinkedException
 import com.dozycoffee.catalog.domain.product.model.OptionOverride
 import com.dozycoffee.catalog.domain.product.model.Product
 import com.dozycoffee.catalog.domain.product.model.ProductId
@@ -190,7 +188,8 @@ class EffectiveOptionResolverTest {
             val unlinked = optionGroup(99, option("SHOT", 500))
             val product = product(ProductOptionGroupLink(OptionGroupId(1), 0))
 
-            assertFailsWith<ProductOptionGroupNotLinkedException> {
+            // 호출 코드 오류이므로 DomainException이 아닌 require로 거부한다.
+            assertFailsWith<IllegalArgumentException> {
                 EffectiveOptionResolver.resolve(product, listOf(size, unlinked))
             }
         }
@@ -204,7 +203,7 @@ class EffectiveOptionResolverTest {
                     ProductOptionGroupLink(OptionGroupId(2), 1),
                 )
 
-            assertFailsWith<LinkedOptionGroupNotFoundException> {
+            assertFailsWith<IllegalArgumentException> {
                 EffectiveOptionResolver.resolve(product, listOf(size))
             }
         }

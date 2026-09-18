@@ -124,13 +124,13 @@ flowchart LR
 
 ### 도메인 서비스에서 강제 (cross-aggregate, I/O 없음)
 
-필요한 애그리거트는 application이 조회·잠금해 넘기고, 판단과 변경은 도메인 서비스가 한다. 모두 유효 옵션 구성 계산(`EffectiveOptionResolver`) 위에서 판단한다.
+필요한 애그리거트는 application이 조회·잠금해 넘기고, 판단과 변경은 도메인 서비스가 한다. 선택 가능한 옵션 판단은 모두 model의 같은 기준(예외를 반영했을 때 제외되지 않은 옵션)을 쓴다.
 
 | 규칙 | 필요한 정보 | 처리 방식 |
 |---|---|---|
-| 옵션 변경(즉시·예약 스냅샷)으로 어떤 연결 상품의 선택 가능 옵션이 0개가 되면 거부 | 이 그룹을 연결한 모든 상품(상태 무관)의 예외 | `OptionListReplacer.replace(optionGroup, newOptions, linkedProducts)`가 상품마다 새 목록으로 유효 구성을 계산해 빈 그룹이 있으면 거부 (`NoSelectableOptionException`). 거부되면 아무것도 바꾸지 않는다 |
+| 옵션 변경(즉시·예약 스냅샷)으로 어떤 연결 상품의 선택 가능 옵션이 0개가 되면 거부 | 이 그룹을 연결한 모든 상품(상태 무관)의 예외 | `OptionListReplacer.replace(optionGroup, newOptions, linkedProducts)`가 상품마다 새 목록 기준으로 선택 가능한 옵션을 계산해 0개면 거부 (`NoSelectableOptionException`). 거부되면 아무것도 바꾸지 않는다. 연결하지 않은 상품이 섞이면 호출 코드 오류로 보고 `require`로 거부 |
 | 옵션 변경으로 사라진 옵션 키의 상품별 예외는 함께 삭제 (요구사항 1.9) | 이 그룹을 연결한 모든 상품의 예외 | 같은 `OptionListReplacer.replace()`가 교체 후 상품마다 `Product.removeOverridesOfMissingOptions()` 호출. application은 옵션 그룹과 연결 상품을 같은 트랜잭션에서 저장 |
-| 유효 옵션 구성 계산에 넘긴 옵션 그룹은 상품의 연결과 정확히 일치 | 상품에 연결된 옵션 그룹 전체 | `EffectiveOptionResolver.resolve()`가 검증 (연결되지 않은 그룹 `ProductOptionGroupNotLinkedException`, 빠진 그룹 `LinkedOptionGroupNotFoundException`) |
+| 유효 옵션 구성 계산에 넘긴 옵션 그룹은 상품의 연결과 정확히 일치 | 상품에 연결된 옵션 그룹 전체 | `EffectiveOptionResolver.resolve()`가 검증. 어긋나면 application이 옵션 그룹을 잘못 불러온 호출 코드 오류이므로 `require`로 거부 ([예외 구조](architecture/exception.md)) |
 
 예외 예약의 적용 시점에 옵션 키가 이미 사라졌으면 `Product`의 키 검증에 걸려 예약이 `실패`로 기록된다(요구사항 1.4, 1.9).
 

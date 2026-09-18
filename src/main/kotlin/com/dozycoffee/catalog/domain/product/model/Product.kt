@@ -14,7 +14,6 @@ import com.dozycoffee.catalog.domain.product.exception.NoSelectableOptionExcepti
 import com.dozycoffee.catalog.domain.product.exception.OptionKeyNotFoundException
 import com.dozycoffee.catalog.domain.product.exception.ProductNotDeletableException
 import com.dozycoffee.catalog.domain.product.exception.ProductOptionGroupNotLinkedException
-import com.dozycoffee.catalog.domain.product.service.EffectiveOptionResolver
 import com.dozycoffee.catalog.domain.productgroup.ProductGroupId
 import com.dozycoffee.catalog.domain.shared.AggregateRoot
 import com.dozycoffee.catalog.domain.shared.Money
@@ -157,7 +156,7 @@ class Product internal constructor(
         link.replaceOverrides(overridesReplacing(link, OptionOverride.Price(optionKey, price)))
     }
 
-    // 이 제외를 반영한 유효 옵션 구성을 계산해, 선택 가능한 옵션이 0개가 되면 거부한다.
+    // 이 제외를 반영했을 때 선택 가능한 옵션이 0개가 되면 거부한다.
     fun excludeOption(
         optionGroup: OptionGroup,
         optionKey: OptionKey,
@@ -165,7 +164,7 @@ class Product internal constructor(
         val link = linkOf(optionGroup.id)
         requireOptionKeyExists(optionGroup, optionKey)
         val newOverrides = overridesReplacing(link, OptionOverride.Exclude(optionKey))
-        if (EffectiveOptionResolver.resolveGroup(optionGroup, newOverrides).options.isEmpty()) {
+        if (selectableOptions(optionGroup.options, newOverrides).isEmpty()) {
             throw NoSelectableOptionException(id, optionGroup.id)
         }
         link.replaceOverrides(newOverrides)
