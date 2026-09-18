@@ -117,7 +117,8 @@ flowchart LR
 | Product | 카테고리는 소분류만 지정할 수 있다 (등록·카테고리 변경 모두) | — (`ChildCategory`만 받아 타입으로 보장) |
 | OptionGroup | 옵션은 최소 1개 (생성·교체 모두) | `EmptyOptionGroupException` |
 | OptionGroup | 그룹 안에서 optionKey는 유일 | `DuplicateOptionKeyException` |
-| Category | 2단계 계층만 허용 — 자기 자신을 부모로 지정 불가, 하위를 가진 대분류는 소분류가 될 수 없음 | `InvalidParentCategoryException` |
+| Category | 자기 자신을 부모로 지정할 수 없다 | `InvalidParentCategoryException` |
+| Category | 하위 카테고리를 가진 대분류는 소분류가 될 수 없다 (2단계 계층 유지) | `CategoryWithChildrenNotDemotableException` |
 | Category | 상품이 참조 중인 소분류는 대분류가 될 수 없다 | `ReferencedCategoryNotPromotableException` |
 | ScheduledChange | `PENDING` 상태에서만 취소/적용/실패 처리 가능 | `NoPendingScheduleException` / `InvalidScheduleStatusTransitionException` |
 | StoreProductAvailability | `INVENTORY` 출처(재고 추적 상품)의 품절 상태는 점주가 바꿀 수 없다 | `StockStatusNotManuallyEditableException` |

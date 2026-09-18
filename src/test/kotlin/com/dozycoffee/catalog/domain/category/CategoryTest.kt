@@ -1,8 +1,11 @@
 package com.dozycoffee.catalog.domain.category
 
+import com.dozycoffee.catalog.domain.category.exception.CategoryErrorCode
 import com.dozycoffee.catalog.domain.category.exception.CategoryNotAssignableException
+import com.dozycoffee.catalog.domain.category.exception.CategoryWithChildrenNotDemotableException
 import com.dozycoffee.catalog.domain.category.exception.InvalidParentCategoryException
 import com.dozycoffee.catalog.domain.category.exception.ReferencedCategoryNotPromotableException
+import com.dozycoffee.catalog.domain.shared.ErrorType
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -28,9 +31,14 @@ class CategoryTest {
         fun `자기 자신을 부모로 지정할 수 없다`() {
             val category = TopLevelCategory(CategoryId(1), "음료")
 
-            assertFailsWith<InvalidParentCategoryException> {
-                category.becomeChildOf(parent = category, hasChildren = false)
-            }
+            val exception =
+                assertFailsWith<InvalidParentCategoryException> {
+                    category.becomeChildOf(parent = category, hasChildren = false)
+                }
+
+            // 현재 상태와 무관하게 요청 값 자체가 잘못된 경우다.
+            assertEquals(CategoryErrorCode.INVALID_PARENT_CATEGORY, exception.errorCode)
+            assertEquals(ErrorType.INVALID_INPUT, exception.errorCode.type)
         }
 
         @Test
@@ -39,9 +47,14 @@ class CategoryTest {
             val category = TopLevelCategory(CategoryId(1), "커피")
             val parent = TopLevelCategory(CategoryId(2), "음료")
 
-            assertFailsWith<InvalidParentCategoryException> {
-                category.becomeChildOf(parent = parent, hasChildren = true)
-            }
+            val exception =
+                assertFailsWith<CategoryWithChildrenNotDemotableException> {
+                    category.becomeChildOf(parent = parent, hasChildren = true)
+                }
+
+            // 하위 카테고리를 먼저 옮기면 성공할 수 있으므로 현재 상태와의 충돌로 분류한다.
+            assertEquals(CategoryErrorCode.CATEGORY_WITH_CHILDREN_NOT_DEMOTABLE, exception.errorCode)
+            assertEquals(ErrorType.CONFLICT, exception.errorCode.type)
         }
 
         @Test
