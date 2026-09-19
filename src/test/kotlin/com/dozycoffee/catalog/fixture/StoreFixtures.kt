@@ -20,9 +20,7 @@ fun displaySetting(
     storeId: StoreId = StoreId(1),
     productId: ProductId = ProductId(1),
     visibility: Visibility = Visibility.VISIBLE,
-) = StoreDisplaySetting(StoreDisplaySettingId(id), storeId, productId).also {
-    if (visibility == Visibility.HIDDEN) it.hide()
-}
+) = StoreDisplaySetting(StoreDisplaySettingId(id), storeId, productId, visibility = visibility)
 
 // stockStatus가 null이면 처음 만든 상태(판매중) 그대로다.
 fun ownerAvailability(
