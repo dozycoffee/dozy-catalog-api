@@ -40,7 +40,8 @@
 | ADR | 제목 | 상태 | 날짜 |
 |---|---|---|---|
 | [0009](0009-flyway-with-exposed-schema-check.md) | 스키마 마이그레이션은 Flyway(JDBC)로 하고, Exposed로 스키마 불일치를 검사한다 | 채택 | 2026-09-19 |
-| [0010](0010-schema-conventions-and-time.md) | 스키마 기본 규칙과 시간 처리 | 채택 | 2026-09-19 |
+| [0010](0010-schema-conventions-and-time.md) | 스키마 기본 규칙과 시간 처리 | 일부 대체됨 (동시 수정 → 0013) | 2026-09-19 |
+| [0013](0013-optimistic-locking-for-product-and-option-group.md) | 낙관적 잠금은 Product와 OptionGroup에만 쓰고, 충돌은 사람이 다시 판단한다 | 채택 | 2026-09-19 |
 
 ### 도메인 모델
 | ADR | 제목 | 상태 | 날짜 |
