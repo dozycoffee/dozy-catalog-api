@@ -11,6 +11,10 @@ management:
       exposure:
         include: health, info
 
+catalog:
+  # 업무 기준 시간대. 예약 적용일의 00시를 이 시간대로 해석한다(docs/adr/0010). 서버·JVM·DB 시간대는 UTC로 둔다.
+  business-zone: Asia/Seoul
+
 ---
 spring:
   config:
@@ -22,4 +26,10 @@ spring:
   r2dbc:
     url: r2dbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}
     username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  # Flyway는 R2DBC를 지원하지 않아 앱 시작 시 JDBC로 한 번 실행된다. 로컬·테스트는 docker-compose와
+  # Testcontainers가 JDBC 연결 정보를 자동으로 주지만, prod는 R2DBC와 같은 환경 변수로 직접 지정한다.
+  flyway:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}
+    user: ${DB_USERNAME}
     password: ${DB_PASSWORD}

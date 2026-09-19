@@ -33,6 +33,13 @@
 | [0002](0002-error-code-and-error-type.md) | 도메인 예외는 `ErrorCode`/`ErrorType`으로 분류하고 domain은 HTTP를 모른다 | 채택 | 2026-09-18 |
 | [0007](0007-domain-exception-vs-require-check.md) | 사용자가 일으킬 수 있는 규칙 위반은 `DomainException`, 호출 코드 오류는 `require`/`check` | 채택 | 2026-09-19 |
 | [0008](0008-judgment-in-domain-service-orchestration-in-application.md) | 판단은 도메인 서비스, 오케스트레이션과 트랜잭션 경계는 application | 채택 | 2026-09-19 |
+| [0011](0011-transaction-boundary-with-transaction-runner.md) | 트랜잭션 경계는 application의 `TransactionRunner`로 연다 | 채택 | 2026-09-19 |
+
+### 영속성
+| ADR | 제목 | 상태 | 날짜 |
+|---|---|---|---|
+| [0009](0009-flyway-with-exposed-schema-check.md) | 스키마 마이그레이션은 Flyway(JDBC)로 하고, Exposed로 스키마 불일치를 검사한다 | 채택 | 2026-09-19 |
+| [0010](0010-schema-conventions-and-time.md) | 스키마 기본 규칙과 시간 처리 | 채택 | 2026-09-19 |
 
 ### 도메인 모델
 | ADR | 제목 | 상태 | 날짜 |

@@ -2,7 +2,15 @@
 
 > 문서별 역할과 수정 순서는 [문서 안내](README.md)를 참고한다.
 
-**DBMS**: PostgreSQL · PK/FK: `BIGINT` · `store_id`는 Store BC(별도 서비스) 참조 (FK 제약 없음)
+**DBMS**: PostgreSQL · 실제 DDL: [`V1__init.sql`](../src/main/resources/db/migration/V1__init.sql) · 스키마 규칙의 근거: [ADR-0010](adr/0010-schema-conventions-and-time.md)
+
+- **ID**: `BIGINT GENERATED ALWAYS AS IDENTITY` (DB가 생성)
+- **금액**: `BIGINT`, 원 단위 정수 (도메인 `Money(Long)`)
+- **상태값**: `VARCHAR` + `CHECK` (PostgreSQL ENUM 타입은 쓰지 않음)
+- **시각**: `TIMESTAMPTZ` (도메인 `Instant`). 업무 날짜는 `DATE` (업무 시간대 기준)
+- **낙관적 잠금**: 애그리거트 루트 테이블에 `version BIGINT`
+- **감사 컬럼**: `created_at`/`updated_at`은 DB 시계(`now()`)로 채움
+- `store_id`는 Store BC(별도 서비스) 참조라 FK 제약이 없다
  
 ---
 
@@ -26,7 +34,7 @@ erDiagram
  
     option_groups ||--o{ options : has
     option_groups ||--o{ product_option_groups : has
-    option_groups ||--o{ product_option_overrides : has
+    product_option_groups ||--o{ product_option_overrides : has
  
     products {
         bigint id PK
@@ -35,52 +43,56 @@ erDiagram
         bigint category_id FK
         text description
         varchar image_url
-        decimal base_price
+        bigint base_price
         varchar status
         varchar store_scope
         boolean tracks_inventory
-        timestamp created_at
-        timestamp updated_at
+        bigint version
+        timestamptz created_at
+        timestamptz updated_at
     }
  
     categories {
         bigint id PK
         varchar name
         bigint parent_category_id FK
-        timestamp created_at
-        timestamp updated_at
+        bigint version
+        timestamptz created_at
+        timestamptz updated_at
     }
  
     tags {
         bigint id PK
         varchar name UK
-        timestamp created_at
-        timestamp updated_at
+        bigint version
+        timestamptz created_at
+        timestamptz updated_at
     }
  
     product_groups {
         bigint id PK
         varchar name
-        timestamp created_at
-        timestamp updated_at
+        bigint version
+        timestamptz created_at
+        timestamptz updated_at
     }
  
     product_target_stores {
         bigint product_id FK
         bigint store_id PK
-        timestamp created_at
+        timestamptz created_at
     }
  
     product_tags {
         bigint product_id FK
         bigint tag_id FK
-        timestamp created_at
+        timestamptz created_at
     }
  
     product_groups_map {
         bigint product_id FK
         bigint group_id FK
-        timestamp created_at
+        timestamptz created_at
     }
  
     option_groups {
@@ -88,8 +100,9 @@ erDiagram
         varchar name
         varchar selection_type
         boolean required
-        timestamp created_at
-        timestamp updated_at
+        bigint version
+        timestamptz created_at
+        timestamptz updated_at
     }
  
     options {
@@ -97,18 +110,18 @@ erDiagram
         varchar option_key
         bigint option_group_id FK
         varchar name
-        decimal price
+        bigint price
         integer display_order
-        timestamp created_at
-        timestamp updated_at
+        timestamptz created_at
+        timestamptz updated_at
     }
  
     product_option_groups {
         bigint product_id FK
         bigint option_group_id FK
         integer display_order
-        timestamp created_at
-        timestamp updated_at
+        timestamptz created_at
+        timestamptz updated_at
     }
  
     product_option_overrides {
@@ -116,9 +129,9 @@ erDiagram
         bigint option_group_id FK
         varchar option_key PK
         varchar override_type
-        decimal price
-        timestamp created_at
-        timestamp updated_at
+        bigint price
+        timestamptz created_at
+        timestamptz updated_at
     }
  
     scheduled_changes {
@@ -128,9 +141,11 @@ erDiagram
         varchar field_name
         jsonb new_value
         date effective_date
+        timestamptz effective_at
         varchar status
-        timestamp created_at
-        timestamp updated_at
+        bigint version
+        timestamptz created_at
+        timestamptz updated_at
     }
  
     store_display_settings {
@@ -139,8 +154,9 @@ erDiagram
         bigint product_id FK
         integer display_order
         varchar visibility
-        timestamp created_at
-        timestamp updated_at
+        bigint version
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     store_product_availabilities {
@@ -148,9 +164,10 @@ erDiagram
         bigint product_id PK
         varchar source
         varchar stock_status
-        timestamp last_event_at
-        timestamp created_at
-        timestamp updated_at
+        timestamptz last_event_at
+        bigint version
+        timestamptz created_at
+        timestamptz updated_at
     }
 ```
 
@@ -158,21 +175,21 @@ erDiagram
  
 ---
 
-## ENUM 타입
+## 상태값 (`VARCHAR` + `CHECK`)
 
-```sql
-CREATE TYPE product_status       AS ENUM ('DRAFT', 'ACTIVE', 'DISCONTINUED');
-CREATE TYPE store_scope          AS ENUM ('ALL', 'LIMITED');
-CREATE TYPE selection_type       AS ENUM ('SINGLE', 'MULTI');
-CREATE TYPE schedule_target      AS ENUM ('PRODUCT', 'OPTION_GROUP', 'PRODUCT_OPTION_GROUP');
-CREATE TYPE schedule_status      AS ENUM ('PENDING', 'APPLIED', 'CANCELLED', 'FAILED');
-CREATE TYPE display_visibility   AS ENUM ('VISIBLE', 'HIDDEN');
-CREATE TYPE stock_status         AS ENUM ('ON_SALE', 'SOLD_OUT');
-CREATE TYPE availability_source  AS ENUM ('INVENTORY', 'OWNER');
-CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
-```
+| 컬럼 | 허용 값 |
+|---|---|
+| `products.status` | `DRAFT`, `ACTIVE`, `DISCONTINUED` |
+| `products.store_scope` | `ALL`, `LIMITED` |
+| `option_groups.selection_type` | `SINGLE`, `MULTI` |
+| `scheduled_changes.target_kind` | `PRODUCT`, `OPTION_GROUP`, `PRODUCT_OPTION_GROUP` |
+| `scheduled_changes.status` | `PENDING`, `APPLIED`, `CANCELLED`, `FAILED` |
+| `store_display_settings.visibility` | `VISIBLE`, `HIDDEN` |
+| `store_product_availabilities.stock_status` | `ON_SALE`, `SOLD_OUT` |
+| `store_product_availabilities.source` | `INVENTORY`, `OWNER` |
+| `product_option_overrides.override_type` | `PRICE`, `EXCLUDE` |
 
-값 추가는 `ALTER TYPE ... ADD VALUE`로 가능(단, 같은 트랜잭션 내 즉시 사용 불가). 값 삭제/변경이 잦을 것으로 예상되면 해당 컬럼만 `VARCHAR + CHECK`로 개별 전환 검토.
+PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-conventions-and-time.md)에 있다(R2DBC 드라이버 코덱 등록, Exposed 별도 타입, 값 변경의 번거로움). 값을 추가하거나 바꿀 때는 새 마이그레이션에서 `CHECK` 제약을 교체한다.
  
 ---
 
@@ -182,17 +199,18 @@ CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
 
 | 컬럼 | 타입 | 제약 | 설명 |
 |---|---|---|---|
-| id | BIGINT | PK | |
+| id | BIGINT | PK, identity | |
 | sku | VARCHAR | UNIQUE, NULL 허용 | 외부 시스템 연동 키 |
 | name | VARCHAR | NOT NULL | 즉시 반영 |
-| category_id | BIGINT | FK → categories.id, NOT NULL | 소분류만 참조 |
+| category_id | BIGINT | FK → categories.id, NOT NULL | 소분류만 참조(도메인이 `ChildCategory` 타입으로 강제) |
 | description | TEXT | NULL 허용 | |
 | image_url | VARCHAR | NULL 허용 | 표시용 1장 |
-| base_price | DECIMAL | NOT NULL | 즉시/예약 |
-| status | product_status | NOT NULL, 기본 `DRAFT` | 전용 액션(activate/discontinue)으로만 변경 |
-| store_scope | store_scope | NOT NULL, 기본 `ALL` | |
+| base_price | BIGINT | NOT NULL | 즉시/예약 |
+| status | VARCHAR | NOT NULL, 기본 `DRAFT`, CHECK | 전용 액션(activate/discontinue)으로만 변경 |
+| store_scope | VARCHAR | NOT NULL, 기본 `ALL`, CHECK | |
 | tracks_inventory | BOOLEAN | NOT NULL | 재고형/비재고형 |
-| created_at / updated_at | TIMESTAMP | NOT NULL | |
+| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 
 ### categories — 카테고리 (2단계 계층)
 
@@ -201,7 +219,8 @@ CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
 | id | BIGINT | PK | |
 | name | VARCHAR | NOT NULL | 즉시 반영 |
 | parent_category_id | BIGINT | FK → categories.id, NULL 허용 | NULL이면 대분류 |
-| created_at / updated_at | TIMESTAMP | NOT NULL | |
+| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 
 ### tags — 태그 (Notion select 방식)
 
@@ -209,7 +228,8 @@ CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
 |---|---|---|---|
 | id | BIGINT | PK | |
 | name | VARCHAR | UNIQUE, NOT NULL | 동일명 재사용 |
-| created_at / updated_at | TIMESTAMP | NOT NULL | |
+| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 
 ### product_groups — 상품 그룹 (내부 관리용, 단일 레벨)
 
@@ -217,7 +237,8 @@ CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
 |---|---|---|---|
 | id | BIGINT | PK | |
 | name | VARCHAR | NOT NULL | 즉시 반영 |
-| created_at / updated_at | TIMESTAMP | NOT NULL | |
+| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 
 ### product_target_stores — 판매 범위(LIMITED) 대상 매장
 
@@ -225,7 +246,7 @@ CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
 |---|---|---|---|
 | product_id | BIGINT | PK, FK → products.id | |
 | store_id | BIGINT | PK | Store BC 참조, FK 없음 |
-| created_at | TIMESTAMP | NOT NULL | |
+| created_at | TIMESTAMPTZ | NOT NULL | |
 
 ### product_tags / product_groups_map — 연결 테이블
 
@@ -233,7 +254,7 @@ CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
 |---|---|---|
 | product_id | BIGINT | PK, FK → products.id |
 | tag_id / group_id | BIGINT | PK, FK → tags.id / product_groups.id |
-| created_at | TIMESTAMP | NOT NULL |
+| created_at | TIMESTAMPTZ | NOT NULL |
 
 ### option_groups — 옵션 그룹
 
@@ -241,41 +262,43 @@ CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
 |---|---|---|---|
 | id | BIGINT | PK | |
 | name | VARCHAR | NOT NULL | 즉시 반영 |
-| selection_type | selection_type | NOT NULL | SINGLE / MULTI |
+| selection_type | VARCHAR | NOT NULL, CHECK | SINGLE / MULTI |
 | required | BOOLEAN | NOT NULL | |
-| created_at / updated_at | TIMESTAMP | NOT NULL | |
+| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 
 ### options — 개별 옵션
 
 | 컬럼 | 타입 | 제약 | 설명 |
 |---|---|---|---|
 | id | BIGINT | PK | PUT/스냅샷 시 재발급 가능 |
-| option_key | VARCHAR | NOT NULL | 논리 식별자, 그룹 내 유일 |
-| option_group_id | BIGINT | FK → option_groups.id, NOT NULL | |
+| option_key | VARCHAR | NOT NULL, `UNIQUE(option_group_id, option_key)` | 논리 식별자, 그룹 내 유일 |
+| option_group_id | BIGINT | FK → option_groups.id (삭제 시 CASCADE), NOT NULL | |
 | name | VARCHAR | NOT NULL | |
-| price | DECIMAL | NOT NULL, `CHECK (price >= 0)` | |
+| price | BIGINT | NOT NULL, `CHECK (price >= 0)` | |
 | display_order | INTEGER | NOT NULL | 그룹 내 노출 순서 |
-| created_at / updated_at | TIMESTAMP | NOT NULL | |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 
 ### product_option_groups — 상품 ↔ 옵션그룹 연결
 
 | 컬럼 | 타입 | 제약 | 설명 |
 |---|---|---|---|
-| product_id | BIGINT | PK, FK → products.id | |
-| option_group_id | BIGINT | PK, FK → option_groups.id | |
+| product_id | BIGINT | PK, FK → products.id (삭제 시 CASCADE) | |
+| option_group_id | BIGINT | PK, FK → option_groups.id (삭제 제한) | 연결한 상품이 있으면 옵션 그룹을 삭제할 수 없다(요구사항 1.9) |
 | display_order | INTEGER | NOT NULL | 이 상품 내 옵션그룹 간 순서 |
-| created_at / updated_at | TIMESTAMP | NOT NULL | |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 
 ### product_option_overrides — 상품별 옵션 예외
 
 | 컬럼 | 타입 | 제약 | 설명 |
 |---|---|---|---|
-| product_id | BIGINT | PK, FK → products.id | |
-| option_group_id | BIGINT | PK, FK → option_groups.id | |
+| product_id | BIGINT | PK | |
+| option_group_id | BIGINT | PK | |
 | option_key | VARCHAR | PK | |
-| override_type | override_type | NOT NULL | `PRICE` 또는 `EXCLUDE` |
-| price | DECIMAL | NULL 허용, `CHECK (price >= 0)` | `PRICE`일 때만 값 존재 |
-| created_at / updated_at | TIMESTAMP | NOT NULL | |
+| (FK) | | `(product_id, option_group_id)` → `product_option_groups` (삭제 시 CASCADE) | 예외는 상품-옵션 그룹 연결에 속한다. 연결이 해제되면 함께 삭제 |
+| override_type | VARCHAR | NOT NULL, CHECK | `PRICE` 또는 `EXCLUDE` |
+| price | BIGINT | NULL 허용, `CHECK (price >= 0)` | `PRICE`일 때만 값 존재 |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 | 제약 | | `CHECK ((override_type='PRICE' AND price IS NOT NULL) OR (override_type='EXCLUDE' AND price IS NULL))` | type-price 정합성 |
 
 ### scheduled_changes — 예약 변경 (필드 단위, 00시 고정 적용)
@@ -284,12 +307,14 @@ CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
 |---|---|---|---|
 | id | BIGINT | PK | |
 | target_id | BIGINT | NOT NULL | products.id 또는 option_groups.id (다형 참조) |
-| target_kind | schedule_target | NOT NULL | |
+| target_kind | VARCHAR | NOT NULL, CHECK | |
 | field_name | VARCHAR | NOT NULL | 예약 대상 필드명 |
 | new_value | JSONB | NOT NULL | |
-| effective_date | DATE | NOT NULL | 00시 고정 적용 |
-| status | schedule_status | NOT NULL, 기본 `PENDING` | |
-| created_at / updated_at | TIMESTAMP | NOT NULL | |
+| effective_date | DATE | NOT NULL | 업무 날짜. 업무 시간대 기준 그 날 00시에 적용 |
+| effective_at | TIMESTAMPTZ | NOT NULL | 등록할 때 `effective_date`의 00시를 업무 시간대로 해석해 계산한 순간. 배치는 이 값으로만 대상을 고른다 |
+| status | VARCHAR | NOT NULL, 기본 `PENDING`, CHECK | |
+| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 | 제약 | | `UNIQUE(target_id, target_kind, field_name) WHERE status='PENDING'` | 동일 대상·필드 Pending 최대 1건 |
 
 ### store_display_settings — 매장별 진열 설정 (점주 소유, Lazy 생성)
@@ -300,8 +325,9 @@ CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
 | store_id | BIGINT | NOT NULL | Store BC 참조, FK 없음 |
 | product_id | BIGINT | FK → products.id, NOT NULL | |
 | display_order | INTEGER | NULL 허용 | |
-| visibility | display_visibility | NOT NULL, 기본 `VISIBLE` | 점주의 노출 의도 |
-| created_at / updated_at | TIMESTAMP | NOT NULL | row 부재 = 기본값(노출)으로 취급 중 |
+| visibility | VARCHAR | NOT NULL, 기본 `VISIBLE`, CHECK | 점주의 노출 의도 |
+| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL | row 부재 = 기본값(노출)으로 취급 중 |
 | 제약 | | `UNIQUE(store_id, product_id)` | |
 
 판매 범위에서 제외된 매장의 row는 삭제한다(요구사항 1.5).
@@ -316,12 +342,27 @@ CREATE TYPE override_type        AS ENUM ('PRICE', 'EXCLUDE');
 |---|---|---|---|
 | store_id | BIGINT | PK | Store BC 참조, FK 없음 |
 | product_id | BIGINT | PK, FK → products.id | 상품 삭제 시 함께 삭제 |
-| source | availability_source | NOT NULL | `INVENTORY` / `OWNER` |
-| stock_status | stock_status | NOT NULL | 판매중 = `ON_SALE`, 품절 = `SOLD_OUT` |
-| last_event_at | TIMESTAMP | NULL 허용 | 마지막으로 반영한 재고 이벤트의 발생 시각(`INVENTORY`만). 이보다 오래되었거나 같은 시각의 이벤트는 무시 |
-| created_at / updated_at | TIMESTAMP | NOT NULL | row 부재 = 출처별 기본값(`INVENTORY`는 품절, `OWNER`는 판매중) |
+| source | VARCHAR | NOT NULL, CHECK | `INVENTORY` / `OWNER` |
+| stock_status | VARCHAR | NOT NULL, CHECK | 판매중 = `ON_SALE`, 품절 = `SOLD_OUT` |
+| last_event_at | TIMESTAMPTZ | NULL 허용 | 마지막으로 반영한 재고 이벤트의 발생 시각(`INVENTORY`만). 이보다 오래되었거나 같은 시각의 이벤트는 무시 |
+| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL | row 부재 = 출처별 기본값(`INVENTORY`는 품절, `OWNER`는 판매중) |
 | 제약 | | `CHECK (source = 'INVENTORY' OR last_event_at IS NULL)` | `OWNER` 출처에는 재고 이벤트 시각이 없다 |
  
+---
+
+## 삭제 시 동작 (FK)
+
+| 삭제 대상 | 함께 삭제 (CASCADE) | 삭제 제한 |
+|---|---|---|
+| `products` | 대상 매장, 태그·그룹 연결, 옵션 그룹 연결과 상품별 예외, 매장 진열 설정, 매장 판매 가능 여부 | — |
+| `option_groups` | 옵션 | 연결한 상품이 있으면 삭제 불가 |
+| `categories` | — | 참조하는 상품이나 하위 카테고리가 있으면 삭제 불가 |
+| `tags`, `product_groups` | 상품과의 연결 (요구사항 1.7, 1.8의 자동 제거) | — |
+| `product_option_groups` (연결 해제) | 그 연결의 상품별 예외 | — |
+
+삭제 제한은 DB에서도 막지만, 사용자에게 이유를 알려 주기 위해 application이 먼저 확인하고 `DomainException`으로 거부한다([도메인 모델](domain-model.md#application-레이어에서-강제-cross-aggregate)).
+
 ---
 
 ## 동시성 처리

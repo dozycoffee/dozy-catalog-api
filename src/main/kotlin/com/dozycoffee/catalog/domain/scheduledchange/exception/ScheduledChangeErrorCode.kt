@@ -8,6 +8,7 @@ enum class ScheduledChangeErrorCode(
 ) : ErrorCode {
     INVALID_SCHEDULE_STATUS_TRANSITION(ErrorType.CONFLICT),
     NO_PENDING_SCHEDULE(ErrorType.NOT_FOUND),
+    INVALID_EFFECTIVE_DATE(ErrorType.INVALID_INPUT),
     ;
 
     override val code: String get() = name

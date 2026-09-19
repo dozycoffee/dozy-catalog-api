@@ -16,6 +16,7 @@
 @docs/architecture/package-structure.md
 @docs/architecture/exception.md
 @docs/architecture/testing.md
+@docs/architecture/persistence.md
 @docs/adr/README.md
 
 ## 개인 설정
