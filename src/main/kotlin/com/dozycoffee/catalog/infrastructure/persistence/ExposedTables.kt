@@ -1,7 +1,10 @@
 package com.dozycoffee.catalog.infrastructure.persistence
 
 import com.dozycoffee.catalog.infrastructure.persistence.category.CategoriesTable
+import com.dozycoffee.catalog.infrastructure.persistence.product.ProductsTable
 import com.dozycoffee.catalog.infrastructure.persistence.productgroup.ProductGroupsTable
+import com.dozycoffee.catalog.infrastructure.persistence.storeavailability.StoreProductAvailabilitiesTable
+import com.dozycoffee.catalog.infrastructure.persistence.storedisplay.StoreDisplaySettingsTable
 import com.dozycoffee.catalog.infrastructure.persistence.tag.TagsTable
 import org.jetbrains.exposed.v1.core.Table
 
@@ -13,5 +16,8 @@ object ExposedTables {
             CategoriesTable,
             TagsTable,
             ProductGroupsTable,
+            ProductsTable,
+            StoreDisplaySettingsTable,
+            StoreProductAvailabilitiesTable,
         )
 }

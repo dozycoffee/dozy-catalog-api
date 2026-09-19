@@ -29,7 +29,11 @@ interface StoreDisplaySettingRepository {
         productId: ProductId,
     ): StoreDisplaySetting
 
-    suspend fun save(setting: StoreDisplaySetting): StoreDisplaySetting
+    // 진열 설정은 낙관적 잠금 없이 점주의 최신 의도가 이긴다(docs/adr/0013). 전체 행을 덮어쓰면 노출 변경과
+    // 진열 순서 변경이 동시에 들어올 때 한쪽이 다른 쪽을 옛 값으로 되돌리므로, 바꾼 필드만 저장한다.
+    suspend fun saveVisibility(setting: StoreDisplaySetting)
+
+    suspend fun saveDisplayOrder(setting: StoreDisplaySetting)
 
     // 판매 범위에서 제외된 매장의 진열 설정을 삭제한다(요구사항 1.5) — 해당 매장이 다시
     // 대상에 포함되어도 복원하지 않고 기본값으로 새로 시작한다.
