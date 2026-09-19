@@ -2,7 +2,7 @@
 
 > 문서별 역할과 수정 순서는 [문서 안내](README.md)를 참고한다.
 
-**DBMS**: PostgreSQL · 실제 DDL: [`V1__init.sql`](../src/main/resources/db/migration/V1__init.sql) · 스키마 규칙의 근거: [ADR-0010](adr/0010-schema-conventions-and-time.md)
+**DBMS**: PostgreSQL · 실제 DDL: [`V1__init.sql`](../src/main/resources/db/migration/V1__init.sql)과 이후 [마이그레이션](../src/main/resources/db/migration/) · 스키마 규칙의 근거: [ADR-0010](adr/0010-schema-conventions-and-time.md)
 
 - **ID**: `BIGINT GENERATED ALWAYS AS IDENTITY` (DB가 생성)
 - **금액**: `BIGINT`, 원 단위 정수 (도메인 `Money(Long)`)
@@ -176,7 +176,7 @@ erDiagram
 | `products.status` | `DRAFT`, `ACTIVE`, `DISCONTINUED` |
 | `products.store_scope` | `ALL`, `LIMITED` |
 | `option_groups.selection_type` | `SINGLE`, `MULTI` |
-| `scheduled_changes.target_kind` | `PRODUCT`, `OPTION_GROUP`, `PRODUCT_OPTION_GROUP` |
+| `scheduled_changes.target_kind` | `PRODUCT`, `OPTION_GROUP` (V3에서 `PRODUCT_OPTION_GROUP` 제거, [ADR-0014](adr/0014-scheduled-change-target-and-typed-values.md)) |
 | `scheduled_changes.status` | `PENDING`, `APPLIED`, `CANCELLED`, `FAILED` |
 | `store_display_settings.visibility` | `VISIBLE`, `HIDDEN` |
 | `store_product_availabilities.stock_status` | `ON_SALE`, `SOLD_OUT` |
@@ -298,14 +298,33 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 |---|---|---|---|
 | id | BIGINT | PK | |
 | target_id | BIGINT | NOT NULL | products.id 또는 option_groups.id (다형 참조) |
-| target_kind | VARCHAR | NOT NULL, CHECK | |
-| field_name | VARCHAR | NOT NULL | 예약 대상 필드명 |
-| new_value | JSONB | NOT NULL | |
+| target_kind | VARCHAR | NOT NULL, CHECK | `PRODUCT` / `OPTION_GROUP`. 상품-옵션 그룹 연결의 예약도 `PRODUCT` |
+| field_name | VARCHAR(64) | NOT NULL | 예약 대상 필드명. 아래 필드 이름 규칙 |
+| new_value | JSONB | NOT NULL | `{"type": …, "value": …}`. 아래 값 형식 |
 | effective_date | DATE | NOT NULL | 업무 날짜. 업무 시간대 기준 그 날 00시에 적용 |
 | effective_at | TIMESTAMPTZ | NOT NULL | 등록할 때 `effective_date`의 00시를 업무 시간대로 해석해 계산한 순간. 배치는 이 값으로만 대상을 고른다 |
 | status | VARCHAR | NOT NULL, 기본 `PENDING`, CHECK | |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 | 제약 | | `UNIQUE(target_id, target_kind, field_name) WHERE status='PENDING'` | 동일 대상·필드 Pending 최대 1건 |
+| 인덱스 | | `(effective_at) WHERE status='PENDING'` | 배치 대상 조회 |
+
+**필드 이름 규칙**: 예약 가능한 필드마다 하나씩이다(목록과 의미는 [도메인 모델](domain-model.md#예약-가능한-필드-요구사항-14)).
+- 상품: `name`, `category`, `description`, `image`, `basePrice`, `tags`, `groups`, `storeScope`, `activation`, `discontinuation`, `optionGroupLinks`, `optionOverrides:{optionGroupId}`
+- 옵션 그룹: `options`
+- `activation`과 `discontinuation`은 서로 다른 필드라 함께 대기할 수 있다. `optionOverrides:12`, `optionOverrides:13`처럼 옵션 그룹마다 다른 필드다.
+
+**값 형식(`new_value`)**: 타입 구분자 `type`과 값 `value`를 담은 JSON 객체다. `type`은 필드 이름과 같고, 옵션 그룹별 예외만 `optionOverrides`로 고정한다(옵션 그룹 ID는 값에 담는다). 저장된 예약을 계속 읽어야 하므로 `type`과 키 이름은 바꾸지 않는다.
+
+| type | value |
+|---|---|
+| `name` | 문자열 |
+| `category`, `basePrice` | 정수 (카테고리 ID, 원 단위 금액) |
+| `description`, `image` | 문자열 또는 `null` |
+| `tags`, `groups`, `optionGroupLinks` | 정수 배열 (ID 목록. `optionGroupLinks`는 순서가 의미 있음) |
+| `storeScope` | `{"kind": "ALL"}` 또는 `{"kind": "LIMITED", "targetStoreIds": [정수…]}` |
+| `activation`, `discontinuation` | 없음 (`{"type": "activation"}`) |
+| `optionOverrides` | `{"optionGroupId": 정수, "overrides": [{"optionKey": 문자열, "type": "PRICE", "price": 정수} 또는 {"optionKey": 문자열, "type": "EXCLUDE"}…]}` |
+| `options` | `[{"optionKey": 문자열, "name": 문자열, "price": 정수}…]` (배열 순서가 노출 순서) |
 
 ### store_display_settings — 매장별 진열 설정 (점주 소유, Lazy 생성)
 
@@ -358,7 +377,8 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | 상황 | 문제 | 처리 |
 |---|---|---|
 | `scheduled_changes` 취소 후 재등록 | Pending 중복 생성 위험 | `SELECT ... FOR UPDATE`로 기존 row 잠그고 한 트랜잭션 처리 |
-| `scheduled_changes` 00시 배치 적용 | 여러 워커의 중복 처리 | `SELECT ... FOR UPDATE SKIP LOCKED` |
+| `scheduled_changes` 00시 배치 적용 | 여러 워커의 중복 처리 | `SELECT ... FOR UPDATE SKIP LOCKED` (`status = 'PENDING' AND effective_at <= now`, 적용 시각 순) |
+| `scheduled_changes` 상태 전이 저장 | 관리자 취소와 배치 적용·실패가 같은 예약을 동시에 처리 | `UPDATE … SET status = ? WHERE id = ? AND status = 'PENDING'`, 바뀐 행이 0개면 `ScheduleAlreadyProcessedException`(409) |
 | `store_display_settings` Lazy 생성 | 동시 요청 시 중복 row | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE` |
 | `store_product_availabilities` 재고 이벤트 반영 (`INVENTORY`) | 중복 수신·순서 역전으로 오래된 값이 덮어씀 | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE ... WHERE store_product_availabilities.last_event_at IS NULL OR excluded.last_event_at > store_product_availabilities.last_event_at` |
 | `store_product_availabilities` 점주 수동 품절 첫 생성 (`OWNER`) | 동시 요청 시 중복 row | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE` |

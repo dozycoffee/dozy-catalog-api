@@ -41,7 +41,7 @@
 ## 직렬화
 
 - **Jackson 3** (`tools.jackson` groupId) 하나로 통일한다. Spring Boot 4의 기본값이라 어차피 뺄 수 없고, kotlinx.serialization을 함께 쓰면 타입마다 두 라이브러리의 애노테이션을 관리해야 하기 때문이다.
-- JSONB 컬럼(`scheduled_changes.new_value` 등)은 `exposed-json`(kotlinx.serialization 기반) 대신 **Jackson 기반 커스텀 `ColumnType`**을 직접 구현한다. 영속성 구현 시점에 만든다(아직 코드 없음).
+- JSONB 컬럼(`scheduled_changes.new_value` 등)은 `exposed-json`(kotlinx.serialization 기반) 대신 **Jackson 기반 커스텀 `ColumnType`**(`JsonbColumnType`)을 쓴다. 사용법은 [영속성](persistence.md#jsonb-컬럼)에 있다.
 
 ## 테스트
 
