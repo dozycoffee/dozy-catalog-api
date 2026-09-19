@@ -1,7 +1,6 @@
 package com.dozycoffee.catalog.fixture
 
 import com.dozycoffee.catalog.domain.category.CategoryId
-import com.dozycoffee.catalog.domain.category.ChildCategory
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
 import com.dozycoffee.catalog.domain.product.model.OptionOverride
@@ -50,12 +49,12 @@ fun priceOverride(
 
 fun newProduct(
     optionGroupIds: List<OptionGroupId> = emptyList(),
-    category: ChildCategory = childCategory(),
+    categoryId: Long = 10,
     name: String = "아메리카노",
 ) = Product.NewProduct.of(
     sku = null,
     name = name,
-    category = category,
+    categoryId = CategoryId(categoryId),
     description = null,
     imageUrl = null,
     basePrice = Money(4500),

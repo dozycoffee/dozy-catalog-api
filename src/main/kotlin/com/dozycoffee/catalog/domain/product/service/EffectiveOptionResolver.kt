@@ -3,7 +3,7 @@ package com.dozycoffee.catalog.domain.product.service
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroup
 import com.dozycoffee.catalog.domain.product.model.OptionOverride
 import com.dozycoffee.catalog.domain.product.model.Product
-import com.dozycoffee.catalog.domain.product.model.selectableOptions
+import com.dozycoffee.catalog.domain.product.model.ProductOptionGroupLink
 
 // 상품의 유효 옵션 구성을 계산한다. Product(연결·예외)와 OptionGroup(옵션 목록)을 함께 봐야 해서
 // 어느 한 애그리거트에 두지 않고 도메인 서비스로 분리했다. 조회뿐 아니라 옵션 규칙 검증
@@ -26,17 +26,17 @@ object EffectiveOptionResolver {
         val groups =
             product.optionGroupLinks
                 .sortedBy { it.displayOrder }
-                .map { link -> resolveGroup(optionGroupsById.getValue(link.id), link.overrides) }
+                .map { link -> resolveGroup(optionGroupsById.getValue(link.id), link) }
         return EffectiveOptionConfig(product.id, product.basePrice, groups)
     }
 
     private fun resolveGroup(
         optionGroup: OptionGroup,
-        overrides: List<OptionOverride>,
+        link: ProductOptionGroupLink,
     ): EffectiveOptionGroup {
-        val priceOverrides = overrides.filterIsInstance<OptionOverride.Price>().associateBy { it.optionKey }
+        val priceOverrides = link.overrides.filterIsInstance<OptionOverride.Price>().associateBy { it.optionKey }
         val effectiveOptions =
-            selectableOptions(optionGroup.options, overrides).map { option ->
+            optionGroup.options.filterNot { it.optionKey in link.excludedOptionKeys }.map { option ->
                 when (val override = priceOverrides[option.optionKey]) {
                     null -> EffectiveOption(option.optionKey, option.name, option.price, priceOverridden = false)
                     else -> EffectiveOption(option.optionKey, option.name, override.price, priceOverridden = true)

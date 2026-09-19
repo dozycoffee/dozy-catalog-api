@@ -5,7 +5,6 @@ import com.dozycoffee.catalog.domain.optiongroup.OptionGroup
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
 import com.dozycoffee.catalog.domain.product.exception.NoSelectableOptionException
 import com.dozycoffee.catalog.domain.product.model.Product
-import com.dozycoffee.catalog.domain.product.model.selectableOptions
 
 // 옵션 그룹의 옵션 목록 교체를 허용할지 판단한다(요구사항 1.9). 즉시 교체와 예약 스냅샷 적용이
 // 같은 규칙을 쓴다. 옵션 목록은 OptionGroup이, 제외 설정은 각 Product가 갖고 있어 연결 상품
@@ -34,7 +33,7 @@ object OptionReplacementPolicy {
             requireNotNull(link) {
                 "옵션 그룹(${optionGroup.id.value})을 연결하지 않은 상품이 섞여 있습니다: ${product.id.value}"
             }
-            if (selectableOptions(newOptions, link.overrides).isEmpty()) {
+            if (newOptions.all { it.optionKey in link.excludedOptionKeys }) {
                 throw NoSelectableOptionException(product.id, optionGroup.id)
             }
         }
