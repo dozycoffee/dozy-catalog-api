@@ -5,12 +5,12 @@ interface TagRepository {
 
     suspend fun findByName(name: String): Tag?
 
-    // 이름 유일 제약 + 동시 등록 레이스를 INSERT ... ON CONFLICT (name) DO UPDATE
-    // 방식의 원자적 upsert로 처리한다. find-then-insert 2단계로 노출하지 않아
-    // 그 사이의 레이스 자체가 발생할 여지를 없앤다.
+    // 같은 이름이면 기존 태그를 재사용한다(요구사항 1.7). INSERT … ON CONFLICT (name) DO NOTHING 뒤 조회해,
+    // 두 요청이 동시에 같은 이름을 만들어도 태그는 하나만 생긴다. 조회 후 생성으로 나누지 않는다.
     suspend fun findOrCreateByName(name: String): Tag
 
     suspend fun save(tag: Tag): Tag
 
+    // 상품과의 연결(product_tags)은 FK CASCADE로 함께 삭제된다(요구사항 1.7).
     suspend fun delete(id: TagId)
 }

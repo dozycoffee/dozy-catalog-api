@@ -41,6 +41,18 @@ abstract class IntegrationTest {
             }
         }
 
+    // 테스트 데이터 준비·확인용 SQL. 검증 대상 Repository를 거치지 않고 DB에 직접 실행한다.
+    protected suspend fun execute(sql: String) {
+        databaseClient.sql(sql).then().awaitSingleOrNull()
+    }
+
+    protected suspend fun count(sql: String): Long =
+        databaseClient
+            .sql(sql)
+            .map { row -> row.get(0, java.lang.Long::class.java)!!.toLong() }
+            .one()
+            .awaitSingleOrNull() ?: 0
+
     companion object {
         @JvmStatic
         @ServiceConnection

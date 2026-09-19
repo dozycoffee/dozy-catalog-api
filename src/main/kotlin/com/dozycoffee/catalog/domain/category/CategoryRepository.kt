@@ -18,5 +18,9 @@ interface CategoryRepository {
         parent: TopLevelCategory,
     ): ChildCategory
 
+    // 대분류↔소분류 전환과 부모 변경도 여기서 저장한다(parent_category_id).
     suspend fun save(category: Category): Category
+
+    // 상품 참조와 하위 카테고리 여부는 application이 먼저 확인한다. 상품 참조는 ProductRepository.existsByCategory로 본다.
+    suspend fun delete(id: CategoryId)
 }
