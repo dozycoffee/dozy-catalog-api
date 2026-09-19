@@ -1,6 +1,8 @@
 package com.dozycoffee.catalog.infrastructure.persistence
 
 import com.dozycoffee.catalog.infrastructure.persistence.category.CategoriesTable
+import com.dozycoffee.catalog.infrastructure.persistence.optiongroup.OptionGroupsTable
+import com.dozycoffee.catalog.infrastructure.persistence.optiongroup.OptionsTable
 import com.dozycoffee.catalog.infrastructure.persistence.productgroup.ProductGroupsTable
 import com.dozycoffee.catalog.infrastructure.persistence.tag.TagsTable
 import org.jetbrains.exposed.v1.core.Table
@@ -13,5 +15,7 @@ object ExposedTables {
             CategoriesTable,
             TagsTable,
             ProductGroupsTable,
+            OptionGroupsTable,
+            OptionsTable,
         )
 }
