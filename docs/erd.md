@@ -360,6 +360,7 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | `scheduled_changes` 취소 후 재등록 | Pending 중복 생성 위험 | `SELECT ... FOR UPDATE`로 기존 row 잠그고 한 트랜잭션 처리 |
 | `scheduled_changes` 00시 배치 적용 | 여러 워커의 중복 처리 | `SELECT ... FOR UPDATE SKIP LOCKED` |
 | `store_display_settings` Lazy 생성 | 동시 요청 시 중복 row | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE` |
+| `store_display_settings` 노출·진열 순서 변경 | 다른 필드를 바꾸는 요청끼리 옛 값으로 덮어씀 | 바뀐 필드만 UPDATE. 같은 필드는 점주의 최신 의도가 이긴다 |
 | `store_product_availabilities` 재고 이벤트 반영 (`INVENTORY`) | 중복 수신·순서 역전으로 오래된 값이 덮어씀 | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE ... WHERE store_product_availabilities.last_event_at IS NULL OR excluded.last_event_at > store_product_availabilities.last_event_at` |
 | `store_product_availabilities` 점주 수동 품절 첫 생성 (`OWNER`) | 동시 요청 시 중복 row | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE` |
 | `options` 최소 1개/0개 검증 | 검증-실행 사이 레이스 | 옵션 그룹 단위 비관적 락 |
