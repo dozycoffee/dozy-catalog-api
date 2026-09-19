@@ -11,6 +11,10 @@ management:
       exposure:
         include: health, info
 
+catalog:
+  # 업무 기준 시간대. 예약 적용일의 00시를 이 시간대로 해석한다(docs/adr/0010). 서버·JVM·DB 시간대는 UTC로 둔다.
+  business-zone: Asia/Seoul
+
 ---
 spring:
   config:
