@@ -81,7 +81,7 @@ class ExposedProductRepository : ProductRepository {
                 it[description] = newProduct.description
                 it[imageUrl] = newProduct.imageUrl
                 it[basePrice] = newProduct.basePrice.amount
-                it[status] = ProductStatus.DRAFT.name
+                it[status] = ProductStatus.DRAFT
                 it[storeScope] = STORE_SCOPE_ALL
                 it[tracksInventory] = newProduct.tracksInventory
             }[ProductsTable.id]
@@ -143,7 +143,7 @@ class ExposedProductRepository : ProductRepository {
         this[ProductsTable.description] = product.description
         this[ProductsTable.imageUrl] = product.imageUrl
         this[ProductsTable.basePrice] = product.basePrice.amount
-        this[ProductsTable.status] = product.status.name
+        this[ProductsTable.status] = product.status
         this[ProductsTable.storeScope] =
             when (product.storeScope) {
                 StoreScope.All -> STORE_SCOPE_ALL
@@ -260,7 +260,7 @@ class ExposedProductRepository : ProductRepository {
                 tagIds = tags[id].orEmpty().toSet(),
                 groupIds = groups[id].orEmpty().toSet(),
                 optionGroupLinks = links[id].orEmpty(),
-                status = ProductStatus.valueOf(row[ProductsTable.status]),
+                status = row[ProductsTable.status],
                 storeScope =
                     when (val scope = row[ProductsTable.storeScope]) {
                         STORE_SCOPE_ALL -> StoreScope.All
