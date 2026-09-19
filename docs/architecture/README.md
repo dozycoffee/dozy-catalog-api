@@ -17,8 +17,9 @@
 `presentation → application → domain ← infrastructure`
 
 - domain은 아무것도 모른다(프레임워크 무관). HTTP·DB·메시징 개념이 domain에 들어오지 않는다.
-- application은 domain과 외부 연동용 포트만 안다.
-- infrastructure가 포트와 Repository를 구현하고, Spring이 DI로 연결한다.
+- domain의 각 애그리거트 패키지는 자기 자신, `domain.shared`, 다른 애그리거트의 ID만 참조한다. 여러 애그리거트를 함께 보는 판단은 application 정책에 둔다([ADR-0012](../adr/0012-cross-aggregate-judgment-in-application-policy.md)).
+- application은 domain과 자기가 정의한 포트(외부 시스템 포트, 조회 포트)만 안다.
+- infrastructure가 Repository와 포트를 구현하고, Spring이 DI로 연결한다. 배치는 [패키지 구조](package-structure.md)를 따른다.
 
 ## 미정 사항
 
@@ -36,4 +37,5 @@
 | 마이그레이션 실행 시점 | 지금은 앱 시작 시 Flyway를 실행한다. 배포 환경이 정해지면 배포 단계에서 따로 실행할지 검토한다 | [영속성](persistence.md), [ADR-0009](../adr/0009-flyway-with-exposed-schema-check.md) |
 | 처리되지 않은 예외의 응답 형식 | `DomainException`이 아닌 예외는 지금 Spring 기본 오류 형식(`timestamp`, `path`, `status` 등)의 500으로 나가서, `ErrorResponse(code, message)`와 형식이 다르다. presentation 계층을 만들 때 나머지 예외를 모두 잡는 핸들러로 `ErrorResponse("INTERNAL_ERROR", …)`와 error 로그로 통일할지 정한다 | [예외 구조](exception.md#domainexception과-requirecheck의-구분) |
 | 이벤트 핸들러·배치의 예외 격리 | HTTP가 아닌 경로에서는 예외가 500으로 바뀌지 않는다. 한 건의 실패가 배치 전체를 멈추거나 같은 메시지를 끝없이 재시도하지 않도록 건별 격리, 실패 기록(예약은 `FAILED`), 재시도 한도, 처리 불가 메시지 격리 방식을 정한다. 메시징 기술 결정과 함께 정한다 | [예외 구조](exception.md#domainexception과-requirecheck의-구분), [도메인 모델](../domain-model.md#상태-전이) |
+| 의존 규칙 강제 | domain 애그리거트 패키지 간 참조 규칙([ADR-0012](../adr/0012-cross-aggregate-judgment-in-application-policy.md))을 지금은 코드 리뷰로 지킨다. Konsist·ArchUnit 같은 테스트로 강제할지, 도입한다면 언제 할지 정한다 | [패키지 구조](package-structure.md) |
 | 테스트 전략 | application 테스트의 저장소(가짜 또는 Testcontainers), 단위·통합 테스트 분리와 CI 시간 | [테스트](testing.md#미정-사항) |

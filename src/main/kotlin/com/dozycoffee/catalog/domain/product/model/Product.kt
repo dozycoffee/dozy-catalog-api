@@ -1,8 +1,6 @@
 package com.dozycoffee.catalog.domain.product.model
 
 import com.dozycoffee.catalog.domain.category.CategoryId
-import com.dozycoffee.catalog.domain.category.ChildCategory
-import com.dozycoffee.catalog.domain.optiongroup.OptionGroup
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
 import com.dozycoffee.catalog.domain.product.event.ProductActivated
@@ -62,9 +60,10 @@ class Product internal constructor(
         this.name = newName
     }
 
-    // 소분류만 받도록 타입으로 강제하고, 저장은 ID로만 한다(애그리거트 간 ID 참조).
-    fun changeCategory(newCategory: ChildCategory) {
-        this.categoryId = newCategory.id
+    // 소분류만 지정할 수 있다. 소분류인지는 application이 Category.requireChild()로 확인한 뒤
+    // ID만 넘긴다(애그리거트끼리는 ID로만 참조, ADR-0012).
+    fun changeCategory(newCategoryId: CategoryId) {
+        this.categoryId = newCategoryId
     }
 
     fun changeDescription(newDescription: String?) {
@@ -146,30 +145,32 @@ class Product internal constructor(
             }
     }
 
-    // optionGroup은 예외를 검증하는 데만 쓰고 보관하지 않는다(애그리거트 간에는 ID로만 참조).
+    // groupOptionKeys는 옵션 그룹의 현재 옵션 키 전체다. application이 옵션 그룹을 불러와 넘기고,
+    // Product는 검증에만 쓰고 보관하지 않는다(애그리거트끼리는 ID로만 참조, ADR-0012).
     // 옵션 그룹에 없는 옵션 키에는 예외를 지정할 수 없다.
     fun overrideOptionPrice(
-        optionGroup: OptionGroup,
+        optionGroupId: OptionGroupId,
+        groupOptionKeys: Set<OptionKey>,
         optionKey: OptionKey,
         price: Money,
     ) {
-        val link = linkOf(optionGroup.id)
-        requireOptionKeyExists(optionGroup, optionKey)
+        val link = linkOf(optionGroupId)
+        requireOptionKeyExists(optionGroupId, groupOptionKeys, optionKey)
         link.replaceOverrides(overridesReplacing(link, OptionOverride.Price(optionKey, price)))
     }
 
     // 이 제외를 반영했을 때 선택 가능한 옵션이 0개가 되면 거부한다.
     fun excludeOption(
-        optionGroup: OptionGroup,
+        optionGroupId: OptionGroupId,
+        groupOptionKeys: Set<OptionKey>,
         optionKey: OptionKey,
     ) {
-        val link = linkOf(optionGroup.id)
-        requireOptionKeyExists(optionGroup, optionKey)
-        val newOverrides = overridesReplacing(link, OptionOverride.Exclude(optionKey))
-        if (selectableOptions(optionGroup.options, newOverrides).isEmpty()) {
-            throw NoSelectableOptionException(id, optionGroup.id)
+        val link = linkOf(optionGroupId)
+        requireOptionKeyExists(optionGroupId, groupOptionKeys, optionKey)
+        if ((groupOptionKeys - link.excludedOptionKeys - optionKey).isEmpty()) {
+            throw NoSelectableOptionException(id, optionGroupId)
         }
-        link.replaceOverrides(newOverrides)
+        link.replaceOverrides(overridesReplacing(link, OptionOverride.Exclude(optionKey)))
     }
 
     fun removeOverride(
@@ -192,11 +193,12 @@ class Product internal constructor(
     }
 
     private fun requireOptionKeyExists(
-        optionGroup: OptionGroup,
+        optionGroupId: OptionGroupId,
+        groupOptionKeys: Set<OptionKey>,
         optionKey: OptionKey,
     ) {
-        if (optionGroup.options.none { it.optionKey == optionKey }) {
-            throw OptionKeyNotFoundException(optionGroup.id, optionKey)
+        if (optionKey !in groupOptionKeys) {
+            throw OptionKeyNotFoundException(optionGroupId, optionKey)
         }
     }
 
@@ -226,7 +228,7 @@ class Product internal constructor(
             fun of(
                 sku: Sku?,
                 name: String,
-                category: ChildCategory,
+                categoryId: CategoryId,
                 description: String?,
                 imageUrl: String?,
                 basePrice: Money,
@@ -239,7 +241,7 @@ class Product internal constructor(
                 return NewProduct(
                     sku,
                     name,
-                    category.id,
+                    categoryId,
                     description,
                     imageUrl,
                     basePrice,

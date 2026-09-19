@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.product.service
+package com.dozycoffee.catalog.application.product.policy
 
 import com.dozycoffee.catalog.domain.optiongroup.Option
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroup

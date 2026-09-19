@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.storedisplay.model
+package com.dozycoffee.catalog.application.storedisplay.policy
 
 import com.dozycoffee.catalog.domain.storeavailability.StockStatus
 

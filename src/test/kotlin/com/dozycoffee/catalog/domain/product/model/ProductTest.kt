@@ -15,12 +15,10 @@ import com.dozycoffee.catalog.domain.product.exception.ProductNotDeletableExcept
 import com.dozycoffee.catalog.domain.product.exception.ProductOptionGroupNotLinkedException
 import com.dozycoffee.catalog.domain.shared.ErrorType
 import com.dozycoffee.catalog.domain.shared.Money
-import com.dozycoffee.catalog.fixture.childCategory
+import com.dozycoffee.catalog.domain.shared.StoreId
 import com.dozycoffee.catalog.fixture.exclude
 import com.dozycoffee.catalog.fixture.link
 import com.dozycoffee.catalog.fixture.newProduct
-import com.dozycoffee.catalog.fixture.option
-import com.dozycoffee.catalog.fixture.optionGroup
 import com.dozycoffee.catalog.fixture.priceOverride
 import com.dozycoffee.catalog.fixture.product
 import org.junit.jupiter.api.DisplayName
@@ -211,13 +209,14 @@ class ProductTest {
     @Nested
     @DisplayName("상품별 옵션 예외")
     inner class OptionOverrides {
-        private val sizeGroup = optionGroup(1, option("TALL"), option("GRANDE"))
+        private val sizeGroupId = OptionGroupId(1)
+        private val sizeGroupKeys = setOf(OptionKey("TALL"), OptionKey("GRANDE"))
 
         @Test
         fun `특정 옵션의 가격을 이 상품에서만 다르게 지정한다`() {
             val product = product(link(1, 0))
 
-            product.overrideOptionPrice(sizeGroup, OptionKey("GRANDE"), Money(700))
+            product.overrideOptionPrice(sizeGroupId, sizeGroupKeys, OptionKey("GRANDE"), Money(700))
 
             val override =
                 assertIs<OptionOverride.Price>(
@@ -233,9 +232,9 @@ class ProductTest {
         @Test
         fun `같은 옵션에 예외를 다시 지정하면 누적되지 않고 교체된다`() {
             val product = product(link(1, 0))
-            product.overrideOptionPrice(sizeGroup, OptionKey("GRANDE"), Money(700))
+            product.overrideOptionPrice(sizeGroupId, sizeGroupKeys, OptionKey("GRANDE"), Money(700))
 
-            product.overrideOptionPrice(sizeGroup, OptionKey("GRANDE"), Money(900))
+            product.overrideOptionPrice(sizeGroupId, sizeGroupKeys, OptionKey("GRANDE"), Money(900))
 
             val override =
                 assertIs<OptionOverride.Price>(
@@ -251,7 +250,7 @@ class ProductTest {
         fun `옵션을 이 상품에서만 제외한다`() {
             val product = product(link(1, 0))
 
-            product.excludeOption(sizeGroup, OptionKey("TALL"))
+            product.excludeOption(sizeGroupId, sizeGroupKeys, OptionKey("TALL"))
 
             val override =
                 assertIs<OptionOverride.Exclude>(
@@ -266,9 +265,9 @@ class ProductTest {
         @Test
         fun `가격 예외가 있던 옵션을 제외하면 제외로 교체된다`() {
             val product = product(link(1, 0))
-            product.overrideOptionPrice(sizeGroup, OptionKey("TALL"), Money(300))
+            product.overrideOptionPrice(sizeGroupId, sizeGroupKeys, OptionKey("TALL"), Money(300))
 
-            product.excludeOption(sizeGroup, OptionKey("TALL"))
+            product.excludeOption(sizeGroupId, sizeGroupKeys, OptionKey("TALL"))
 
             assertIs<OptionOverride.Exclude>(
                 product.optionGroupLinks
@@ -281,10 +280,10 @@ class ProductTest {
         @Test
         fun `제외로 선택 가능한 옵션이 0개가 되면 거부하고 기존 예외를 그대로 둔다`() {
             val product = product(link(1, 0))
-            product.excludeOption(sizeGroup, OptionKey("TALL"))
+            product.excludeOption(sizeGroupId, sizeGroupKeys, OptionKey("TALL"))
 
             assertFailsWith<NoSelectableOptionException> {
-                product.excludeOption(sizeGroup, OptionKey("GRANDE"))
+                product.excludeOption(sizeGroupId, sizeGroupKeys, OptionKey("GRANDE"))
             }
             assertEquals(
                 listOf(OptionKey("TALL")),
@@ -300,7 +299,7 @@ class ProductTest {
             val product = product(link(1, 0))
 
             assertFailsWith<NoSelectableOptionException> {
-                product.excludeOption(optionGroup(1, option("ONLY")), OptionKey("ONLY"))
+                product.excludeOption(OptionGroupId(1), setOf(OptionKey("ONLY")), OptionKey("ONLY"))
             }
         }
 
@@ -310,7 +309,7 @@ class ProductTest {
 
             val exception =
                 assertFailsWith<OptionKeyNotFoundException> {
-                    product.overrideOptionPrice(sizeGroup, OptionKey("VENTI"), Money(700))
+                    product.overrideOptionPrice(sizeGroupId, sizeGroupKeys, OptionKey("VENTI"), Money(700))
                 }
             assertEquals(ErrorType.NOT_FOUND, exception.errorCode.type)
             assertTrue(
@@ -326,7 +325,7 @@ class ProductTest {
             val product = product(link(1, 0))
 
             assertFailsWith<OptionKeyNotFoundException> {
-                product.excludeOption(sizeGroup, OptionKey("VENTI"))
+                product.excludeOption(sizeGroupId, sizeGroupKeys, OptionKey("VENTI"))
             }
         }
 
@@ -335,14 +334,14 @@ class ProductTest {
             val product = product(link(1, 0))
 
             assertFailsWith<ProductOptionGroupNotLinkedException> {
-                product.overrideOptionPrice(optionGroup(99, option("SHOT")), OptionKey("SHOT"), Money(700))
+                product.overrideOptionPrice(OptionGroupId(99), setOf(OptionKey("SHOT")), OptionKey("SHOT"), Money(700))
             }
         }
 
         @Test
         fun `지정한 예외를 제거한다`() {
             val product = product(link(1, 0))
-            product.overrideOptionPrice(sizeGroup, OptionKey("GRANDE"), Money(700))
+            product.overrideOptionPrice(sizeGroupId, sizeGroupKeys, OptionKey("GRANDE"), Money(700))
 
             product.removeOverride(OptionGroupId(1), OptionKey("GRANDE"))
 
@@ -414,8 +413,8 @@ class ProductTest {
         }
 
         @Test
-        fun `소분류를 카테고리로 지정해 등록하면 그 소분류의 ID를 참조한다`() {
-            val newProduct = newProduct(optionGroupIds = emptyList(), category = childCategory(id = 20))
+        fun `지정한 카테고리의 ID를 참조한다`() {
+            val newProduct = newProduct(optionGroupIds = emptyList(), categoryId = 20)
 
             assertEquals(CategoryId(20), newProduct.categoryId)
         }
@@ -466,7 +465,7 @@ class ProductTest {
 
             product.rename("디카페인 아메리카노")
             product.changeBasePrice(Money(5000))
-            product.changeCategory(childCategory(id = 99))
+            product.changeCategory(CategoryId(99))
 
             assertEquals("디카페인 아메리카노", product.name)
             assertEquals(Money(5000), product.basePrice)
@@ -475,10 +474,10 @@ class ProductTest {
         }
 
         @Test
-        fun `카테고리를 다른 소분류로 바꾸면 그 소분류의 ID를 참조한다`() {
+        fun `카테고리를 바꾸면 새 카테고리의 ID를 참조한다`() {
             val product = product()
 
-            product.changeCategory(childCategory(id = 30))
+            product.changeCategory(CategoryId(30))
 
             assertEquals(CategoryId(30), product.categoryId)
         }

@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.storedisplay.service
+package com.dozycoffee.catalog.application.storedisplay.policy
 
 import com.dozycoffee.catalog.domain.product.model.ProductId
 import com.dozycoffee.catalog.domain.product.model.StoreScope
@@ -12,7 +12,7 @@ import com.dozycoffee.catalog.domain.storedisplay.model.StoreDisplaySettingId
 // 진열 설정은 모두 지우고, 판매 가능 여부는 OWNER 출처만 지운다 — INVENTORY 출처는
 // 재고관리 서비스가 주인이라 범위와 무관하게 유지한다. StoreDisplaySetting과
 // StoreProductAvailability를 함께 봐야 하고, 즉시 변경과 예약 적용이 같은 규칙을 써야 해서
-// application 핸들러가 아닌 도메인 서비스로 뒀다. 실제 삭제는 호출 측(application)이 한다.
+// 이벤트 핸들러 안에 두지 않고 I/O 없는 정책으로 분리했다(ADR-0012). 실제 삭제는 호출 측이 한다.
 object StoreScopeCleanupPolicy {
     // 입력은 모두 productId 한 상품의 설정이어야 한다. 섞여 들어오면 호출 측 조회가 잘못된
     // 것(프로그래밍 오류)이라 사용자 요청 오류로 매핑되는 DomainException이 아니라
