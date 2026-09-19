@@ -3,6 +3,10 @@ kotlin = "2.3.21"
 spring-boot = "4.1.0"
 spring-dependency-management = "1.1.7"
 exposed = "1.4.0"
+# Exposed 1.4는 kotlinx-coroutines 1.11.0을 요구하지만 spring-boot-dependencies(4.1.0)는 1.10.2로 관리해
+# 낮춰 버린다(런타임 NoSuchMethodError). build.gradle.kts에서 Boot의 kotlin-coroutines.version을 이 값으로 덮어쓴다.
+# Boot나 Exposed를 올릴 때 같이 확인할 것.
+kotlinx-coroutines = "1.11.0"
 kotlin-logging = "8.0.4"
 # spring-boot-dependencies(4.1.0)의 testcontainers.version과 동일하게 맞춤 — io.spring.dependency-management가
 # 중첩 BOM(testcontainers-bom) 버전까지는 못 끌어와서 명시. Boot 업그레이드 시 같이 갱신할 것.
