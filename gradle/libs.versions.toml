@@ -26,6 +26,14 @@ exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "e
 exposed-r2dbc = { module = "org.jetbrains.exposed:exposed-r2dbc", version.ref = "exposed" }
 postgresql = { module = "org.postgresql:postgresql" }
 r2dbc-postgresql = { module = "org.postgresql:r2dbc-postgresql" }
+exposed-java-time = { module = "org.jetbrains.exposed:exposed-java-time", version.ref = "exposed" }
+# Exposed Table 정의와 실제 스키마의 차이 검사(통합 테스트). 스키마 적용은 Flyway가 맡는다.
+exposed-migration-core = { module = "org.jetbrains.exposed:exposed-migration-core", version.ref = "exposed" }
+exposed-migration-r2dbc = { module = "org.jetbrains.exposed:exposed-migration-r2dbc", version.ref = "exposed" }
+# 스키마 마이그레이션 — Flyway는 R2DBC를 지원하지 않아 JDBC 드라이버(postgresql)로 앱 시작 시 한 번 실행된다.
+# 스타터(spring-boot-starter-flyway)는 spring-boot-starter-jdbc와 HikariCP를 끌어와 쓰지 않는 JDBC 연결 풀이 남으므로 모듈만 쓴다.
+spring-boot-flyway = { module = "org.springframework.boot:spring-boot-flyway" }
+flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
 
 # local dev
 spring-boot-devtools = { module = "org.springframework.boot:spring-boot-devtools" }

@@ -44,8 +44,13 @@ dependencies {
     implementation(libs.spring.boot.starter.r2dbc)
     implementation(libs.exposed.core)
     implementation(libs.exposed.r2dbc)
+    implementation(libs.exposed.java.time)
     runtimeOnly(libs.postgresql)
     runtimeOnly(libs.r2dbc.postgresql)
+
+    // infrastructure/persistence — 스키마 마이그레이션(Flyway, 앱 시작 시 JDBC로 한 번 실행)
+    implementation(libs.spring.boot.flyway)
+    implementation(libs.flyway.database.postgresql)
 
     // local dev
     developmentOnly(libs.spring.boot.devtools)
@@ -68,6 +73,8 @@ dependencies {
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.r2dbc)
+    testImplementation(libs.exposed.migration.core)
+    testImplementation(libs.exposed.migration.r2dbc)
 }
 
 kotlin {
@@ -78,4 +85,6 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // 코드는 시스템 기본 시간대에 의존하지 않는다(docs/adr/0010). 개발 PC(KST)와 CI(UTC)에서 결과가 같도록 고정한다.
+    systemProperty("user.timezone", "UTC")
 }
