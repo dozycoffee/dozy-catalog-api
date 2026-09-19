@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.domain.storeavailability
 
 import com.dozycoffee.catalog.domain.product.model.ProductId
-import com.dozycoffee.catalog.domain.product.model.StoreId
+import com.dozycoffee.catalog.domain.shared.StoreId
 import com.dozycoffee.catalog.domain.storeavailability.exception.InventoryEventNotApplicableException
 import com.dozycoffee.catalog.domain.storeavailability.exception.StockStatusNotManuallyEditableException
 import com.dozycoffee.catalog.fixture.inventoryAvailability

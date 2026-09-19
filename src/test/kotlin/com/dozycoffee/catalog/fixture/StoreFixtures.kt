@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.fixture
 
 import com.dozycoffee.catalog.domain.product.model.ProductId
-import com.dozycoffee.catalog.domain.product.model.StoreId
+import com.dozycoffee.catalog.domain.shared.StoreId
 import com.dozycoffee.catalog.domain.storeavailability.AvailabilitySource
 import com.dozycoffee.catalog.domain.storeavailability.StockStatus
 import com.dozycoffee.catalog.domain.storeavailability.StoreProductAvailability

@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.product.model
+package com.dozycoffee.catalog.domain.shared
 
 // Store BC(별도 서비스) 참조 — FK 제약 없음.
 @JvmInline

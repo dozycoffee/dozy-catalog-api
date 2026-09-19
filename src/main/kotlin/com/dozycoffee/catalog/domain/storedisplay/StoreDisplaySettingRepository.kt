@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.domain.storedisplay
 
 import com.dozycoffee.catalog.domain.product.model.ProductId
-import com.dozycoffee.catalog.domain.product.model.StoreId
+import com.dozycoffee.catalog.domain.shared.StoreId
 import com.dozycoffee.catalog.domain.storedisplay.model.StoreDisplaySetting
 import com.dozycoffee.catalog.domain.storedisplay.model.StoreDisplaySettingId
 
