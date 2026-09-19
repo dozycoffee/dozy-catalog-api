@@ -3,11 +3,13 @@ package com.dozycoffee.catalog.domain.storedisplay.service
 import com.dozycoffee.catalog.domain.product.model.ProductId
 import com.dozycoffee.catalog.domain.product.model.StoreId
 import com.dozycoffee.catalog.domain.product.model.StoreScope
-import com.dozycoffee.catalog.domain.storeavailability.AvailabilitySource
 import com.dozycoffee.catalog.domain.storeavailability.StoreProductAvailability
 import com.dozycoffee.catalog.domain.storeavailability.StoreProductAvailabilityId
 import com.dozycoffee.catalog.domain.storedisplay.model.StoreDisplaySetting
 import com.dozycoffee.catalog.domain.storedisplay.model.StoreDisplaySettingId
+import com.dozycoffee.catalog.fixture.displaySetting
+import com.dozycoffee.catalog.fixture.inventoryAvailability
+import com.dozycoffee.catalog.fixture.ownerAvailability
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -29,8 +31,13 @@ class StoreScopeCleanupPolicyTest {
             val result =
                 select(
                     StoreScope.All,
-                    displaySettings = listOf(display(1, included), display(2, excluded)),
-                    availabilities = listOf(owner(included), owner(excluded), inventory(excluded)),
+                    displaySettings = listOf(displaySetting(1, included, productId), displaySetting(2, excluded, productId)),
+                    availabilities =
+                        listOf(
+                            ownerAvailability(included, productId),
+                            ownerAvailability(excluded, productId),
+                            inventoryAvailability(excluded, productId),
+                        ),
                 )
 
             assertTrue(result.displaySettingIds.isEmpty())
@@ -46,12 +53,12 @@ class StoreScopeCleanupPolicyTest {
             val result =
                 select(
                     StoreScope.Limited(setOf(included)),
-                    displaySettings = listOf(display(1, included), display(2, excluded)),
-                    availabilities = listOf(owner(included), owner(excluded)),
+                    displaySettings = listOf(displaySetting(1, included, productId), displaySetting(2, excluded, productId)),
+                    availabilities = listOf(ownerAvailability(included, productId), ownerAvailability(excluded, productId)),
                 )
 
             assertEquals(listOf(StoreDisplaySettingId(2)), result.displaySettingIds)
-            assertEquals(listOf(availabilityId(excluded)), result.availabilityIds)
+            assertEquals(listOf(StoreProductAvailabilityId(excluded, productId)), result.availabilityIds)
         }
 
         @Test
@@ -60,7 +67,7 @@ class StoreScopeCleanupPolicyTest {
             val result =
                 select(
                     StoreScope.Limited(setOf(included)),
-                    availabilities = listOf(inventory(excluded)),
+                    availabilities = listOf(inventoryAvailability(excluded, productId)),
                 )
 
             assertTrue(result.availabilityIds.isEmpty())
@@ -71,8 +78,8 @@ class StoreScopeCleanupPolicyTest {
             val result =
                 select(
                     StoreScope.Limited(setOf(included)),
-                    displaySettings = listOf(display(1, included)),
-                    availabilities = listOf(owner(included)),
+                    displaySettings = listOf(displaySetting(1, included, productId)),
+                    availabilities = listOf(ownerAvailability(included, productId)),
                 )
 
             assertTrue(result.displaySettingIds.isEmpty())
@@ -85,12 +92,20 @@ class StoreScopeCleanupPolicyTest {
             val result =
                 select(
                     StoreScope.Limited(emptySet()),
-                    displaySettings = listOf(display(1, included), display(2, excluded)),
-                    availabilities = listOf(owner(included), inventory(excluded), owner(other)),
+                    displaySettings = listOf(displaySetting(1, included, productId), displaySetting(2, excluded, productId)),
+                    availabilities =
+                        listOf(
+                            ownerAvailability(included, productId),
+                            inventoryAvailability(excluded, productId),
+                            ownerAvailability(other, productId),
+                        ),
                 )
 
             assertEquals(listOf(StoreDisplaySettingId(1), StoreDisplaySettingId(2)), result.displaySettingIds)
-            assertEquals(listOf(availabilityId(included), availabilityId(other)), result.availabilityIds)
+            assertEquals(
+                listOf(StoreProductAvailabilityId(included, productId), StoreProductAvailabilityId(other, productId)),
+                result.availabilityIds,
+            )
         }
     }
 
@@ -102,19 +117,17 @@ class StoreScopeCleanupPolicyTest {
             assertFailsWith<IllegalArgumentException> {
                 select(
                     StoreScope.All,
-                    displaySettings = listOf(display(1, included), display(2, excluded, ProductId(99))),
+                    displaySettings = listOf(displaySetting(1, included, productId), displaySetting(2, excluded, ProductId(99))),
                 )
             }
         }
 
         @Test
         fun `다른 상품의 판매 가능 여부가 섞이면 거부한다`() {
-            val otherProduct = StoreProductAvailabilityId(included, ProductId(99))
-
             assertFailsWith<IllegalArgumentException> {
                 select(
                     StoreScope.All,
-                    availabilities = listOf(StoreProductAvailability.initial(otherProduct, AvailabilitySource.OWNER)),
+                    availabilities = listOf(ownerAvailability(included, ProductId(99))),
                 )
             }
         }
@@ -125,20 +138,4 @@ class StoreScopeCleanupPolicyTest {
         displaySettings: List<StoreDisplaySetting> = emptyList(),
         availabilities: List<StoreProductAvailability> = emptyList(),
     ) = StoreScopeCleanupPolicy.selectTargets(productId, newScope, displaySettings, availabilities)
-
-    private fun display(
-        id: Long,
-        storeId: StoreId,
-        productId: ProductId = this.productId,
-    ) = StoreDisplaySetting(
-        id = StoreDisplaySettingId(id),
-        storeId = storeId,
-        productId = productId,
-    )
-
-    private fun owner(storeId: StoreId) = StoreProductAvailability.initial(availabilityId(storeId), AvailabilitySource.OWNER)
-
-    private fun inventory(storeId: StoreId) = StoreProductAvailability.initial(availabilityId(storeId), AvailabilitySource.INVENTORY)
-
-    private fun availabilityId(storeId: StoreId) = StoreProductAvailabilityId(storeId, productId)
 }

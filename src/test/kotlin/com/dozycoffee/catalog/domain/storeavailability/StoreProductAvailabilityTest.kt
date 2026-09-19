@@ -4,6 +4,7 @@ import com.dozycoffee.catalog.domain.product.model.ProductId
 import com.dozycoffee.catalog.domain.product.model.StoreId
 import com.dozycoffee.catalog.domain.storeavailability.exception.InventoryEventNotApplicableException
 import com.dozycoffee.catalog.domain.storeavailability.exception.StockStatusNotManuallyEditableException
+import com.dozycoffee.catalog.fixture.inventoryAvailability
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -89,8 +90,7 @@ class StoreProductAvailabilityTest {
         @Test
         fun `이미 반영한 것보다 오래된 이벤트는 무시한다`() {
             // 순서가 뒤바뀌어 늦게 도착한 이벤트가 최신 값을 덮어쓰면 안 된다.
-            val availability = StoreProductAvailability.initial(id, AvailabilitySource.INVENTORY)
-            availability.applyInventoryEvent(StockStatus.ON_SALE, t0)
+            val availability = inventoryAvailability(stockStatus = StockStatus.ON_SALE, occurredAt = t0)
 
             assertFalse(availability.applyInventoryEvent(StockStatus.SOLD_OUT, t0.minusSeconds(60)))
             assertEquals(StockStatus.ON_SALE, availability.stockStatus)
@@ -99,8 +99,7 @@ class StoreProductAvailabilityTest {
 
         @Test
         fun `같은 시각의 이벤트는 중복 수신으로 보고 무시한다`() {
-            val availability = StoreProductAvailability.initial(id, AvailabilitySource.INVENTORY)
-            availability.applyInventoryEvent(StockStatus.ON_SALE, t0)
+            val availability = inventoryAvailability(stockStatus = StockStatus.ON_SALE, occurredAt = t0)
 
             assertFalse(availability.applyInventoryEvent(StockStatus.SOLD_OUT, t0))
             assertEquals(StockStatus.ON_SALE, availability.stockStatus)

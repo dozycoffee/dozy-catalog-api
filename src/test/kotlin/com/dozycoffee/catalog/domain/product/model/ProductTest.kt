@@ -1,12 +1,8 @@
 package com.dozycoffee.catalog.domain.product.model
 
 import com.dozycoffee.catalog.domain.category.CategoryId
-import com.dozycoffee.catalog.domain.category.ChildCategory
-import com.dozycoffee.catalog.domain.optiongroup.Option
-import com.dozycoffee.catalog.domain.optiongroup.OptionGroup
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
-import com.dozycoffee.catalog.domain.optiongroup.SelectionType
 import com.dozycoffee.catalog.domain.product.event.ProductActivated
 import com.dozycoffee.catalog.domain.product.event.ProductDiscontinued
 import com.dozycoffee.catalog.domain.product.event.ProductStoreScopeChanged
@@ -19,6 +15,14 @@ import com.dozycoffee.catalog.domain.product.exception.ProductNotDeletableExcept
 import com.dozycoffee.catalog.domain.product.exception.ProductOptionGroupNotLinkedException
 import com.dozycoffee.catalog.domain.shared.ErrorType
 import com.dozycoffee.catalog.domain.shared.Money
+import com.dozycoffee.catalog.fixture.childCategory
+import com.dozycoffee.catalog.fixture.exclude
+import com.dozycoffee.catalog.fixture.link
+import com.dozycoffee.catalog.fixture.newProduct
+import com.dozycoffee.catalog.fixture.option
+import com.dozycoffee.catalog.fixture.optionGroup
+import com.dozycoffee.catalog.fixture.priceOverride
+import com.dozycoffee.catalog.fixture.product
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -146,7 +150,7 @@ class ProductTest {
 
         @Test
         fun `연결을 해제한다`() {
-            val product = product(links = listOf(link(1, 0), link(2, 1)))
+            val product = product(link(1, 0), link(2, 1))
 
             product.unlinkOptionGroup(OptionGroupId(1))
 
@@ -155,7 +159,7 @@ class ProductTest {
 
         @Test
         fun `연결된 그룹 전체를 다시 정렬하면 표시 순서가 바뀐다`() {
-            val product = product(links = listOf(link(1, 0), link(2, 1)))
+            val product = product(link(1, 0), link(2, 1))
 
             product.reorderOptionGroups(listOf(OptionGroupId(2), OptionGroupId(1)))
 
@@ -165,24 +169,16 @@ class ProductTest {
 
         @Test
         fun `다시 정렬해도 각 연결의 예외 설정은 유지된다`() {
-            val exclude = OptionOverride.Exclude(OptionKey("TALL"))
-            val product =
-                product(
-                    links =
-                        listOf(
-                            ProductOptionGroupLink(OptionGroupId(1), 0, listOf(exclude)),
-                            link(2, 1),
-                        ),
-                )
+            val product = product(link(1, 0, exclude("TALL")), link(2, 1))
 
             product.reorderOptionGroups(listOf(OptionGroupId(2), OptionGroupId(1)))
 
-            assertEquals(listOf(exclude), product.optionGroupLinks.single { it.id == OptionGroupId(1) }.overrides)
+            assertEquals(listOf(exclude("TALL")), product.optionGroupLinks.single { it.id == OptionGroupId(1) }.overrides)
         }
 
         @Test
         fun `연결된 그룹 일부만 담아 정렬하면 거부하고 기존 연결을 그대로 둔다`() {
-            val product = product(links = listOf(link(1, 0), link(2, 1)))
+            val product = product(link(1, 0), link(2, 1))
 
             assertFailsWith<InvalidOptionGroupOrderException> {
                 product.reorderOptionGroups(listOf(OptionGroupId(1)))
@@ -193,7 +189,7 @@ class ProductTest {
 
         @Test
         fun `같은 그룹을 중복해 담으면 거부한다`() {
-            val product = product(links = listOf(link(1, 0), link(2, 1)))
+            val product = product(link(1, 0), link(2, 1))
 
             assertFailsWith<InvalidOptionGroupOrderException> {
                 product.reorderOptionGroups(listOf(OptionGroupId(1), OptionGroupId(1)))
@@ -203,7 +199,7 @@ class ProductTest {
 
         @Test
         fun `연결되지 않은 그룹을 담으면 연결되지 않은 옵션 그룹 예외로 거부한다`() {
-            val product = product(links = listOf(link(1, 0)))
+            val product = product(link(1, 0))
 
             assertFailsWith<ProductOptionGroupNotLinkedException> {
                 product.reorderOptionGroups(listOf(OptionGroupId(99)))
@@ -215,11 +211,11 @@ class ProductTest {
     @Nested
     @DisplayName("상품별 옵션 예외")
     inner class OptionOverrides {
-        private val sizeGroup = optionGroup(1, "TALL", "GRANDE")
+        private val sizeGroup = optionGroup(1, option("TALL"), option("GRANDE"))
 
         @Test
         fun `특정 옵션의 가격을 이 상품에서만 다르게 지정한다`() {
-            val product = product(links = listOf(link(1, 0)))
+            val product = product(link(1, 0))
 
             product.overrideOptionPrice(sizeGroup, OptionKey("GRANDE"), Money(700))
 
@@ -236,7 +232,7 @@ class ProductTest {
 
         @Test
         fun `같은 옵션에 예외를 다시 지정하면 누적되지 않고 교체된다`() {
-            val product = product(links = listOf(link(1, 0)))
+            val product = product(link(1, 0))
             product.overrideOptionPrice(sizeGroup, OptionKey("GRANDE"), Money(700))
 
             product.overrideOptionPrice(sizeGroup, OptionKey("GRANDE"), Money(900))
@@ -253,7 +249,7 @@ class ProductTest {
 
         @Test
         fun `옵션을 이 상품에서만 제외한다`() {
-            val product = product(links = listOf(link(1, 0)))
+            val product = product(link(1, 0))
 
             product.excludeOption(sizeGroup, OptionKey("TALL"))
 
@@ -269,7 +265,7 @@ class ProductTest {
 
         @Test
         fun `가격 예외가 있던 옵션을 제외하면 제외로 교체된다`() {
-            val product = product(links = listOf(link(1, 0)))
+            val product = product(link(1, 0))
             product.overrideOptionPrice(sizeGroup, OptionKey("TALL"), Money(300))
 
             product.excludeOption(sizeGroup, OptionKey("TALL"))
@@ -284,7 +280,7 @@ class ProductTest {
 
         @Test
         fun `제외로 선택 가능한 옵션이 0개가 되면 거부하고 기존 예외를 그대로 둔다`() {
-            val product = product(links = listOf(link(1, 0)))
+            val product = product(link(1, 0))
             product.excludeOption(sizeGroup, OptionKey("TALL"))
 
             assertFailsWith<NoSelectableOptionException> {
@@ -301,16 +297,16 @@ class ProductTest {
 
         @Test
         fun `옵션이 1개뿐인 그룹에서 그 옵션을 제외하면 거부된다`() {
-            val product = product(links = listOf(link(1, 0)))
+            val product = product(link(1, 0))
 
             assertFailsWith<NoSelectableOptionException> {
-                product.excludeOption(optionGroup(1, "ONLY"), OptionKey("ONLY"))
+                product.excludeOption(optionGroup(1, option("ONLY")), OptionKey("ONLY"))
             }
         }
 
         @Test
         fun `옵션 그룹에 없는 옵션 키에는 가격 예외를 지정할 수 없다`() {
-            val product = product(links = listOf(link(1, 0)))
+            val product = product(link(1, 0))
 
             val exception =
                 assertFailsWith<OptionKeyNotFoundException> {
@@ -327,7 +323,7 @@ class ProductTest {
 
         @Test
         fun `옵션 그룹에 없는 옵션 키는 제외할 수 없다`() {
-            val product = product(links = listOf(link(1, 0)))
+            val product = product(link(1, 0))
 
             assertFailsWith<OptionKeyNotFoundException> {
                 product.excludeOption(sizeGroup, OptionKey("VENTI"))
@@ -336,16 +332,16 @@ class ProductTest {
 
         @Test
         fun `연결되지 않은 옵션 그룹에는 예외를 지정할 수 없다`() {
-            val product = product(links = listOf(link(1, 0)))
+            val product = product(link(1, 0))
 
             assertFailsWith<ProductOptionGroupNotLinkedException> {
-                product.overrideOptionPrice(optionGroup(99, "SHOT"), OptionKey("SHOT"), Money(700))
+                product.overrideOptionPrice(optionGroup(99, option("SHOT")), OptionKey("SHOT"), Money(700))
             }
         }
 
         @Test
         fun `지정한 예외를 제거한다`() {
-            val product = product(links = listOf(link(1, 0)))
+            val product = product(link(1, 0))
             product.overrideOptionPrice(sizeGroup, OptionKey("GRANDE"), Money(700))
 
             product.removeOverride(OptionGroupId(1), OptionKey("GRANDE"))
@@ -362,18 +358,7 @@ class ProductTest {
         fun `주어진 옵션 키의 예외만 삭제하고 나머지는 유지한다`() {
             val product =
                 product(
-                    links =
-                        listOf(
-                            ProductOptionGroupLink(
-                                OptionGroupId(1),
-                                0,
-                                listOf(
-                                    OptionOverride.Exclude(OptionKey("TALL")),
-                                    OptionOverride.Price(OptionKey("GRANDE"), Money(700)),
-                                    OptionOverride.Price(OptionKey("VENTI"), Money(900)),
-                                ),
-                            ),
-                        ),
+                    link(1, 0, exclude("TALL"), priceOverride("GRANDE", 700), priceOverride("VENTI", 900)),
                 )
 
             product.removeOverrides(OptionGroupId(1), setOf(OptionKey("TALL"), OptionKey("VENTI")))
@@ -389,27 +374,20 @@ class ProductTest {
 
         @Test
         fun `다른 옵션 그룹의 예외는 건드리지 않는다`() {
-            val product =
-                product(
-                    links =
-                        listOf(
-                            ProductOptionGroupLink(OptionGroupId(1), 0, listOf(OptionOverride.Exclude(OptionKey("TALL")))),
-                            ProductOptionGroupLink(OptionGroupId(2), 1, listOf(OptionOverride.Exclude(OptionKey("TALL")))),
-                        ),
-                )
+            val product = product(link(1, 0, exclude("TALL")), link(2, 1, exclude("TALL")))
 
             product.removeOverrides(OptionGroupId(1), setOf(OptionKey("TALL")))
 
             assertEquals(emptyList(), product.optionGroupLinks.first { it.id == OptionGroupId(1) }.overrides)
             assertEquals(
-                listOf(OptionOverride.Exclude(OptionKey("TALL"))),
+                listOf(exclude("TALL")),
                 product.optionGroupLinks.first { it.id == OptionGroupId(2) }.overrides,
             )
         }
 
         @Test
         fun `연결되지 않은 옵션 그룹의 예외는 삭제할 수 없다`() {
-            val product = product(links = listOf(link(1, 0)))
+            val product = product(link(1, 0))
 
             assertFailsWith<ProductOptionGroupNotLinkedException> {
                 product.removeOverrides(OptionGroupId(99), setOf(OptionKey("TALL")))
@@ -429,7 +407,7 @@ class ProductTest {
 
         @Test
         fun `검증을 통과하면 입력값을 그대로 보관한다`() {
-            val newProduct = newProduct(optionGroupIds = listOf(OptionGroupId(1), OptionGroupId(2)))
+            val newProduct = newProduct(optionGroupIds = listOf(OptionGroupId(1), OptionGroupId(2)), name = "아메리카노")
 
             assertEquals("아메리카노", newProduct.name)
             assertEquals(listOf(OptionGroupId(1), OptionGroupId(2)), newProduct.optionGroupIds)
@@ -505,54 +483,4 @@ class ProductTest {
             assertEquals(CategoryId(30), product.categoryId)
         }
     }
-
-    private fun product(
-        status: ProductStatus = ProductStatus.DRAFT,
-        storeScope: StoreScope = StoreScope.All,
-        links: List<ProductOptionGroupLink> = emptyList(),
-    ) = Product(
-        id = ProductId(1),
-        sku = null,
-        name = "아메리카노",
-        categoryId = CategoryId(10),
-        description = null,
-        imageUrl = null,
-        basePrice = Money(4500),
-        tracksInventory = false,
-        optionGroupLinks = links,
-        status = status,
-        storeScope = storeScope,
-    )
-
-    private fun link(
-        optionGroupId: Long,
-        displayOrder: Int,
-    ) = ProductOptionGroupLink(OptionGroupId(optionGroupId), displayOrder)
-
-    private fun optionGroup(
-        id: Long,
-        vararg keys: String,
-    ) = OptionGroup(
-        id = OptionGroupId(id),
-        name = "옵션 그룹 $id",
-        selectionType = SelectionType.SINGLE,
-        required = true,
-        options = keys.map { Option(OptionKey(it), name = it, price = Money(0)) },
-    )
-
-    private fun childCategory(id: Long) = ChildCategory(CategoryId(id), "커피", parentId = CategoryId(1))
-
-    private fun newProduct(
-        optionGroupIds: List<OptionGroupId>,
-        category: ChildCategory = childCategory(id = 10),
-    ) = Product.NewProduct.of(
-        sku = null,
-        name = "아메리카노",
-        category = category,
-        description = null,
-        imageUrl = null,
-        basePrice = Money(4500),
-        tracksInventory = false,
-        optionGroupIds = optionGroupIds,
-    )
 }

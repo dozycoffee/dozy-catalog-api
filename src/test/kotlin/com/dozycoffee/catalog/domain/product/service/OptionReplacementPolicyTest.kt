@@ -1,19 +1,18 @@
 package com.dozycoffee.catalog.domain.product.service
 
-import com.dozycoffee.catalog.domain.category.CategoryId
 import com.dozycoffee.catalog.domain.optiongroup.Option
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroup
-import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
-import com.dozycoffee.catalog.domain.optiongroup.SelectionType
 import com.dozycoffee.catalog.domain.optiongroup.exception.EmptyOptionGroupException
 import com.dozycoffee.catalog.domain.product.exception.NoSelectableOptionException
-import com.dozycoffee.catalog.domain.product.model.OptionOverride
 import com.dozycoffee.catalog.domain.product.model.Product
-import com.dozycoffee.catalog.domain.product.model.ProductId
-import com.dozycoffee.catalog.domain.product.model.ProductOptionGroupLink
 import com.dozycoffee.catalog.domain.product.model.ProductStatus
-import com.dozycoffee.catalog.domain.shared.Money
+import com.dozycoffee.catalog.fixture.exclude
+import com.dozycoffee.catalog.fixture.link
+import com.dozycoffee.catalog.fixture.option
+import com.dozycoffee.catalog.fixture.optionGroup
+import com.dozycoffee.catalog.fixture.priceOverride
+import com.dozycoffee.catalog.fixture.product
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -27,9 +26,9 @@ class OptionReplacementPolicyTest {
     inner class Validation {
         @Test
         fun `어떤 연결 상품의 선택 가능한 옵션이 0개가 되면 전체 교체를 거부한다`() {
-            val group = optionGroup(option("TALL", 0), option("GRANDE", 500))
-            val fine = product(1, ProductStatus.ACTIVE)
-            val broken = product(2, ProductStatus.ACTIVE, exclude("VENTI"))
+            val group = optionGroup(1, option("TALL", 0), option("GRANDE", 500))
+            val fine = product(link(1, 0), id = 1, status = ProductStatus.ACTIVE)
+            val broken = product(link(1, 0, exclude("VENTI")), id = 2, status = ProductStatus.ACTIVE)
 
             assertFailsWith<NoSelectableOptionException> {
                 OptionReplacementPolicy.check(group, listOf(option("VENTI", 1000)), listOf(fine, broken))
@@ -38,8 +37,8 @@ class OptionReplacementPolicyTest {
 
         @Test
         fun `단종 상품도 검사한다`() {
-            val group = optionGroup(option("TALL", 0), option("GRANDE", 500))
-            val discontinued = product(1, ProductStatus.DISCONTINUED, exclude("VENTI"))
+            val group = optionGroup(1, option("TALL", 0), option("GRANDE", 500))
+            val discontinued = product(link(1, 0, exclude("VENTI")), status = ProductStatus.DISCONTINUED)
 
             assertFailsWith<NoSelectableOptionException> {
                 OptionReplacementPolicy.check(group, listOf(option("VENTI", 1000)), listOf(discontinued))
@@ -48,8 +47,8 @@ class OptionReplacementPolicyTest {
 
         @Test
         fun `Draft 상품도 검사한다`() {
-            val group = optionGroup(option("TALL", 0), option("GRANDE", 500))
-            val draft = product(1, ProductStatus.DRAFT, exclude("VENTI"))
+            val group = optionGroup(1, option("TALL", 0), option("GRANDE", 500))
+            val draft = product(link(1, 0, exclude("VENTI")), status = ProductStatus.DRAFT)
 
             assertFailsWith<NoSelectableOptionException> {
                 OptionReplacementPolicy.check(group, listOf(option("VENTI", 1000)), listOf(draft))
@@ -58,27 +57,17 @@ class OptionReplacementPolicyTest {
 
         @Test
         fun `옵션을 0개로 만들려 하면 상품 검사보다 먼저 옵션 그룹 규칙으로 거부한다`() {
-            val group = optionGroup(option("TALL", 0))
+            val group = optionGroup(1, option("TALL", 0))
 
             assertFailsWith<EmptyOptionGroupException> {
-                OptionReplacementPolicy.check(group, emptyList(), listOf(product(1, ProductStatus.ACTIVE)))
+                OptionReplacementPolicy.check(group, emptyList(), listOf(product(link(1, 0), status = ProductStatus.ACTIVE)))
             }
         }
 
         @Test
         fun `이 옵션 그룹을 연결하지 않은 상품이 섞이면 거부한다`() {
-            val group = optionGroup(option("TALL", 0))
-            val unlinked =
-                Product(
-                    id = ProductId(9),
-                    sku = null,
-                    name = "라떼",
-                    categoryId = CategoryId(10),
-                    description = null,
-                    imageUrl = null,
-                    basePrice = Money(5000),
-                    tracksInventory = false,
-                )
+            val group = optionGroup(1, option("TALL", 0))
+            val unlinked = product(id = 9)
 
             // 호출 코드 오류이므로 DomainException이 아닌 require로 거부한다.
             assertFailsWith<IllegalArgumentException> {
@@ -92,8 +81,8 @@ class OptionReplacementPolicyTest {
     inner class RemovedKeys {
         @Test
         fun `현재 목록에 있고 새 목록에 없는 옵션 키만 돌려준다`() {
-            val group = optionGroup(option("TALL", 0), option("GRANDE", 500), option("VENTI", 1000))
-            val product = product(1, ProductStatus.ACTIVE)
+            val group = optionGroup(1, option("TALL", 0), option("GRANDE", 500), option("VENTI", 1000))
+            val product = product(link(1, 0), status = ProductStatus.ACTIVE)
 
             val plan =
                 OptionReplacementPolicy.check(
@@ -107,13 +96,13 @@ class OptionReplacementPolicyTest {
 
         @Test
         fun `사라지는 옵션이 없으면 빈 목록을 돌려준다`() {
-            val group = optionGroup(option("TALL", 0), option("GRANDE", 500))
+            val group = optionGroup(1, option("TALL", 0), option("GRANDE", 500))
 
             val plan =
                 OptionReplacementPolicy.check(
                     group,
                     listOf(option("GRANDE", 600), option("TALL", 0), option("VENTI", 1000)),
-                    listOf(product(1, ProductStatus.ACTIVE)),
+                    listOf(product(link(1, 0), status = ProductStatus.ACTIVE)),
                 )
 
             assertEquals(emptySet(), plan.removedOptionKeys)
@@ -121,7 +110,7 @@ class OptionReplacementPolicyTest {
 
         @Test
         fun `연결 상품이 없어도 판단할 수 있다`() {
-            val group = optionGroup(option("TALL", 0))
+            val group = optionGroup(1, option("TALL", 0))
 
             val plan = OptionReplacementPolicy.check(group, listOf(option("GRANDE", 500)), emptyList())
 
@@ -134,8 +123,8 @@ class OptionReplacementPolicyTest {
     inner class NoMutation {
         @Test
         fun `통과해도 옵션 목록과 상품 예외를 그대로 둔다`() {
-            val group = optionGroup(option("TALL", 0), option("GRANDE", 500))
-            val product = product(1, ProductStatus.ACTIVE, exclude("TALL"), priceOverride("GRANDE", 300))
+            val group = optionGroup(1, option("TALL", 0), option("GRANDE", 500))
+            val product = product(link(1, 0, exclude("TALL"), priceOverride("GRANDE", 300)), status = ProductStatus.ACTIVE)
 
             OptionReplacementPolicy.check(group, listOf(option("GRANDE", 600), option("VENTI", 1000)), listOf(product))
 
@@ -148,9 +137,9 @@ class OptionReplacementPolicyTest {
 
         @Test
         fun `거부되어도 옵션 목록과 상품 예외를 그대로 둔다`() {
-            val group = optionGroup(option("TALL", 0), option("GRANDE", 500))
-            val fine = product(1, ProductStatus.ACTIVE, priceOverride("TALL", 100))
-            val broken = product(2, ProductStatus.ACTIVE, exclude("VENTI"))
+            val group = optionGroup(1, option("TALL", 0), option("GRANDE", 500))
+            val fine = product(link(1, 0, priceOverride("TALL", 100)), id = 1, status = ProductStatus.ACTIVE)
+            val broken = product(link(1, 0, exclude("VENTI")), id = 2, status = ProductStatus.ACTIVE)
 
             assertFailsWith<NoSelectableOptionException> {
                 OptionReplacementPolicy.check(group, listOf(option("VENTI", 1000)), listOf(fine, broken))
@@ -178,9 +167,9 @@ class OptionReplacementPolicyTest {
 
         @Test
         fun `사라진 옵션 키의 예외는 연결 상품마다 삭제하고 남은 키의 예외는 유지한다`() {
-            val group = optionGroup(option("TALL", 0), option("GRANDE", 500), option("VENTI", 1000))
-            val first = product(1, ProductStatus.ACTIVE, exclude("TALL"), priceOverride("GRANDE", 300))
-            val second = product(2, ProductStatus.DISCONTINUED, priceOverride("TALL", 100))
+            val group = optionGroup(1, option("TALL", 0), option("GRANDE", 500), option("VENTI", 1000))
+            val first = product(link(1, 0, exclude("TALL"), priceOverride("GRANDE", 300)), id = 1, status = ProductStatus.ACTIVE)
+            val second = product(link(1, 0, priceOverride("TALL", 100)), id = 2, status = ProductStatus.DISCONTINUED)
 
             replace(group, listOf(option("GRANDE", 500), option("VENTI", 1000)), listOf(first, second))
 
@@ -191,55 +180,13 @@ class OptionReplacementPolicyTest {
 
         @Test
         fun `사라졌던 옵션 키가 다시 추가되어도 삭제된 예외는 복원되지 않는다`() {
-            val group = optionGroup(option("TALL", 0), option("GRANDE", 500))
-            val product = product(1, ProductStatus.ACTIVE, exclude("TALL"))
+            val group = optionGroup(1, option("TALL", 0), option("GRANDE", 500))
+            val product = product(link(1, 0, exclude("TALL")), status = ProductStatus.ACTIVE)
 
             replace(group, listOf(option("GRANDE", 500)), listOf(product))
             replace(group, listOf(option("TALL", 0), option("GRANDE", 500)), listOf(product))
 
             assertEquals(emptyList(), product.optionGroupLinks.single().overrides)
         }
-    }
-
-    private fun option(
-        key: String,
-        price: Long,
-    ) = Option(OptionKey(key), name = key, price = Money(price))
-
-    private fun exclude(key: String) = OptionOverride.Exclude(OptionKey(key))
-
-    private fun priceOverride(
-        key: String,
-        price: Long,
-    ) = OptionOverride.Price(OptionKey(key), Money(price))
-
-    private fun optionGroup(vararg options: Option) =
-        OptionGroup(
-            id = GROUP_ID,
-            name = "사이즈",
-            selectionType = SelectionType.SINGLE,
-            required = true,
-            options = options.toList(),
-        )
-
-    private fun product(
-        id: Long,
-        status: ProductStatus,
-        vararg overrides: OptionOverride,
-    ) = Product(
-        id = ProductId(id),
-        sku = null,
-        name = "아메리카노",
-        categoryId = CategoryId(10),
-        description = null,
-        imageUrl = null,
-        basePrice = Money(4500),
-        tracksInventory = false,
-        optionGroupLinks = listOf(ProductOptionGroupLink(GROUP_ID, 0, overrides.toList())),
-        status = status,
-    )
-
-    private companion object {
-        val GROUP_ID = OptionGroupId(1)
     }
 }
