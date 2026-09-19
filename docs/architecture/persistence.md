@@ -48,7 +48,9 @@
 - **Repository는 자기 애그리거트 테이블만 다룬다**([ADR-0012](../adr/0012-cross-aggregate-judgment-in-application-policy.md)). 다른 애그리거트의 데이터가 필요하면 application이 그 애그리거트의 Repository나 조회 포트를 호출한다.
 - Repository는 트랜잭션을 열지 않는다. application의 `TransactionRunner.inTransaction` 안에서 호출된다.
 - 잠금 조회는 `findByIdForUpdate`처럼 `…ForUpdate` 이름으로 쓴다(`SELECT … FOR UPDATE`). 잠금은 트랜잭션이 끝날 때 풀리므로 반드시 트랜잭션 안에서 부른다.
+- 여러 행을 잠그는 조회(예: `ProductRepository.findAllLinkedToForUpdate`)는 교착을 피하도록 항상 id 순서로 잠근다.
 - 하위 컬렉션(옵션 목록, 상품의 연결·예외 등)은 저장할 때 지우고 다시 넣는다. 성능 문제가 보이면 그때 차이만 반영하도록 바꾼다.
+- 애그리거트 여러 개를 불러올 때 하위 컬렉션은 애그리거트마다 조회하지 않고 테이블마다 한 번(`product_id IN (…)`)씩 조회해 묶는다.
 - 낙관적 잠금 대상(`VersionedAggregateRoot`)은 `UPDATE … WHERE id = ? AND version = ?`로 저장하고, 바뀐 행이 0개면 `VersionConflictException`을 던진다. 성공하면 도메인 객체의 `version`을 1 올린다([ADR-0013](../adr/0013-optimistic-locking-for-product-and-option-group.md)).
 - 낙관적 잠금을 쓰지 않는 애그리거트는 행 전체를 덮어쓰지 않는다. 서로 다른 필드를 바꾸는 요청이 겹칠 수 있으면 필드별 저장 메서드(`saveVisibility` 등)로 바꾼 필드만 UPDATE하고, 순서가 있는 외부 이벤트는 조건부 upsert(`… DO UPDATE … WHERE`)로 오래된 값이 덮어쓰지 못하게 한다. 조건에 걸렸는지는 `upsertReturning`이 돌려준 행이 있는지로 판단한다.
 - 행이 없으면 만드는 Lazy 생성은 `INSERT … ON CONFLICT … DO UPDATE … RETURNING` 한 문장으로 한다(`findOrCreate`). 동시 요청에도 행이 하나만 생기고, 다시 조회하지 않아도 행을 돌려받는다.

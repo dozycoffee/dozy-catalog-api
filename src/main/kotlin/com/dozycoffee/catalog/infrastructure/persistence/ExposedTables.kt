@@ -3,6 +3,11 @@ package com.dozycoffee.catalog.infrastructure.persistence
 import com.dozycoffee.catalog.infrastructure.persistence.category.CategoriesTable
 import com.dozycoffee.catalog.infrastructure.persistence.optiongroup.OptionGroupsTable
 import com.dozycoffee.catalog.infrastructure.persistence.optiongroup.OptionsTable
+import com.dozycoffee.catalog.infrastructure.persistence.product.ProductGroupsMapTable
+import com.dozycoffee.catalog.infrastructure.persistence.product.ProductOptionGroupsTable
+import com.dozycoffee.catalog.infrastructure.persistence.product.ProductOptionOverridesTable
+import com.dozycoffee.catalog.infrastructure.persistence.product.ProductTagsTable
+import com.dozycoffee.catalog.infrastructure.persistence.product.ProductTargetStoresTable
 import com.dozycoffee.catalog.infrastructure.persistence.product.ProductsTable
 import com.dozycoffee.catalog.infrastructure.persistence.productgroup.ProductGroupsTable
 import com.dozycoffee.catalog.infrastructure.persistence.storeavailability.StoreProductAvailabilitiesTable
@@ -21,6 +26,11 @@ object ExposedTables {
             OptionGroupsTable,
             OptionsTable,
             ProductsTable,
+            ProductTargetStoresTable,
+            ProductTagsTable,
+            ProductGroupsMapTable,
+            ProductOptionGroupsTable,
+            ProductOptionOverridesTable,
             StoreDisplaySettingsTable,
             StoreProductAvailabilitiesTable,
         )
