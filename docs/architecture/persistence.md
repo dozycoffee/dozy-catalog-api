@@ -37,10 +37,20 @@
 - `Table` 정의는 마이그레이션과 같은 이름·옵션으로 쓴다. 다르면 `ExposedSchemaConsistencyTest`가 잡는다.
   - 감사 컬럼은 `auditTimestamp("created_at")`로 만든다. 기본값이 마이그레이션과 같은 `now()`로 표현된다(Exposed 기본 `CurrentTimestampWithTimeZone`은 `CURRENT_TIMESTAMP`로 표현되어 불일치로 보인다).
   - 이름을 붙이지 않은 제약(FK, UNIQUE)은 PostgreSQL이 만든 이름(`<테이블>_<컬럼>_fkey`, `<테이블>_<컬럼>_key`)을 그대로 적는다. FK의 삭제 옵션도 마이그레이션과 맞춘다(지정하지 않았으면 `NO_ACTION`).
-  - `CHECK` 제약도 같은 이름으로 정의한다.
+  - `CHECK` 제약도 같은 이름으로 정의한다. 이름 없이 만든 컬럼 `CHECK`는 PostgreSQL이 붙인 `<테이블>_<컬럼>_check`를 쓴다.
+  - 부분 인덱스(`WHERE …`)는 `index(…) { 조건 }`의 `filterCondition`으로 같은 조건을 적는다.
+  - 불일치 검사(`MigrationUtils`)는 인덱스의 `WHERE` 조건과 `CHECK`의 식을 비교하지 않는다. 인덱스는 컬럼과 UNIQUE 여부로 맞추므로 컬럼이 같으면 이름이 달라도 잡지 못할 수 있다. 부분 인덱스의 동작과 `CHECK`는 Repository 통합 테스트에서 DB에 직접 확인한다(예: `ExposedScheduledChangeRepositoryTest`).
   - FK는 대상 테이블도 Exposed `Table`로 정의하고 `references`로 적는다. 대상 테이블이 Exposed에 없으면 스키마 검사가 메타데이터를 읽다가 실패한다.
 - 시각 컬럼은 `timestampWithTimeZone`(`OffsetDateTime`)으로 읽고 매퍼에서 `Instant`로 바꾼다. 금액은 `long`으로 읽어 `Money`로 감싼다.
 - 감사 컬럼 `updated_at`은 UPDATE 문에서 `DbNow`(DB 시계)로 채운다.
+- 상태값 컬럼은 `enumerationByName("status", 20)`처럼 도메인 enum으로 읽는다(`VARCHAR` 길이는 마이그레이션과 맞춘다).
+
+### JSONB 컬럼
+
+- `jsonb(name, codec)`으로 만든다(`JsonbColumnType`, Jackson 3). 컬럼마다 `JsonbCodec<T>`를 구현해 값과 JSON 트리(`JsonNode`) 사이의 변환을 코드에 명시적으로 적는다. 클래스·프로퍼티 이름에 기대는 자동 직렬화를 쓰지 않아, 코드 이름을 바꿔도 이미 저장된 JSON이 깨지지 않는다.
+- 여러 타입이 들어가는 컬럼은 `{"type": 구분자, "value": 값}`처럼 타입 구분자를 함께 저장한다. 구분자와 키 이름은 저장된 데이터와의 계약이라 바꾸지 않는다. 바꿔야 하면 새 구분자를 추가하고 옛 구분자도 계속 읽는다.
+- 코덱은 sealed 타입을 `when`으로 빠짐없이 처리해, 타입을 추가하고 직렬화를 빠뜨리면 컴파일 에러가 되게 한다. 모든 타입의 왕복은 통합 테스트로 확인한다.
+- 예: `scheduled_changes.new_value`(`ScheduledValueJsonbCodec`, 형식은 [ERD](../erd.md#scheduled_changes--예약-변경-필드-단위-00시-고정-적용)).
 
 ## Repository 구현 규칙
 
@@ -50,6 +60,7 @@
 - 잠금 조회는 `findByIdForUpdate`처럼 `…ForUpdate` 이름으로 쓴다(`SELECT … FOR UPDATE`). 잠금은 트랜잭션이 끝날 때 풀리므로 반드시 트랜잭션 안에서 부른다.
 - 여러 행을 잠그는 조회(예: `ProductRepository.findAllLinkedToForUpdate`)는 교착을 피하도록 항상 id 순서로 잠근다.
 - 하위 컬렉션(옵션 목록, 상품의 연결·예외 등)은 저장할 때 지우고 다시 넣는다. 성능 문제가 보이면 그때 차이만 반영하도록 바꾼다.
+- 낙관적 잠금을 쓰지 않고 상태 전이만 저장하는 애그리거트(예약)는 `UPDATE … WHERE id = ? AND status = '<이전 상태>'`로 저장하고, 바뀐 행이 0개면 다른 쪽이 먼저 처리한 것이므로 `DomainException`(예: `ScheduleAlreadyProcessedException`)으로 거부한다.
 - 애그리거트 여러 개를 불러올 때 하위 컬렉션은 애그리거트마다 조회하지 않고 테이블마다 한 번(`product_id IN (…)`)씩 조회해 묶는다.
 - 낙관적 잠금 대상(`VersionedAggregateRoot`)은 `UPDATE … WHERE id = ? AND version = ?`로 저장하고, 바뀐 행이 0개면 `VersionConflictException`을 던진다. 성공하면 도메인 객체의 `version`을 1 올린다([ADR-0013](../adr/0013-optimistic-locking-for-product-and-option-group.md)).
 - 낙관적 잠금을 쓰지 않는 애그리거트는 행 전체를 덮어쓰지 않는다. 서로 다른 필드를 바꾸는 요청이 겹칠 수 있으면 필드별 저장 메서드(`saveVisibility` 등)로 바꾼 필드만 UPDATE하고, 순서가 있는 외부 이벤트는 조건부 upsert(`… DO UPDATE … WHERE`)로 오래된 값이 덮어쓰지 못하게 한다. 조건에 걸렸는지는 `upsertReturning`이 돌려준 행이 있는지로 판단한다.
@@ -63,7 +74,7 @@
 - application 서비스는 `TransactionRunner.inTransaction { … }`으로 유스케이스의 트랜잭션 경계를 연다. Repository는 이 트랜잭션 안에서 호출된다.
 - 블록이 예외로 끝나면 블록 안의 변경이 모두 롤백된다. 안쪽에서 다시 호출하면 바깥 트랜잭션을 이어 쓴다.
 - Spring `@Transactional`과 섞지 않는다.
-- 잠금 조회는 Exposed `Query.forUpdate()`를 쓴다. 배치의 `SKIP LOCKED`는 예약 Repository 구현 때 정한다([ERD 동시성 처리](../erd.md#동시성-처리)).
+- 잠금 조회는 Exposed `Query.forUpdate()`를 쓴다. 여러 워커가 나눠 처리하는 배치 조회는 `forUpdate(ForUpdateOption.PostgreSQL.ForUpdate(MODE.SKIP_LOCKED))`로 다른 트랜잭션이 잠근 행을 건너뛴다(예: `findDueForApplication`, [ERD 동시성 처리](../erd.md#동시성-처리)).
 
 ## 시간
 

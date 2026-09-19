@@ -4,6 +4,7 @@ import com.dozycoffee.catalog.domain.scheduledchange.exception.InvalidEffectiveD
 import com.dozycoffee.catalog.domain.scheduledchange.exception.InvalidScheduleStatusTransitionException
 import com.dozycoffee.catalog.domain.scheduledchange.exception.NoPendingScheduleException
 import com.dozycoffee.catalog.domain.scheduledchange.exception.ScheduledChangeErrorCode
+import com.dozycoffee.catalog.fixture.TestScheduledValue
 import com.dozycoffee.catalog.fixture.scheduledChange
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -38,6 +39,18 @@ class ScheduledChangeTest {
         }
 
         @Test
+        fun `대상 종류와 필드 이름은 예약 값이 정한다`() {
+            val newSchedule =
+                register(
+                    effectiveDate = today.plusDays(1),
+                    newValue = TestScheduledValue(targetKind = TargetKind.OPTION_GROUP, fieldName = "options"),
+                )
+
+            assertEquals(TargetKind.OPTION_GROUP, newSchedule.targetKind)
+            assertEquals("options", newSchedule.fieldName)
+        }
+
+        @Test
         fun `적용일이 오늘이면 거부한다`() {
             // 오늘 00시는 이미 지났으므로 오늘 적용은 즉시 반영으로 한다(요구사항 1.4).
             val exception = assertFailsWith<InvalidEffectiveDateException> { register(effectiveDate = today) }
@@ -50,16 +63,16 @@ class ScheduledChangeTest {
             assertFailsWith<InvalidEffectiveDateException> { register(effectiveDate = today.minusDays(1)) }
         }
 
-        private fun register(effectiveDate: LocalDate) =
-            ScheduledChange.NewScheduledChange.of(
-                targetId = 100,
-                targetKind = TargetKind.PRODUCT,
-                fieldName = "basePrice",
-                newValue = 5000L,
-                effectiveDate = effectiveDate,
-                today = today,
-                businessZone = seoul,
-            )
+        private fun register(
+            effectiveDate: LocalDate,
+            newValue: TestScheduledValue = TestScheduledValue(),
+        ) = ScheduledChange.NewScheduledChange.of(
+            targetId = 100,
+            newValue = newValue,
+            effectiveDate = effectiveDate,
+            today = today,
+            businessZone = seoul,
+        )
     }
 
     @Nested
@@ -133,8 +146,7 @@ class ScheduledChangeTest {
             // 적용 실패 시 기존 값을 유지하고 실패 사실만 기록한다(1.4).
             val schedule =
                 scheduledChange(
-                    fieldName = "basePrice",
-                    newValue = 5000L,
+                    newValue = TestScheduledValue(fieldName = "basePrice", value = 5000L),
                     effectiveDate = LocalDate.of(2026, 10, 1),
                     status = ScheduleStatus.PENDING,
                 )
@@ -142,7 +154,7 @@ class ScheduledChangeTest {
             schedule.fail()
 
             assertEquals("basePrice", schedule.fieldName)
-            assertEquals(5000L, schedule.newValue)
+            assertEquals(TestScheduledValue(fieldName = "basePrice", value = 5000L), schedule.newValue)
             assertEquals(LocalDate.of(2026, 10, 1), schedule.effectiveDate)
         }
 

@@ -63,7 +63,7 @@ flowchart LR
 | Category | 본사 | 2단계 카테고리 계층 | `TopLevelCategory` / `ChildCategory` |
 | Tag | 본사 | 마케팅 라벨. 이름으로 재사용 | — |
 | ProductGroup | 본사 | 내부 관리용 단일 레벨 분류 | — |
-| ScheduledChange | 본사 (적용은 예약 배치) | 필드 단위 예약의 수명(대기 → 적용완료/실패/취소) | — |
+| ScheduledChange | 본사 (적용은 예약 배치) | 필드 단위 예약의 수명(대기 → 적용완료/실패/취소) | `ScheduledValue`(예약 값, 구현은 application) |
 | StoreDisplaySetting | 점주 | 매장별 노출·숨김, 진열 순서. 점주가 처음 바꿀 때 생성(Lazy) | — |
 | StoreProductAvailability | 출처별: 재고 추적 상품은 재고관리 서비스, 재고 미추적 상품은 점주 | 매장별 판매 가능 여부(판매중/품절). 처음 변경될 때 생성 | `AvailabilitySource`(INVENTORY/OWNER) |
 
@@ -78,7 +78,7 @@ domain의 애그리거트끼리는 ID로만 참조하고, 여러 애그리거트
 | 대상 | 경로 |
 |---|---|
 | 상품 정보 (상태 제외 전부) | 즉시 반영(PUT) 또는 필드 단위 예약 |
-| 상품 상태 | 전용 액션 activate/discontinue만. 즉시 또는 예약 |
+| 상품 상태 | 전용 액션 activate/discontinue만. 즉시 또는 예약(활성화·단종은 서로 다른 필드로 예약) |
 | 옵션 그룹의 이름·선택 방식·필수 여부 | 즉시 반영만 |
 | 옵션 그룹의 옵션 목록 | 즉시(목록 전체 교체) 또는 예약(목록 전체 스냅샷) |
 | 상품-옵션 그룹 연결(순서, 상품별 예외) | 즉시 또는 예약 |
@@ -86,7 +86,26 @@ domain의 애그리거트끼리는 ID로만 참조하고, 여러 애그리거트
 
 - **즉시 반영(PUT)**: 요청 시점에 입력된 값 전체로 대상을 그 자리에서 교체한다. Product와 OptionGroup은 화면이 보던 버전을 함께 받아, 그 사이 다른 변경이 반영됐으면 `VersionConflictException`으로 거부한다(낙관적 잠금, [ADR-0013](adr/0013-optimistic-locking-for-product-and-option-group.md)).
 - **예약**: 필드 단위로 등록하며 지정한 날짜 00시에 적용한다. 같은 대상·같은 필드의 대기 예약은 최대 1건이고 새 예약이 기존 것을 대체한다. 조회 시 현재 값과 예약 값을 함께 보여 준다. 적용에 실패하면 값을 바꾸지 않고 실패만 기록한다.
-- **상태 전용 액션**: 상태는 PUT이나 일반 예약 대상이 아니다. 허용된 전이만 가능하고 같은 상태로의 재요청은 거부한다(아래 상태 전이 참고).
+- **상태 전용 액션**: 상태는 PUT이나 일반 예약 대상이 아니다. 허용된 전이만 가능하고 같은 상태로의 재요청은 거부한다(아래 상태 전이 참고). 예약할 때는 활성화와 단종을 서로 다른 필드로 등록하므로 함께 대기할 수 있고, 적용 시점에 전이가 허용되지 않으면 그 예약만 실패한다.
+
+### 예약 가능한 필드 (요구사항 1.4)
+
+예약 대상은 상품과 옵션 그룹 두 가지다. 상품-옵션 그룹 연결의 예약도 상품을 대상으로 하고 필드 이름으로 구분한다([ADR-0014](adr/0014-scheduled-change-target-and-typed-values.md)). 필드마다 값 타입이 하나씩 있고(`application/scheduledchange`의 `ProductFieldValue`, `OptionGroupFieldValue`), 필드 이름은 그 타입이 정한다. 같은 대상·같은 필드 이름의 대기 예약은 최대 1건이다.
+
+| 대상 | 필드 이름 | 값 타입 | 값 |
+|---|---|---|---|
+| 상품 | `name` | `Name` | 상품명 |
+| 상품 | `category` | `Category` | 소분류 ID (적용 시점에 소분류인지 다시 확인) |
+| 상품 | `description` / `image` | `Description` / `Image` | 설명 / 이미지 URL (비울 수 있음) |
+| 상품 | `basePrice` | `BasePrice` | 기준가 |
+| 상품 | `tags` / `groups` | `Tags` / `Groups` | 태그 ID 집합 / 상품 그룹 ID 집합 |
+| 상품 | `storeScope` | `Scope` | 판매 범위 |
+| 상품 | `activation` / `discontinuation` | `Activation` / `Discontinuation` | 없음 (적용 시 `activate()` / `discontinue()`) |
+| 상품 | `optionGroupLinks` | `OptionGroupLinks` | 연결할 옵션 그룹 ID 목록(순서 포함). 빠진 연결은 예외와 함께 해제 |
+| 상품 | `optionOverrides:{optionGroupId}` | `OptionOverrides` | 그 옵션 그룹에 대한 이 상품의 예외 전체(등록 시점 스냅샷) |
+| 옵션 그룹 | `options` | `Options` | 옵션 목록 전체(등록 시점 스냅샷) |
+
+재고 관리 여부, 옵션 그룹의 이름·선택 방식·필수 여부, 카테고리·태그·상품 그룹 이름은 예약하지 않는다.
 
 ### 모델링 메커니즘
 
@@ -122,6 +141,7 @@ domain의 애그리거트끼리는 ID로만 참조하고, 여러 애그리거트
 | Category | 상품이 참조 중인 소분류는 대분류가 될 수 없다 | `ReferencedCategoryNotPromotableException` |
 | ScheduledChange | 적용일은 업무 시간대 기준 내일 이후만 허용 (등록 경로 `NewScheduledChange.of`) | `InvalidEffectiveDateException` |
 | ScheduledChange | `PENDING` 상태에서만 취소/적용/실패 처리 가능 | `NoPendingScheduleException` / `InvalidScheduleStatusTransitionException` |
+| ScheduledChange | 상태 전이는 저장 시점에도 여전히 `PENDING`일 때만 반영된다 (관리자 취소와 배치 적용이 겹친 경우, Repository가 상태 조건 UPDATE로 확인) | `ScheduleAlreadyProcessedException` |
 | StoreProductAvailability | `INVENTORY` 출처(재고 추적 상품)의 품절 상태는 점주가 바꿀 수 없다 | `StockStatusNotManuallyEditableException` |
 | StoreProductAvailability | `OWNER` 출처(재고 미추적 상품)에는 재고 이벤트를 반영할 수 없다 | `InventoryEventNotApplicableException` |
 | StoreProductAvailability | 이미 반영한 것보다 오래되었거나 같은 시각의 재고 이벤트는 무시한다 | — (반영 여부를 반환) |
@@ -202,6 +222,7 @@ stateDiagram-v2
 ```
 
 - `APPLIED` / `FAILED` / `CANCELLED`는 종료 상태로, 이후 어떤 전이도 허용하지 않는다.
+- 관리자의 취소와 배치의 적용·실패가 같은 예약에 겹치면 먼저 저장한 쪽만 반영되고, 나중 쪽은 `ScheduleAlreadyProcessedException`으로 거부된다([ERD 동시성 처리](erd.md#동시성-처리)).
 
 ### StoreDisplaySetting
 
@@ -247,6 +268,7 @@ stateDiagram-v2
 | [ADR-0005](adr/0005-split-display-setting-and-availability.md) | 진열 설정과 판매 가능 여부를 분리하고, 재고는 이벤트 투영으로 둔다 | 애그리거트 지도, 모델링 메커니즘, 외부에서 받는 이벤트 |
 | [ADR-0006](adr/0006-catalog-pricing-boundary.md) | Catalog는 가격 데이터·유효 옵션 구성·표시용 시작가까지만 제공한다 | 모델링 메커니즘(유효 옵션 구성과 가격) |
 | [ADR-0012](adr/0012-cross-aggregate-judgment-in-application-policy.md) | domain 애그리거트는 서로 ID로만 참조하고, 여러 애그리거트를 보는 판단은 application 정책에 둔다. 옵션 목록 교체는 한 트랜잭션(ADR-0008에서 이어받음) | 애그리거트 지도, 불변식과 강제 위치(application 정책·서비스에서 강제) |
+| [ADR-0014](adr/0014-scheduled-change-target-and-typed-values.md) | 예약 대상은 상품·옵션 그룹뿐이고 연결 예약은 상품 대상의 필드로 둔다. 예약 값은 필드별 타입(application sealed 계층)이며, 활성화와 단종은 별도 필드다 | 변경 메커니즘(예약 가능한 필드), 타입으로 표현한 모델링 결정 |
 
 ## 타입으로 표현한 모델링 결정
 
@@ -261,7 +283,7 @@ stateDiagram-v2
 | `Option` | 물리 id 없는 Value Object (`optionKey`, `name`, `price`) | 옵션 목록은 항상 통째로 교체되고, 상품의 예외는 `optionKey`로 참조하므로 도메인에서 물리 id가 필요 없다. DB의 `options.id`는 영속성 계층에만 존재한다. |
 | `Money` | 0 이상 정수(원 단위) value class | 전 매장 동일가, 단일 통화. 음수 금액을 만들 수 없어 최종 판매가가 기준가 아래로 내려가지 않는다. |
 | ID 타입 | `ProductId`, `OptionGroupId`, `CategoryId`, `StoreId`, `OptionKey`, `Sku` 등 value class | 서로 다른 ID를 섞어 넘기는 실수를 컴파일 단계에서 막는다. `Sku`는 등록 시점에 미부여일 수 있어 nullable. |
-| `ScheduledChange.newValue` | `Any` (DB는 JSONB) | 필드마다 값 타입이 달라(String, Money, StoreScope, 옵션 스냅샷 등) 범용 예약 메커니즘으로 남기고, 해석·적용은 application 배치의 책임으로 둔다. |
+| `ScheduledChange.newValue` | domain 인터페이스 `ScheduledValue`(대상 종류·필드 이름만 앎). 구현은 application의 sealed 계층 `ScheduledFieldValue`(`ProductFieldValue` / `OptionGroupFieldValue`), DB는 JSONB | 필드마다 값 타입이 다르고(`Money`, `StoreScope`, 옵션 목록 등) 다른 애그리거트의 모델을 담으므로 domain에 두지 않는다([ADR-0012](adr/0012-cross-aggregate-judgment-in-application-policy.md)). 배치의 적용과 직렬화가 sealed 타입을 `when`으로 빠짐없이 처리하므로, 필드를 추가하고 처리를 빠뜨리면 컴파일 에러가 된다. 필드 이름을 타입이 만들어 값과 필드 이름이 어긋날 수 없다([ADR-0014](adr/0014-scheduled-change-target-and-typed-values.md)). |
 
 ## 용어집
 
@@ -284,6 +306,7 @@ stateDiagram-v2
 | 태그 | `Tag` | 마케팅용 라벨 (신메뉴, 시즌한정 등) |
 | 상품 그룹 | `ProductGroup` | 본사 내부 관리용 분류, 점주·손님에게 비노출 |
 | 예약 변경 | `ScheduledChange` | 지정 날짜 00시에 적용되는 필드 단위 변경 |
+| 예약 값 | `ScheduledValue` (`ProductFieldValue`, `OptionGroupFieldValue`) | 예약할 필드와 그 값. 필드 이름과 대상 종류를 정함 |
 | 즉시 반영 | PUT | 요청 시점 값 전체로 즉시 교체 |
 | 매장 개별 설정 (진열/노출 데이터) | `StoreDisplaySetting` | 점주가 커스터마이징한 매장별 노출·진열 순서. 없으면 기본값(노출) |
 | 판매 가능 여부 | `StoreProductAvailability` | 매장별 판매중/품절. 없으면 출처별 기본값 |

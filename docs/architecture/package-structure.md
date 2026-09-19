@@ -77,9 +77,11 @@ com.dozycoffee.catalog
 │   │   ├── ProductGroupRepository.kt
 │   │   └── event/ProductGroupDeleted.kt
 │   │
-│   ├── scheduledchange/                           # 평평 (파일 2개)
+│   ├── scheduledchange/                           # 평평 + exception/
 │   │   ├── ScheduledChange.kt
-│   │   └── ScheduledChangeRepository.kt
+│   │   ├── ScheduledValue.kt                     # 예약 값 인터페이스 (대상 종류·필드 이름만). 구현은 application
+│   │   ├── ScheduledChangeRepository.kt
+│   │   └── exception/
 │   │
 │   ├── storedisplay/                              # 점주의 매장별 진열 설정
 │   │   ├── model/
@@ -135,6 +137,8 @@ com.dozycoffee.catalog
 │   ├── category/ tag/ productgroup/  (ApplicationService + command/)
 │   │
 │   ├── scheduledchange/
+│   │   ├── ScheduledFieldValue.kt                # 예약 가능한 필드별 값 (sealed, 하위 타입도 이 패키지에만 둘 수 있음)
+│   │   ├── ProductFieldValue.kt / OptionGroupFieldValue.kt
 │   │   └── ScheduledChangeBatchApplicationService.kt
 │   │
 │   ├── storedisplay/
