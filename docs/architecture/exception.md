@@ -1,6 +1,6 @@
 # 예외 구조
 
-> 문서별 역할과 수정 순서는 [문서 안내](../README.md)를 참고한다. 도입 배경은 #17.
+> 문서별 역할과 수정 순서는 [문서 안내](../README.md)를 참고한다. 결정 근거는 [ADR-0002](../adr/0002-error-code-and-error-type.md)(예외 구조)와 [ADR-0007](../adr/0007-domain-exception-vs-require-check.md)(`DomainException`과 `require`/`check`의 구분)에 있다.
 
 도메인 규칙 위반은 `DomainException`을 상속한 애그리거트별 예외 클래스로 던진다. 각 예외는 `errorCode: ErrorCode`를 가지며, 코드 값은 애그리거트별 enum(`<Aggregate>ErrorCode`)으로 해당 애그리거트의 `exception/` 패키지에 둔다. 공통 커널용은 `domain/shared/SharedErrorCode`다.
 

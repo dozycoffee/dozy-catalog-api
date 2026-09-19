@@ -128,14 +128,14 @@ flowchart LR
 
 ### 도메인 서비스에서 강제 (cross-aggregate)
 
-판단은 도메인 서비스, 오케스트레이션과 트랜잭션 경계는 application에 둔다.
+판단은 도메인 서비스, 오케스트레이션과 트랜잭션 경계는 application에 둔다([ADR-0008](adr/0008-judgment-in-domain-service-orchestration-in-application.md)).
 
 여러 애그리거트를 함께 봐야 하지만 저장소 없이 넘겨받은 값만으로 판단할 수 있는 규칙은 도메인 서비스에 둔다. application은 필요한 애그리거트를 조회·잠금해 넘기고 결과대로 저장·삭제만 한다. 넘겨받은 값이 어긋나는 것(다른 상품의 데이터가 섞임 등)은 호출 코드 오류이므로 `require`로 거부한다([예외 구조](architecture/exception.md)). 선택 가능한 옵션 판단은 모두 model의 같은 기준(예외를 반영했을 때 제외되지 않은 옵션)을 쓴다.
 
 | 규칙 | 도메인 서비스 | 처리 방식 |
 |---|---|---|
 | 옵션 변경(즉시·예약 스냅샷)으로 어떤 연결 상품의 선택 가능 옵션이 0개가 되면 거부 (요구사항 1.9) | `OptionReplacementPolicy` | `check(optionGroup, newOptions, linkedProducts)`가 새 목록 자체를 검증한 뒤 이 그룹을 연결한 모든 상품(상태 무관)마다 새 목록 기준으로 선택 가능한 옵션을 계산해 0개면 거부 (`NoSelectableOptionException`). 판단만 하고 어떤 애그리거트도 바꾸지 않는다. 연결하지 않은 상품이 섞이면 `require`로 거부 |
-| 옵션 변경으로 사라진 옵션 키의 상품별 예외는 함께 삭제 (요구사항 1.9) | `OptionReplacementPolicy` | 같은 `check()`가 사라지는 옵션 키를 `OptionReplacementPlan`으로 돌려준다. application이 `OptionGroup.replaceOptions()` 후 상품마다 `Product.removeOverrides(optionGroupId, removedOptionKeys)`를 호출해 한 트랜잭션에서 저장 ("주요 결정" 참고) |
+| 옵션 변경으로 사라진 옵션 키의 상품별 예외는 함께 삭제 (요구사항 1.9) | `OptionReplacementPolicy` | 같은 `check()`가 사라지는 옵션 키를 `OptionReplacementPlan`으로 돌려준다. application이 `OptionGroup.replaceOptions()` 후 상품마다 `Product.removeOverrides(optionGroupId, removedOptionKeys)`를 호출해 한 트랜잭션에서 저장 ([ADR-0008](adr/0008-judgment-in-domain-service-orchestration-in-application.md)) |
 | 유효 옵션 구성 계산에 넘긴 옵션 그룹은 상품의 연결과 정확히 일치 | `EffectiveOptionResolver` | `resolve()`가 검증. 어긋나면 application이 옵션 그룹을 잘못 불러온 것이므로 `require`로 거부 |
 | 판매 범위에서 빠진 매장은 진열 설정과 `OWNER` 판매 가능 여부를 초기화하고 `INVENTORY`는 유지 (요구사항 1.5) | `StoreScopeCleanupPolicy` | 새 판매 범위와 이 상품의 진열 설정·판매 가능 여부를 받아 삭제할 ID를 고른다. 다른 상품의 설정이 섞이면 `require`로 거부. application은 즉시 변경·예약 적용 모두 이 결과대로 삭제 |
 
@@ -225,25 +225,14 @@ stateDiagram-v2
 
 ## 주요 결정
 
-### 단종·재활성화 때 매장 설정을 바꾸지 않는다 (요구사항 1.3, 2.6)
+결정의 맥락, 검토한 대안, 감수한 것은 [ADR](adr/README.md)에 있다. 이 문서에는 결정이 반영된 현재 규칙만 둔다.
 
-단종해도 진열 설정(`visibility`)을 숨김으로 바꾸지 않고 보존한다. 노출 판단 1단계에서 `Product.status != ACTIVE`면 이미 비노출이므로 단종 효과는 자동으로 나고, 재활성화하면 점주가 원래 설정한 값이 그대로 살아난다. `visibility`에 본사 단종을 기록하면 "점주가 원래 숨겼던 상품"과 "단종 때문에 숨겨진 상품"을 구분할 수 없어, 재활성화 시 점주가 숨겼던 상품까지 다시 노출되는 문제가 생긴다. 따라서 `ProductActivated`/`ProductDiscontinued`에 대한 내부 반응은 없고 외부 전파만 한다.
-
-### 진열 설정과 판매 가능 여부를 분리한다 (요구사항 1.5, 2.4, 2.5, #25)
-
-예전 `StoreProductListing`은 노출·진열 순서(주인: 점주), 수동 품절(주인: 점주), 재고 품절(주인: 재고관리 서비스)을 한 row에 담았다. 그러면 판매 범위에서 빠질 때 점주 설정과 함께 재고 상태까지 지워져, 매장이 다시 포함됐을 때 재고가 있어도 품절로 보인다. 재고 품절만 따로 떼어 내는 방법도 있지만, 그러면 "지금 살 수 있는가"라는 하나의 개념이 재고 추적 여부에 따라 저장 위치가 갈린다.
-
-그래서 둘로 나눴다.
-- **StoreDisplaySetting**: 점주의 진열 의도(노출·숨김, 진열 순서)만 담는다. 판매 범위에서 빠지면 삭제한다.
-- **StoreProductAvailability**: 판매 가능 여부와 출처(`INVENTORY`/`OWNER`)를 담는다. 출처에 따라 변경 경로, 기본값, 판매 범위 제외 시 처리가 다르다.
-
-단종 중 폐기처럼 비활성 기간의 재고 변동도 이벤트로 계속 반영되므로 재판매 시점에 정확하다. 출처별로 타입을 나누지 않은 이유는, 노출 판단이 결국 두 저장소를 모두 봐야 해서 품절 개념을 한곳에 모으려던 목적이 사라지기 때문이다.
-
-**향후 과제 — 재동기화**: 이벤트 유실이나 Catalog 장애로 투영이 어긋날 수 있다. 재고관리 서비스의 다매장 재고 일괄 조회 API가 확정되면, 재활성화·판매 범위 재포함 시점에 해당 매장들의 재고를 조회해 투영을 맞춘다. 조회 실패 시에는 기존 값을 유지하고 재시도한다(재활성화 자체는 막지 않는다).
-
-### 옵션 목록 교체는 OptionGroup과 연결 Product들을 한 트랜잭션에서 바꾼다 (요구사항 1.9)
-
-요구사항 1.9는 옵션 변경으로 연결 상품 중 하나라도 선택 가능한 옵션이 0개가 되면 변경 전체를 거부한다. 그래서 연결 상품 검증과 옵션 목록 교체, 사라진 키의 상품별 예외 삭제가 원자적이어야 하고, 여러 애그리거트(OptionGroup과 연결 Product들)를 한 트랜잭션에서 바꾼다. 이 트랜잭션은 application 서비스가 연다. 옵션 그룹을 잠그고 연결 상품 전체를 누락 없이 조회한 뒤 `OptionReplacementPolicy.check()` → `OptionGroup.replaceOptions()` → 상품마다 `Product.removeOverrides()` → 저장 순으로 처리하며, 즉시 교체와 예약 스냅샷 적용이 같은 흐름을 쓴다. 도메인 서비스는 판단(거부 여부, 사라지는 키)만 하고 애그리거트를 바꾸지 않는다.
+| ADR | 결정 | 반영된 곳 |
+|---|---|---|
+| [ADR-0003](adr/0003-keep-store-settings-on-discontinue.md) | 단종·재활성화 때 매장 설정을 바꾸지 않는다 | 도메인 이벤트(`ProductActivated`/`ProductDiscontinued`는 외부 전파만), 상태 전이 |
+| [ADR-0005](adr/0005-split-display-setting-and-availability.md) | 진열 설정과 판매 가능 여부를 분리하고, 재고는 이벤트 투영으로 둔다 | 애그리거트 지도, 모델링 메커니즘, 외부에서 받는 이벤트 |
+| [ADR-0006](adr/0006-catalog-pricing-boundary.md) | Catalog는 가격 데이터·유효 옵션 구성·표시용 시작가까지만 제공한다 | 모델링 메커니즘(유효 옵션 구성과 가격) |
+| [ADR-0008](adr/0008-judgment-in-domain-service-orchestration-in-application.md) | 판단은 도메인 서비스, 오케스트레이션과 트랜잭션 경계는 application. 옵션 목록 교체는 한 트랜잭션 | 불변식과 강제 위치(도메인 서비스에서 강제) |
 
 ## 타입으로 표현한 모델링 결정
 

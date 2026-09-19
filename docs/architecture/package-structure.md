@@ -1,6 +1,6 @@
 # 패키지 구조 (레이어 우선)
 
-> 문서별 역할과 수정 순서는 [문서 안내](../README.md)를, 의존 방향 원칙은 [아키텍처 개요](README.md)를 참고한다.
+> 문서별 역할과 수정 순서는 [문서 안내](../README.md)를, 의존 방향 원칙은 [아키텍처 개요](README.md)를 참고한다. 레이어 우선 구조와 포트 배치의 근거는 [ADR-0001](../adr/0001-layered-packages-ports-for-external-only.md)에 있다.
 
 base package: `com.dozycoffee.catalog`
 
