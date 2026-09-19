@@ -43,6 +43,8 @@ cp .env.example .env
 
 영속성 코드를 다루는 테스트는 Testcontainers로 PostgreSQL 컨테이너를 직접 띄워 검증합니다 (`compose.yaml`과는 무관하게 동작).
 
+계층별 테스트 전략, 작성 관례, 공용 픽스처는 [docs/architecture/testing.md](docs/architecture/testing.md)를 참고하세요.
+
 ### 빌드·테스트 주의사항
 
 `build.gradle.kts`, `gradle/libs.versions.toml`을 수정할 때 알아 둘 것들입니다. `DozyCatalogApiApplicationTests`에서 실제로 검증했습니다.

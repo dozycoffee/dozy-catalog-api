@@ -9,6 +9,7 @@
 | [기술 스택](tech-stack.md) | 언어·프레임워크·영속성·직렬화·테스트 기술의 선택과 이유 |
 | [패키지 구조](package-structure.md) | 레이어·패키지 트리, 외부 연동 포트, 애그리거트 간 협력 방식 |
 | [예외 구조](exception.md) | `DomainException`·`ErrorCode`·`ErrorType`과 HTTP 상태 매핑 |
+| [테스트](testing.md) | 계층별 테스트 전략, 작성 관례, 공용 픽스처 원칙 |
 
 ## 공통 원칙: 의존 방향
 
@@ -33,3 +34,4 @@
 | ERD 미결정 항목 | Store BC PK 타입, `created_by`/`updated_by` | [ERD](../erd.md#확인-필요-미결정) |
 | 처리되지 않은 예외의 응답 형식 | `DomainException`이 아닌 예외는 지금 Spring 기본 오류 형식(`timestamp`, `path`, `status` 등)의 500으로 나가서, `ErrorResponse(code, message)`와 형식이 다르다. presentation 계층을 만들 때 나머지 예외를 모두 잡는 핸들러로 `ErrorResponse("INTERNAL_ERROR", …)`와 error 로그로 통일할지 정한다 | [예외 구조](exception.md#domainexception과-requirecheck의-구분) |
 | 이벤트 핸들러·배치의 예외 격리 | HTTP가 아닌 경로에서는 예외가 500으로 바뀌지 않는다. 한 건의 실패가 배치 전체를 멈추거나 같은 메시지를 끝없이 재시도하지 않도록 건별 격리, 실패 기록(예약은 `FAILED`), 재시도 한도, 처리 불가 메시지 격리 방식을 정한다. 메시징 기술 결정과 함께 정한다 | [예외 구조](exception.md#domainexception과-requirecheck의-구분), [도메인 모델](../domain-model.md#상태-전이) |
+| 테스트 전략 | application 테스트의 저장소(가짜 또는 Testcontainers), 통합 테스트 데이터 정리 방식, 단위·통합 테스트 분리와 CI 시간 | [테스트](testing.md#미정-사항) |
