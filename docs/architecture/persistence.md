@@ -47,7 +47,9 @@
 - **Repository는 자기 애그리거트 테이블만 다룬다**([ADR-0012](../adr/0012-cross-aggregate-judgment-in-application-policy.md)). 다른 애그리거트의 데이터가 필요하면 application이 그 애그리거트의 Repository나 조회 포트를 호출한다.
 - Repository는 트랜잭션을 열지 않는다. application의 `TransactionRunner.inTransaction` 안에서 호출된다.
 - 잠금 조회는 `findByIdForUpdate`처럼 `…ForUpdate` 이름으로 쓴다(`SELECT … FOR UPDATE`). 잠금은 트랜잭션이 끝날 때 풀리므로 반드시 트랜잭션 안에서 부른다.
+- 여러 행을 잠그는 조회(예: `ProductRepository.findAllLinkedToForUpdate`)는 교착을 피하도록 항상 id 순서로 잠근다.
 - 하위 컬렉션(옵션 목록, 상품의 연결·예외 등)은 저장할 때 지우고 다시 넣는다. 성능 문제가 보이면 그때 차이만 반영하도록 바꾼다.
+- 애그리거트 여러 개를 불러올 때 하위 컬렉션은 애그리거트마다 조회하지 않고 테이블마다 한 번(`product_id IN (…)`)씩 조회해 묶는다.
 - 낙관적 잠금 대상(`VersionedAggregateRoot`)은 `UPDATE … WHERE id = ? AND version = ?`로 저장하고, 바뀐 행이 0개면 `VersionConflictException`을 던진다. 성공하면 도메인 객체의 `version`을 1 올린다([ADR-0013](../adr/0013-optimistic-locking-for-product-and-option-group.md)).
 - Repository는 도메인 이벤트를 발행하지 않는다. application이 저장한 뒤 `pullDomainEvents()`로 꺼내 처리한다.
 - 삭제 제한(참조 중인 카테고리 등)은 DB FK로도 막지만, 사용자에게 이유를 알려 주기 위해 application이 먼저 확인한다.
