@@ -35,7 +35,7 @@
 | Exposed 추가 모듈 | `exposed-java-time`, `exposed-migration-r2dbc`(테스트) | `TIMESTAMPTZ`·`DATE` 매핑, Table 정의와 스키마 불일치 검사 |
 | 시간 | `java.time` (`Instant`, `LocalDate`, `Clock`) | JDK 표준이라 Jackson·Spring·Exposed 지원이 가장 넓다. JVM 전용 서비스라 `kotlinx-datetime`의 멀티플랫폼 이점이 없다 ([ADR-0010](../adr/0010-schema-conventions-and-time.md)) |
 
-- Exposed를 직접 쓰므로 영속성 구현은 `infrastructure/persistence/<module>/`에 Exposed `Table` 객체와 `Exposed<Module>RepositoryImpl`로 둔다 ([패키지 구조](package-structure.md)).
+- Exposed를 직접 쓰므로 영속성 구현은 `infrastructure/persistence/<module>/`에 Exposed `Table` 객체와 `Exposed<Module>Repository`로 둔다 ([패키지 구조](package-structure.md)).
 - `@DataR2dbcTest`는 Spring Data 리포지토리용 슬라이스라 이 조합에서는 쓰지 않는다.
 
 ## 직렬화

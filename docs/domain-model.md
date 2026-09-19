@@ -67,8 +67,9 @@ flowchart LR
 | StoreDisplaySetting | 점주 | 매장별 노출·숨김, 진열 순서. 점주가 처음 바꿀 때 생성(Lazy) | — |
 | StoreProductAvailability | 출처별: 재고 추적 상품은 재고관리 서비스, 재고 미추적 상품은 점주 | 매장별 판매 가능 여부(판매중/품절). 처음 변경될 때 생성 | `AvailabilitySource`(INVENTORY/OWNER) |
 
-매장별 노출 판단(요구사항 3장)은 Product, StoreDisplaySetting, StoreProductAvailability를 함께 봐야 하므로 어느 한 애그리거트에 두지 않고 도메인 서비스 `ProductVisibilityPolicy`에 둔다.
-판매 범위에서 빠진 매장의 설정 정리(요구사항 1.5)도 StoreDisplaySetting과 StoreProductAvailability를 함께 보므로 도메인 서비스 `StoreScopeCleanupPolicy`가 지울 대상을 고른다.
+매장별 노출 판단(요구사항 3장)은 Product, StoreDisplaySetting, StoreProductAvailability를 함께 봐야 하므로 어느 한 애그리거트에 두지 않고 application 정책 `ProductVisibilityPolicy`에 둔다.
+판매 범위에서 빠진 매장의 설정 정리(요구사항 1.5)도 StoreDisplaySetting과 StoreProductAvailability를 함께 보므로 application 정책 `StoreScopeCleanupPolicy`가 지울 대상을 고른다.
+domain의 애그리거트끼리는 ID로만 참조하고, 여러 애그리거트를 함께 보는 판단은 모두 application에 둔다([ADR-0012](adr/0012-cross-aggregate-judgment-in-application-policy.md)).
 
 ## 변경 메커니즘
 
@@ -94,12 +95,12 @@ flowchart LR
   - `INVENTORY`(재고 추적 상품): 재고관리 서비스 이벤트로만 바뀐다. 기본값은 품절(처음 재고 0)이다. 상품 상태·판매 범위와 무관하게 항상 반영하고, 판매 범위에서 빠져도 지우지 않는다.
   - `OWNER`(재고 미추적 상품): 점주가 수동으로만 바꾼다. 기본값은 판매중이다. 판매 범위에서 빠지면 진열 설정과 함께 초기화한다.
 - **옵션 구조**: Option(개별 옵션)과 OptionGroup(선택 방식·필수 여부를 가진 묶음)을 분리하고, Product는 ProductOptionGroupLink로 옵션 그룹을 참조한다. 예외가 없으면 옵션 그룹의 구성과 가격을 그대로 따르고, 필요한 상품만 `OptionOverride`(가격/제외)로 예외를 둔다. "기본 선택값" 개념은 없고 필수·복수 여부만 표현한다. 필수 그룹에 옵션이 1개면 자동 선택으로 본다.
-- **유효 옵션 구성과 가격**: 연결된 옵션 그룹에 상품별 예외(제외·가격)를 반영한 결과를 도메인 서비스 `EffectiveOptionResolver`가 계산한다. 그룹은 상품의 연결 순서, 옵션은 옵션 그룹의 순서를 따르고, 필수 그룹에 유효 옵션이 1개면 자동 선택으로 본다. 표시용 시작가는 기준가 + 필수 그룹별 최저가다. 최종 판매가(기준가 + 선택한 옵션 가격 합)는 규칙으로만 두고 Catalog는 계산하지 않는다 — 조합 금액 계산·선택 검증·주문 시점 가격 스냅샷은 주문·POS의 책임이다(요구사항 1.9). 옵션 가격과 예외 가격이 0 이상이므로 어떤 조합도 기준가 아래로 내려가지 않는다.
+- **유효 옵션 구성과 가격**: 연결된 옵션 그룹에 상품별 예외(제외·가격)를 반영한 결과를 application 정책 `EffectiveOptionResolver`가 계산한다. 그룹은 상품의 연결 순서, 옵션은 옵션 그룹의 순서를 따르고, 필수 그룹에 유효 옵션이 1개면 자동 선택으로 본다. 표시용 시작가는 기준가 + 필수 그룹별 최저가다. 최종 판매가(기준가 + 선택한 옵션 가격 합)는 규칙으로만 두고 Catalog는 계산하지 않는다 — 조합 금액 계산·선택 검증·주문 시점 가격 스냅샷은 주문·POS의 책임이다(요구사항 1.9). 옵션 가격과 예외 가격이 0 이상이므로 어떤 조합도 기준가 아래로 내려가지 않는다.
 - **옵션 키(optionKey)**: 옵션 목록 교체로 물리 id가 바뀌어도 상품별 예외의 참조가 끊기지 않도록 유지되는 논리 식별자. 교체로 사라진 키의 예외는 함께 삭제한다(요구사항 1.9).
 
 ## 불변식과 강제 위치
 
-애그리거트 혼자 지킬 수 있는 규칙은 애그리거트 메서드 안에서 강제한다. 여러 애그리거트를 함께 봐야 하지만 I/O 없이 판단할 수 있는 규칙은 도메인 서비스가, 저장소 조회가 필요한 규칙은 application 레이어가 필요한 값을 조회해 넘기거나 직접 검증한다.
+애그리거트 혼자 지킬 수 있는 규칙은 애그리거트 메서드 안에서 강제한다. 다른 애그리거트의 정보가 필요하면 application이 조회해 ID나 값으로 넘긴다. 여러 애그리거트를 함께 봐야 하지만 I/O 없이 판단할 수 있는 규칙은 application 정책이, 저장소 조회가 필요한 규칙은 application 서비스가 필요한 값을 조회해 넘기거나 직접 검증한다([ADR-0012](adr/0012-cross-aggregate-judgment-in-application-policy.md)).
 
 ### 애그리거트 내부에서 강제
 
@@ -110,11 +111,10 @@ flowchart LR
 | Product | `DRAFT`가 아닌 상품은 삭제할 수 없다 | `ProductNotDeletableException` |
 | Product | 같은 옵션 그룹을 두 번 연결할 수 없다 (등록 시점 포함) | `DuplicateOptionGroupLinkException` |
 | Product | 연결되지 않은 옵션 그룹에는 예외(가격/제외)를 지정할 수 없다 | `ProductOptionGroupNotLinkedException` |
-| Product | 예외(가격/제외)는 옵션 그룹에 존재하는 옵션 키에만 지정할 수 있다 (옵션 그룹을 인자로 받아 검증만 하고 보관하지 않음) | `OptionKeyNotFoundException` |
-| Product | 제외로 그 상품의 선택 가능한 옵션이 0개가 되면 거부 (옵션 그룹을 인자로 받아 선택 가능한 옵션을 계산) | `NoSelectableOptionException` |
+| Product | 예외(가격/제외)는 옵션 그룹에 존재하는 옵션 키에만 지정할 수 있다 (application이 옵션 그룹의 옵션 키 목록을 넘기고, Product는 검증만 하고 보관하지 않음) | `OptionKeyNotFoundException` |
+| Product | 제외로 그 상품의 선택 가능한 옵션이 0개가 되면 거부 (넘겨받은 옵션 키 목록에서 제외한 키를 빼서 계산) | `NoSelectableOptionException` |
 | Product | 옵션 그룹 순서 변경 요청은 연결된 옵션 그룹 전체를 정확히 한 번씩 담아야 한다 (일부만 담으면 빠진 연결과 예외 설정이 사라지므로 거부) | `InvalidOptionGroupOrderException`, 연결되지 않은 그룹이 있으면 `ProductOptionGroupNotLinkedException` |
 | Product | 상품별 옵션 예외는 옵션 키당 최대 1건 (새 예외가 기존 것을 대체) | — (구조로 보장) |
-| Product | 카테고리는 소분류만 지정할 수 있다 (등록·카테고리 변경 모두) | — (`ChildCategory`만 받아 타입으로 보장) |
 | OptionGroup | 옵션은 최소 1개 (생성·교체 모두) | `EmptyOptionGroupException` |
 | OptionGroup | 그룹 안에서 optionKey는 유일 | `DuplicateOptionKeyException` |
 | Category | 자기 자신을 부모로 지정할 수 없다 | `InvalidParentCategoryException` |
@@ -127,35 +127,35 @@ flowchart LR
 | StoreProductAvailability | 이미 반영한 것보다 오래되었거나 같은 시각의 재고 이벤트는 무시한다 | — (반영 여부를 반환) |
 | Money | 금액은 0 이상 (기준가, 옵션 가격, 상품별 가격 예외 모두) | `InvalidMoneyAmountException` |
 
-### 도메인 서비스에서 강제 (cross-aggregate)
+### application 정책에서 강제 (cross-aggregate, I/O 없음)
 
-판단은 도메인 서비스, 오케스트레이션과 트랜잭션 경계는 application에 둔다([ADR-0008](adr/0008-judgment-in-domain-service-orchestration-in-application.md)).
+여러 애그리거트를 보는 판단은 application의 정책 클래스(`application/<module>/policy`)에 둔다([ADR-0012](adr/0012-cross-aggregate-judgment-in-application-policy.md)). 정책은 I/O 없는 순수 클래스로, 판단만 하고 어떤 애그리거트도 바꾸지 않는다. 오케스트레이션과 트랜잭션 경계는 application 서비스가 맡는다.
 
-여러 애그리거트를 함께 봐야 하지만 저장소 없이 넘겨받은 값만으로 판단할 수 있는 규칙은 도메인 서비스에 둔다. application은 필요한 애그리거트를 조회·잠금해 넘기고 결과대로 저장·삭제만 한다. 넘겨받은 값이 어긋나는 것(다른 상품의 데이터가 섞임 등)은 호출 코드 오류이므로 `require`로 거부한다([예외 구조](architecture/exception.md)). 선택 가능한 옵션 판단은 모두 model의 같은 기준(예외를 반영했을 때 제외되지 않은 옵션)을 쓴다.
+application 서비스는 필요한 애그리거트를 조회·잠금해 정책에 넘기고 결과대로 저장·삭제만 한다. 넘겨받은 값이 어긋나는 것(다른 상품의 데이터가 섞임 등)은 호출 코드 오류이므로 `require`로 거부한다([예외 구조](architecture/exception.md)). 선택 가능한 옵션 판단은 모두 같은 기준(`ProductOptionGroupLink.excludedOptionKeys`에 없는 옵션)을 쓴다.
 
-| 규칙 | 도메인 서비스 | 처리 방식 |
+| 규칙 | application 정책 | 처리 방식 |
 |---|---|---|
 | 옵션 변경(즉시·예약 스냅샷)으로 어떤 연결 상품의 선택 가능 옵션이 0개가 되면 거부 (요구사항 1.9) | `OptionReplacementPolicy` | `check(optionGroup, newOptions, linkedProducts)`가 새 목록 자체를 검증한 뒤 이 그룹을 연결한 모든 상품(상태 무관)마다 새 목록 기준으로 선택 가능한 옵션을 계산해 0개면 거부 (`NoSelectableOptionException`). 판단만 하고 어떤 애그리거트도 바꾸지 않는다. 연결하지 않은 상품이 섞이면 `require`로 거부 |
-| 옵션 변경으로 사라진 옵션 키의 상품별 예외는 함께 삭제 (요구사항 1.9) | `OptionReplacementPolicy` | 같은 `check()`가 사라지는 옵션 키를 `OptionReplacementPlan`으로 돌려준다. application이 `OptionGroup.replaceOptions()` 후 상품마다 `Product.removeOverrides(optionGroupId, removedOptionKeys)`를 호출해 한 트랜잭션에서 저장 ([ADR-0008](adr/0008-judgment-in-domain-service-orchestration-in-application.md)) |
+| 옵션 변경으로 사라진 옵션 키의 상품별 예외는 함께 삭제 (요구사항 1.9) | `OptionReplacementPolicy` | 같은 `check()`가 사라지는 옵션 키를 `OptionReplacementPlan`으로 돌려준다. application이 `OptionGroup.replaceOptions()` 후 상품마다 `Product.removeOverrides(optionGroupId, removedOptionKeys)`를 호출해 한 트랜잭션에서 저장 ([ADR-0012](adr/0012-cross-aggregate-judgment-in-application-policy.md)) |
 | 유효 옵션 구성 계산에 넘긴 옵션 그룹은 상품의 연결과 정확히 일치 | `EffectiveOptionResolver` | `resolve()`가 검증. 어긋나면 application이 옵션 그룹을 잘못 불러온 것이므로 `require`로 거부 |
 | 판매 범위에서 빠진 매장은 진열 설정과 `OWNER` 판매 가능 여부를 초기화하고 `INVENTORY`는 유지 (요구사항 1.5) | `StoreScopeCleanupPolicy` | 새 판매 범위와 이 상품의 진열 설정·판매 가능 여부를 받아 삭제할 ID를 고른다. 다른 상품의 설정이 섞이면 `require`로 거부. application은 즉시 변경·예약 적용 모두 이 결과대로 삭제 |
 
 예외 예약의 적용 시점에 옵션 키가 이미 사라졌으면 `Product`의 키 검증에 걸려 예약이 `실패`로 기록된다(요구사항 1.4, 1.9).
 
-### application 레이어에서 강제 (cross-aggregate)
+### application 서비스에서 강제 (cross-aggregate, 조회 필요)
 
 | 규칙 | 필요한 정보 | 처리 방식 |
 |---|---|---|
 | 하위 카테고리를 가진 대분류는 소분류로 이동 불가 | 하위 카테고리 존재 여부 | application이 조회해 `becomeChildOf(hasChildren)`에 전달 |
 | 상품이 참조 중인 소분류는 대분류로 승격 불가 | 참조 상품 존재 여부 | application이 조회해 `becomeTopLevel(hasProducts)`에 전달 |
-| 상품 등록·카테고리 변경(예약 적용 포함)은 소분류만 지정 가능 | 요청한 카테고리가 소분류인지 | application이 카테고리를 불러와 `requireChild()`로 얻은 `ChildCategory`를 Product에 전달, 대분류면 `CategoryNotAssignableException` |
+| 상품 등록·카테고리 변경(예약 적용 포함)은 소분류만 지정 가능 | 요청한 카테고리가 소분류인지 | application이 카테고리를 불러와 `requireChild()`로 소분류인지 확인한 뒤 `CategoryId`를 Product에 전달, 대분류면 `CategoryNotAssignableException` |
 | 상품이 참조 중인 소분류 삭제 불가 | 참조 상품 존재 여부 | application 검증 (`CategoryStillReferencedException`) |
 | 소분류를 가진 대분류 삭제 불가 | 하위 카테고리 존재 여부 | application 검증 (`CategoryHasChildrenException`) |
 | 상품이 연결한 옵션 그룹 삭제 불가 | 연결 상품 존재 여부 | application 검증 (`OptionGroupStillReferencedException`) |
 | 판매 가능 여부의 출처는 상품의 재고 추적 여부를 따른다 | `Product.tracksInventory` | application이 처음 생성할 때 `AvailabilitySource.of(tracksInventory)`로 출처를 정한다 (재고 추적 여부는 바뀌지 않으므로 이후 불변) |
 | 판매 범위 대상 매장은 실제 존재하는 매장이어야 함 | Store BC | `ValidateStoreExistsPort`로 외부 검증 |
 | 동일 대상·필드의 PENDING 예약은 최대 1건 | 기존 PENDING 예약 | application이 기존 예약을 잠그고(`FOR UPDATE`) 취소 후 새로 등록, DB 부분 UNIQUE 제약으로 이중 보장 |
-| 태그 이름은 유일 (같은 이름이면 재사용) | 기존 태그 | `TagRegistrar`(도메인 서비스)가 `findOrCreateByName`으로 처리 |
+| 태그 이름은 유일 (같은 이름이면 재사용) | 기존 태그 | 상품 등록·수정 유스케이스가 `TagRepository.findOrCreateByName`으로 처리 |
 
 ## 시간 처리
 
@@ -246,7 +246,7 @@ stateDiagram-v2
 | [ADR-0003](adr/0003-keep-store-settings-on-discontinue.md) | 단종·재활성화 때 매장 설정을 바꾸지 않는다 | 도메인 이벤트(`ProductActivated`/`ProductDiscontinued`는 외부 전파만), 상태 전이 |
 | [ADR-0005](adr/0005-split-display-setting-and-availability.md) | 진열 설정과 판매 가능 여부를 분리하고, 재고는 이벤트 투영으로 둔다 | 애그리거트 지도, 모델링 메커니즘, 외부에서 받는 이벤트 |
 | [ADR-0006](adr/0006-catalog-pricing-boundary.md) | Catalog는 가격 데이터·유효 옵션 구성·표시용 시작가까지만 제공한다 | 모델링 메커니즘(유효 옵션 구성과 가격) |
-| [ADR-0008](adr/0008-judgment-in-domain-service-orchestration-in-application.md) | 판단은 도메인 서비스, 오케스트레이션과 트랜잭션 경계는 application. 옵션 목록 교체는 한 트랜잭션 | 불변식과 강제 위치(도메인 서비스에서 강제) |
+| [ADR-0012](adr/0012-cross-aggregate-judgment-in-application-policy.md) | domain 애그리거트는 서로 ID로만 참조하고, 여러 애그리거트를 보는 판단은 application 정책에 둔다. 옵션 목록 교체는 한 트랜잭션(ADR-0008에서 이어받음) | 애그리거트 지도, 불변식과 강제 위치(application 정책·서비스에서 강제) |
 
 ## 타입으로 표현한 모델링 결정
 
@@ -256,7 +256,7 @@ stateDiagram-v2
 |---|---|---|
 | `StoreScope` | sealed: `All` / `Limited(targetStoreIds)` | 대상 매장 목록은 `Limited`일 때만 의미가 있다. `All`인데 대상 매장이 있는 모순 상태를 막는다. `covers(storeId)`로 포함 여부를 판단하며, 빈 `Limited`는 어떤 매장도 포함하지 않는다. |
 | `OptionOverride` | sealed: `Price(optionKey, price)` / `Exclude(optionKey)` | ERD의 `CHECK (PRICE면 price 필수, EXCLUDE면 price 없음)`을 타입으로 표현한다. |
-| `Category` | sealed: `TopLevelCategory` / `ChildCategory(parentId)` | 2단계 계층을 타입으로 강제한다. 소분류의 부모는 `TopLevelCategory`만 받으므로 "소분류 밑의 소분류"는 컴파일되지 않는다. 상품은 소분류만 참조한다. |
+| `Category` | sealed: `TopLevelCategory` / `ChildCategory(parentId)` | 2단계 계층을 타입으로 강제한다. 소분류의 부모는 `TopLevelCategory`만 받으므로 "소분류 밑의 소분류"는 컴파일되지 않는다. 상품은 소분류만 참조하며, 소분류인지는 application이 `requireChild()`로 확인한 뒤 ID로 넘긴다. |
 | `StoreVisibility` | sealed: `NotVisible` / `Visible(stockStatus)` | 노출 판단 결과. "비노출"과 "노출되지만 품절"을 Boolean 하나로는 구분할 수 없다. 품절 여부는 StoreProductAvailability에서 오며, 없으면 출처별 기본값(재고 추적 상품은 품절, 재고 미추적 상품은 판매중)이다. |
 | `Option` | 물리 id 없는 Value Object (`optionKey`, `name`, `price`) | 옵션 목록은 항상 통째로 교체되고, 상품의 예외는 `optionKey`로 참조하므로 도메인에서 물리 id가 필요 없다. DB의 `options.id`는 영속성 계층에만 존재한다. |
 | `Money` | 0 이상 정수(원 단위) value class | 전 매장 동일가, 단일 통화. 음수 금액을 만들 수 없어 최종 판매가가 기준가 아래로 내려가지 않는다. |

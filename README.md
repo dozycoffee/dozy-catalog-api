@@ -70,13 +70,13 @@ pre-commit 훅(`./gradlew addKtlintFormatGitPreCommitHook`으로 설치, [시작
 
 ## 프로젝트 구조
 
-레이어 우선 구조를 사용합니다: 최상위 패키지는 `domain / application / infrastructure / presentation`이고, 그 아래에 애그리거트별 서브패키지(`product`, `optiongroup`, `category`, ...)를 둡니다. Catalog 서비스 자체가 이미 하나의 배포 단위(BC)이므로 내부 애그리거트 간에는 포트/어댑터로 격리하지 않고 직접 호출하거나 도메인 이벤트로 협력하며, 포트 인터페이스는 Store BC 조회·재고관리 서비스 이벤트·POS 이벤트 발행처럼 실제로 다른 시스템과 통신하는 지점에만 사용합니다.
+레이어 우선 구조를 사용합니다: 최상위 패키지는 `domain / application / infrastructure / presentation`이고, 그 아래에 애그리거트별 서브패키지(`product`, `optiongroup`, `category`, ...)를 둡니다. domain의 애그리거트끼리는 ID로만 참조하고, 여러 애그리거트를 함께 보는 판단은 application의 정책 클래스에 둡니다. Repository 인터페이스는 domain에, 외부 시스템 포트와 조회 포트는 application에 두고 infrastructure가 구현합니다.
 
 ```
 com.dozycoffee.catalog
 ├── domain/            # 애그리거트, 값 객체, 도메인 이벤트, Repository 인터페이스
-├── application/        # 유스케이스, Command/Query, 외부 연동 포트
-├── infrastructure/      # Exposed 영속성 구현, 외부 시스템 어댑터(acl/messaging/eventing), 스케줄러, 설정
+├── application/        # 유스케이스, 여러 애그리거트를 보는 정책, Command/Query, 포트(외부 시스템·조회)
+├── infrastructure/      # Repository·조회 포트 구현(Exposed), 외부 시스템 Client·어댑터(acl/messaging/eventing), 스케줄러, 설정
 └── presentation/        # REST 컨트롤러, 요청/응답 DTO
 ```
 

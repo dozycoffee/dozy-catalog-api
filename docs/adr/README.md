@@ -14,7 +14,7 @@
 ## 운영 규칙
 
 - **번호는 작성 순서대로 붙이고 바꾸지 않는다.** 번호가 식별자라서 다른 문서와 코드에서 `ADR-0005`처럼 참조한다. 읽는 순서는 아래 주제별 목록으로 잡는다.
-- **채택된 ADR은 고치지 않는다.** 결정이 바뀌면 새 ADR을 쓰고, 기존 ADR은 상태만 `대체됨 (→ ADR-NNNN)`으로 바꾼다. 오타·링크 수정은 예외.
+- **채택된 ADR은 고치지 않는다.** 결정이 바뀌면 새 ADR을 쓰고, 기존 ADR은 상태만 `대체됨 (→ ADR-NNNN)`으로 바꾼다. 결정의 일부만 바뀌면 `일부 대체됨 (바뀐 부분 → ADR-NNNN)`으로 쓴다. 오타·링크 수정은 예외.
 - **새 결정은 그 결정을 반영하는 코드·문서 PR에서 ADR을 함께 추가한다.**
 - 파일명은 `NNNN-english-kebab-case.md`, 제목과 본문은 한국어. 새 ADR은 [템플릿](0000-template.md)을 복사해 쓴다.
 - 0001~0008은 이미 내린 결정을 소급 작성했다. 날짜는 실제 결정(해당 PR 머지) 날짜다.
@@ -29,11 +29,12 @@
 ### 아키텍처
 | ADR | 제목 | 상태 | 날짜 |
 |---|---|---|---|
-| [0001](0001-layered-packages-ports-for-external-only.md) | 레이어 우선 패키지 구조를 쓰고, 포트는 외부 시스템 연동에만 둔다 | 채택 | 2026-08-17 |
+| [0001](0001-layered-packages-ports-for-external-only.md) | 레이어 우선 패키지 구조를 쓰고, 포트는 외부 시스템 연동에만 둔다 | 일부 대체됨 (포트 배치 → 0012) | 2026-08-17 |
 | [0002](0002-error-code-and-error-type.md) | 도메인 예외는 `ErrorCode`/`ErrorType`으로 분류하고 domain은 HTTP를 모른다 | 채택 | 2026-09-18 |
 | [0007](0007-domain-exception-vs-require-check.md) | 사용자가 일으킬 수 있는 규칙 위반은 `DomainException`, 호출 코드 오류는 `require`/`check` | 채택 | 2026-09-19 |
-| [0008](0008-judgment-in-domain-service-orchestration-in-application.md) | 판단은 도메인 서비스, 오케스트레이션과 트랜잭션 경계는 application | 채택 | 2026-09-19 |
+| [0008](0008-judgment-in-domain-service-orchestration-in-application.md) | 판단은 도메인 서비스, 오케스트레이션과 트랜잭션 경계는 application | 대체됨 (→ 0012) | 2026-09-19 |
 | [0011](0011-transaction-boundary-with-transaction-runner.md) | 트랜잭션 경계는 application의 `TransactionRunner`로 연다 | 채택 | 2026-09-19 |
+| [0012](0012-cross-aggregate-judgment-in-application-policy.md) | 여러 애그리거트를 보는 판단은 application 정책에 두고, domain은 다른 애그리거트를 ID로만 참조한다 | 채택 | 2026-09-19 |
 
 ### 영속성
 | ADR | 제목 | 상태 | 날짜 |

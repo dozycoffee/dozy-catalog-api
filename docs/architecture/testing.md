@@ -8,9 +8,10 @@
 
 | 계층 | 도구 | 검증 대상 | 상태 |
 |---|---|---|---|
-| domain 단위 | JUnit 5 + `kotlin.test` | 애그리거트 불변식과 상태 전이, 도메인 서비스의 판단. 저장소·Spring 없이 객체만 만든다 | 정해짐 |
+| domain 단위 | JUnit 5 + `kotlin.test` | 애그리거트 불변식과 상태 전이. 저장소·Spring 없이 객체만 만든다 | 정해짐 |
+| application 정책 단위 | JUnit 5 + `kotlin.test` | 여러 애그리거트를 함께 보는 판단(`application/<module>/policy`, [ADR-0012](../adr/0012-cross-aggregate-judgment-in-application-policy.md)). 정책은 I/O가 없으므로 domain 단위와 같이 객체만 만든다 | 정해짐 |
 | persistence 통합 | Testcontainers(PostgreSQL), `IntegrationTest` 상속 | 마이그레이션 적용, Exposed Table 정의와 스키마 일치, Repository 매핑, CHECK·부분 UNIQUE 등 DB 제약, 트랜잭션, 동시성 처리([ERD](../erd.md#동시성-처리)) | 정해짐 (아래 통합 테스트 기반) |
-| application | 미정 (가짜 저장소 또는 Testcontainers) | 조회·잠금·저장 오케스트레이션, 도메인 이벤트 발행, 외부 포트 호출 | 미정 |
+| application 서비스 | 미정 (가짜 저장소 또는 Testcontainers) | 조회·잠금·저장 오케스트레이션, 도메인 이벤트 발행, 외부 포트 호출 | 미정 |
 | API 슬라이스 | `spring-boot-starter-webflux-test`, `spring-boot-starter-security-test` | 요청·응답 형식, `ErrorType`별 HTTP 상태([예외 구조](exception.md)), 인가 | 해당 작업 때 정함 |
 
 여러 애그리거트와 외부 시스템이 얽히는 흐름의 통합 테스트는 [시나리오](../scenarios.md)의 S1~S7을 기준으로 쓴다. 시나리오의 기본·대체·예외 흐름이 테스트 케이스가 된다.
