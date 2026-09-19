@@ -120,6 +120,7 @@ flowchart LR
 | Category | 자기 자신을 부모로 지정할 수 없다 | `InvalidParentCategoryException` |
 | Category | 하위 카테고리를 가진 대분류는 소분류가 될 수 없다 (2단계 계층 유지) | `CategoryWithChildrenNotDemotableException` |
 | Category | 상품이 참조 중인 소분류는 대분류가 될 수 없다 | `ReferencedCategoryNotPromotableException` |
+| ScheduledChange | 적용일은 업무 시간대 기준 내일 이후만 허용 (등록 경로 `NewScheduledChange.of`) | `InvalidEffectiveDateException` |
 | ScheduledChange | `PENDING` 상태에서만 취소/적용/실패 처리 가능 | `NoPendingScheduleException` / `InvalidScheduleStatusTransitionException` |
 | StoreProductAvailability | `INVENTORY` 출처(재고 추적 상품)의 품절 상태는 점주가 바꿀 수 없다 | `StockStatusNotManuallyEditableException` |
 | StoreProductAvailability | `OWNER` 출처(재고 미추적 상품)에는 재고 이벤트를 반영할 수 없다 | `InventoryEventNotApplicableException` |
@@ -155,6 +156,19 @@ flowchart LR
 | 판매 범위 대상 매장은 실제 존재하는 매장이어야 함 | Store BC | `ValidateStoreExistsPort`로 외부 검증 |
 | 동일 대상·필드의 PENDING 예약은 최대 1건 | 기존 PENDING 예약 | application이 기존 예약을 잠그고(`FOR UPDATE`) 취소 후 새로 등록, DB 부분 UNIQUE 제약으로 이중 보장 |
 | 태그 이름은 유일 (같은 이름이면 재사용) | 기존 태그 | `TagRegistrar`(도메인 서비스)가 `findOrCreateByName`으로 처리 |
+
+## 시간 처리
+
+근거는 [ADR-0010](adr/0010-schema-conventions-and-time.md)에 있다.
+
+| 종류 | 예 | 도메인 타입 | 저장 |
+|---|---|---|---|
+| 시각(순간) | 재고 이벤트 발생 시각, 예약 적용 시각 | `Instant` | `TIMESTAMPTZ` |
+| 업무 날짜 | 예약 적용일 | `LocalDate` | `DATE` |
+
+- 업무 날짜는 업무 기준 시간대(`Asia/Seoul`)로 해석한다. "지정한 날짜의 00시"(요구사항 1.4)는 그 시간대의 00시다.
+- 도메인은 시계를 모른다. 현재 시각이나 오늘 날짜가 필요한 규칙은 `now`/`today`와 시간대를 인자로 받는다. application이 `Clock`과 `BusinessTimeZone`으로 구해 넘긴다.
+- **예약**: 등록할 때 적용일이 내일 이후인지 검증하고, 적용 시각 `effectiveAt`(적용일 00시를 업무 시간대로 해석한 순간)을 계산해 함께 저장한다. 배치는 `effectiveAt <= now`인 대기 예약만 고르므로 시간대를 몰라도 된다.
 
 ## 상태 전이
 

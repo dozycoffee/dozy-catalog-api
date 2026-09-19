@@ -53,6 +53,9 @@ cp .env.example .env
 - **Testcontainers 버전은 `libs.versions.toml`에 직접 적습니다.** `spring-boot-dependencies`가 `testcontainers-bom`을 import하지만, `io.spring.dependency-management` 플러그인은 이 BOM의 버전을 가져오지 못합니다. Spring Boot를 업그레이드할 때 함께 갱신해야 합니다.
 - **`org.testcontainers:testcontainers-r2dbc`가 추가로 필요합니다.** R2DBC `@ServiceConnection`이 참조하는 `R2DBCDatabaseContainer` 클래스는 `testcontainers-postgresql`이 아니라 이 모듈에 있습니다. 없으면 컨텍스트 로딩 때 `ClassNotFoundException`으로 실패합니다.
 - **`spring-boot-docker-compose`는 테스트 클래스패스에서 제외합니다.** Spring Boot Gradle 플러그인은 기본적으로 `developmentOnly`를 `testRuntimeClasspath`까지 전파합니다. 그러면 테스트 중에도 `compose.yaml` 컨테이너를 띄우려고 해서 Testcontainers와 역할이 겹치고, CI에서는 `.env`가 없어 `POSTGRES_PASSWORD` 누락으로 실패합니다. `build.gradle.kts`의 `configurations { testRuntimeOnly { exclude(...) } }`로 제외합니다.
+- **Flyway는 스타터가 아니라 `spring-boot-flyway` 모듈만 씁니다.** `spring-boot-starter-flyway`는 `spring-boot-starter-jdbc`와 HikariCP를 함께 가져와, Flyway가 끝난 뒤에도 쓰지 않는 JDBC 연결 풀이 남습니다. `SchemaMigrationTest`가 `DataSource` 빈이 없는지 확인합니다.
+- **kotlinx-coroutines 버전을 Spring Boot 관리 버전보다 올려 둡니다.** Exposed 1.4는 1.11.0을 요구하지만 Spring Boot 4.1의 BOM은 1.10.2로 낮춥니다. 그러면 트랜잭션 실행 중에 `NoSuchMethodError`(`runBlockingK`)가 납니다. `build.gradle.kts`에서 `kotlin-coroutines.version`을 `libs.versions.toml`의 값으로 덮어씁니다. Spring Boot나 Exposed를 올릴 때 함께 확인하세요.
+- **테스트 JVM 시간대는 UTC로 고정됩니다.** 코드가 시스템 기본 시간대에 의존하지 않도록, 개발 PC(KST)와 CI의 결과를 같게 맞춥니다.
 
 ## 코드 스타일 검사
 

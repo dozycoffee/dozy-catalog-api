@@ -26,11 +26,14 @@
 
 | 항목 | 선택 | 이유 |
 |---|---|---|
-| DB | PostgreSQL | ENUM 타입, 부분 UNIQUE 인덱스, JSONB, `FOR UPDATE SKIP LOCKED`를 설계에 활용 ([ERD](../erd.md)) |
+| DB | PostgreSQL | 부분 UNIQUE 인덱스, CHECK, JSONB, `FOR UPDATE SKIP LOCKED`를 설계에 활용 ([ERD](../erd.md)) |
 | ORM | JetBrains Exposed (R2DBC) | DSL 기반. Spring Data R2DBC 리포지토리 추상화는 쓰지 않는다 |
 | 전송 계층 | `spring-boot-starter-r2dbc` | Boot가 `spring.r2dbc.*`로 `ConnectionFactory`를 자동 구성하는 용도로만 쓴다. Exposed의 `R2dbcDatabase`가 이를 감싼다 |
 | 드라이버 | `org.postgresql:r2dbc-postgresql` | 구 groupId `io.r2dbc`에서 이관됨 |
 | 로컬 DB | Docker Compose (`compose.yaml`) | `spring-boot-docker-compose`가 `bootRun` 시 자동 기동·연결 |
+| 마이그레이션 | Flyway (`spring-boot-flyway` 모듈, JDBC) | 순수 SQL로 PostgreSQL 기능을 그대로 쓴다. R2DBC를 지원하지 않아 앱 시작 시 JDBC로 한 번 실행한다 ([ADR-0009](../adr/0009-flyway-with-exposed-schema-check.md)) |
+| Exposed 추가 모듈 | `exposed-java-time`, `exposed-migration-r2dbc`(테스트) | `TIMESTAMPTZ`·`DATE` 매핑, Table 정의와 스키마 불일치 검사 |
+| 시간 | `java.time` (`Instant`, `LocalDate`, `Clock`) | JDK 표준이라 Jackson·Spring·Exposed 지원이 가장 넓다. JVM 전용 서비스라 `kotlinx-datetime`의 멀티플랫폼 이점이 없다 ([ADR-0010](../adr/0010-schema-conventions-and-time.md)) |
 
 - Exposed를 직접 쓰므로 영속성 구현은 `infrastructure/persistence/<module>/`에 Exposed `Table` 객체와 `Exposed<Module>RepositoryImpl`로 둔다 ([패키지 구조](package-structure.md)).
 - `@DataR2dbcTest`는 Spring Data 리포지토리용 슬라이스라 이 조합에서는 쓰지 않는다.
