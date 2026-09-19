@@ -1,16 +1,15 @@
 package com.dozycoffee.catalog.domain.product.service
 
-import com.dozycoffee.catalog.domain.category.CategoryId
-import com.dozycoffee.catalog.domain.optiongroup.Option
-import com.dozycoffee.catalog.domain.optiongroup.OptionGroup
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
 import com.dozycoffee.catalog.domain.optiongroup.SelectionType
-import com.dozycoffee.catalog.domain.product.model.OptionOverride
-import com.dozycoffee.catalog.domain.product.model.Product
-import com.dozycoffee.catalog.domain.product.model.ProductId
-import com.dozycoffee.catalog.domain.product.model.ProductOptionGroupLink
 import com.dozycoffee.catalog.domain.shared.Money
+import com.dozycoffee.catalog.fixture.exclude
+import com.dozycoffee.catalog.fixture.link
+import com.dozycoffee.catalog.fixture.option
+import com.dozycoffee.catalog.fixture.optionGroup
+import com.dozycoffee.catalog.fixture.priceOverride
+import com.dozycoffee.catalog.fixture.product
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -28,7 +27,7 @@ class EffectiveOptionResolverTest {
         @Test
         fun `예외가 없으면 옵션 그룹의 옵션 순서와 가격을 그대로 따른다`() {
             val size = optionGroup(1, option("TALL", 0), option("GRANDE", 500), option("VENTI", 1000))
-            val product = product(ProductOptionGroupLink(OptionGroupId(1), 0))
+            val product = product(link(1, 0))
 
             val group = EffectiveOptionResolver.resolve(product, listOf(size)).groups.single()
 
@@ -40,7 +39,7 @@ class EffectiveOptionResolverTest {
         @Test
         fun `상품에서 제외한 옵션은 빠진다`() {
             val size = optionGroup(1, option("TALL", 0), option("GRANDE", 500), option("VENTI", 1000))
-            val product = product(ProductOptionGroupLink(OptionGroupId(1), 0, listOf(exclude("GRANDE"))))
+            val product = product(link(1, 0, exclude("GRANDE")))
 
             val group = EffectiveOptionResolver.resolve(product, listOf(size)).groups.single()
 
@@ -50,7 +49,7 @@ class EffectiveOptionResolverTest {
         @Test
         fun `가격 예외가 있으면 그 가격을 적용하고 예외 적용 여부를 표시한다`() {
             val shot = optionGroup(1, option("SHOT", 500), option("SYRUP", 300))
-            val product = product(ProductOptionGroupLink(OptionGroupId(1), 0, listOf(priceOverride("SHOT", 0))))
+            val product = product(link(1, 0, priceOverride("SHOT", 0)))
 
             val options =
                 EffectiveOptionResolver
@@ -73,8 +72,8 @@ class EffectiveOptionResolverTest {
             val shot = optionGroup(2, option("SHOT", 500), name = "샷 추가", required = false, selectionType = SelectionType.MULTI)
             val product =
                 product(
-                    ProductOptionGroupLink(OptionGroupId(1), 1),
-                    ProductOptionGroupLink(OptionGroupId(2), 0),
+                    link(1, 1),
+                    link(2, 0),
                 )
 
             val groups = EffectiveOptionResolver.resolve(product, listOf(size, shot)).groups
@@ -93,7 +92,7 @@ class EffectiveOptionResolverTest {
         @Test
         fun `필수 그룹에 유효 옵션이 1개면 그 옵션이 자동 선택된다`() {
             val size = optionGroup(1, option("TALL", 0), option("GRANDE", 500), required = true)
-            val product = product(ProductOptionGroupLink(OptionGroupId(1), 0, listOf(exclude("TALL"))))
+            val product = product(link(1, 0, exclude("TALL")))
 
             val group = EffectiveOptionResolver.resolve(product, listOf(size)).groups.single()
 
@@ -103,7 +102,7 @@ class EffectiveOptionResolverTest {
         @Test
         fun `선택 그룹은 유효 옵션이 1개여도 자동 선택하지 않는다`() {
             val shot = optionGroup(1, option("SHOT", 500), required = false)
-            val product = product(ProductOptionGroupLink(OptionGroupId(1), 0))
+            val product = product(link(1, 0))
 
             val group = EffectiveOptionResolver.resolve(product, listOf(shot)).groups.single()
 
@@ -113,7 +112,7 @@ class EffectiveOptionResolverTest {
         @Test
         fun `필수 그룹이라도 유효 옵션이 2개 이상이면 자동 선택하지 않는다`() {
             val size = optionGroup(1, option("TALL", 0), option("GRANDE", 500), required = true)
-            val product = product(ProductOptionGroupLink(OptionGroupId(1), 0))
+            val product = product(link(1, 0))
 
             val group = EffectiveOptionResolver.resolve(product, listOf(size)).groups.single()
 
@@ -131,10 +130,10 @@ class EffectiveOptionResolverTest {
             val shot = optionGroup(3, option("SHOT", 500), required = false)
             val product =
                 product(
-                    ProductOptionGroupLink(OptionGroupId(1), 0),
-                    ProductOptionGroupLink(OptionGroupId(2), 1),
-                    ProductOptionGroupLink(OptionGroupId(3), 2),
-                    basePrice = Money(4500),
+                    link(1, 0),
+                    link(2, 1),
+                    link(3, 2),
+                    basePrice = 4500,
                 )
 
             val config = EffectiveOptionResolver.resolve(product, listOf(size, bean, shot))
@@ -148,8 +147,8 @@ class EffectiveOptionResolverTest {
             val size = optionGroup(1, option("TALL", 300), option("GRANDE", 500), required = true)
             val product =
                 product(
-                    ProductOptionGroupLink(OptionGroupId(1), 0, listOf(priceOverride("GRANDE", 100))),
-                    basePrice = Money(4500),
+                    link(1, 0, priceOverride("GRANDE", 100)),
+                    basePrice = 4500,
                 )
 
             val config = EffectiveOptionResolver.resolve(product, listOf(size))
@@ -162,8 +161,8 @@ class EffectiveOptionResolverTest {
             val size = optionGroup(1, option("TALL", 0), option("GRANDE", 500), required = true)
             val product =
                 product(
-                    ProductOptionGroupLink(OptionGroupId(1), 0, listOf(exclude("TALL"))),
-                    basePrice = Money(4500),
+                    link(1, 0, exclude("TALL")),
+                    basePrice = 4500,
                 )
 
             val config = EffectiveOptionResolver.resolve(product, listOf(size))
@@ -173,7 +172,7 @@ class EffectiveOptionResolverTest {
 
         @Test
         fun `연결된 옵션 그룹이 없으면 기준가가 곧 시작가다`() {
-            val config = EffectiveOptionResolver.resolve(product(basePrice = Money(4500)), emptyList())
+            val config = EffectiveOptionResolver.resolve(product(basePrice = 4500), emptyList())
 
             assertEquals(Money(4500), config.displayStartingPrice)
         }
@@ -186,7 +185,7 @@ class EffectiveOptionResolverTest {
         fun `상품에 연결되지 않은 옵션 그룹을 넘기면 거부한다`() {
             val size = optionGroup(1, option("TALL", 0))
             val unlinked = optionGroup(99, option("SHOT", 500))
-            val product = product(ProductOptionGroupLink(OptionGroupId(1), 0))
+            val product = product(link(1, 0))
 
             // 호출 코드 오류이므로 DomainException이 아닌 require로 거부한다.
             assertFailsWith<IllegalArgumentException> {
@@ -199,8 +198,8 @@ class EffectiveOptionResolverTest {
             val size = optionGroup(1, option("TALL", 0))
             val product =
                 product(
-                    ProductOptionGroupLink(OptionGroupId(1), 0),
-                    ProductOptionGroupLink(OptionGroupId(2), 1),
+                    link(1, 0),
+                    link(2, 1),
                 )
 
             assertFailsWith<IllegalArgumentException> {
@@ -208,45 +207,4 @@ class EffectiveOptionResolverTest {
             }
         }
     }
-
-    private fun option(
-        key: String,
-        price: Long,
-    ) = Option(OptionKey(key), name = key, price = Money(price))
-
-    private fun exclude(key: String) = OptionOverride.Exclude(OptionKey(key))
-
-    private fun priceOverride(
-        key: String,
-        price: Long,
-    ) = OptionOverride.Price(OptionKey(key), Money(price))
-
-    private fun optionGroup(
-        id: Long,
-        vararg options: Option,
-        name: String = "옵션 그룹 $id",
-        required: Boolean = true,
-        selectionType: SelectionType = SelectionType.SINGLE,
-    ) = OptionGroup(
-        id = OptionGroupId(id),
-        name = name,
-        selectionType = selectionType,
-        required = required,
-        options = options.toList(),
-    )
-
-    private fun product(
-        vararg links: ProductOptionGroupLink,
-        basePrice: Money = Money(4500),
-    ) = Product(
-        id = ProductId(1),
-        sku = null,
-        name = "아메리카노",
-        categoryId = CategoryId(10),
-        description = null,
-        imageUrl = null,
-        basePrice = basePrice,
-        tracksInventory = false,
-        optionGroupLinks = links.toList(),
-    )
 }

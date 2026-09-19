@@ -1,20 +1,18 @@
 package com.dozycoffee.catalog.domain.storedisplay.service
 
-import com.dozycoffee.catalog.domain.category.CategoryId
 import com.dozycoffee.catalog.domain.product.model.Product
-import com.dozycoffee.catalog.domain.product.model.ProductId
 import com.dozycoffee.catalog.domain.product.model.ProductStatus
 import com.dozycoffee.catalog.domain.product.model.StoreId
 import com.dozycoffee.catalog.domain.product.model.StoreScope
-import com.dozycoffee.catalog.domain.shared.Money
-import com.dozycoffee.catalog.domain.storeavailability.AvailabilitySource
 import com.dozycoffee.catalog.domain.storeavailability.StockStatus
 import com.dozycoffee.catalog.domain.storeavailability.StoreProductAvailability
-import com.dozycoffee.catalog.domain.storeavailability.StoreProductAvailabilityId
 import com.dozycoffee.catalog.domain.storedisplay.model.StoreDisplaySetting
-import com.dozycoffee.catalog.domain.storedisplay.model.StoreDisplaySettingId
 import com.dozycoffee.catalog.domain.storedisplay.model.StoreVisibility
 import com.dozycoffee.catalog.domain.storedisplay.model.Visibility
+import com.dozycoffee.catalog.fixture.displaySetting
+import com.dozycoffee.catalog.fixture.inventoryAvailability
+import com.dozycoffee.catalog.fixture.ownerAvailability
+import com.dozycoffee.catalog.fixture.product
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -49,7 +47,7 @@ class ProductVisibilityPolicyTest {
             val result =
                 resolve(
                     product(status = ProductStatus.DISCONTINUED),
-                    display = display(Visibility.VISIBLE),
+                    display = displaySetting(visibility = Visibility.VISIBLE),
                 )
 
             assertEquals(StoreVisibility.NotVisible, result)
@@ -61,28 +59,28 @@ class ProductVisibilityPolicyTest {
     inner class StoreScopeStep {
         @Test
         fun `전체 판매 범위면 모든 매장에 노출된다`() {
-            val result = resolve(product(storeScope = StoreScope.All))
+            val result = resolve(product(status = ProductStatus.ACTIVE, storeScope = StoreScope.All))
 
             assertIs<StoreVisibility.Visible>(result)
         }
 
         @Test
         fun `한정 판매 범위에 포함된 매장에는 노출된다`() {
-            val result = resolve(product(storeScope = StoreScope.Limited(setOf(storeId))))
+            val result = resolve(product(status = ProductStatus.ACTIVE, storeScope = StoreScope.Limited(setOf(storeId))))
 
             assertIs<StoreVisibility.Visible>(result)
         }
 
         @Test
         fun `한정 판매 범위에서 제외된 매장에는 노출되지 않는다`() {
-            val result = resolve(product(storeScope = StoreScope.Limited(setOf(StoreId(99)))))
+            val result = resolve(product(status = ProductStatus.ACTIVE, storeScope = StoreScope.Limited(setOf(StoreId(99)))))
 
             assertEquals(StoreVisibility.NotVisible, result)
         }
 
         @Test
         fun `대상 매장이 비어 있으면 어떤 매장에도 노출되지 않는다`() {
-            val result = resolve(product(storeScope = StoreScope.Limited(emptySet())))
+            val result = resolve(product(status = ProductStatus.ACTIVE, storeScope = StoreScope.Limited(emptySet())))
 
             assertEquals(StoreVisibility.NotVisible, result)
         }
@@ -94,14 +92,14 @@ class ProductVisibilityPolicyTest {
         @Test
         fun `진열 설정이 없으면 기본값인 노출로 간주한다`() {
             // row 부재 자체가 "기본값으로 노출 중"을 의미한다(Lazy 생성).
-            val result = resolve(product())
+            val result = resolve(product(status = ProductStatus.ACTIVE))
 
             assertIs<StoreVisibility.Visible>(result)
         }
 
         @Test
         fun `점주가 숨긴 상품은 노출되지 않는다`() {
-            val result = resolve(product(), display = display(Visibility.HIDDEN))
+            val result = resolve(product(status = ProductStatus.ACTIVE), display = displaySetting(visibility = Visibility.HIDDEN))
 
             assertEquals(StoreVisibility.NotVisible, result)
         }
@@ -110,9 +108,9 @@ class ProductVisibilityPolicyTest {
         fun `숨김이면 품절 여부와 무관하게 비노출이다`() {
             val result =
                 resolve(
-                    product(),
-                    display = display(Visibility.HIDDEN),
-                    availability = ownerAvailability(StockStatus.SOLD_OUT),
+                    product(status = ProductStatus.ACTIVE),
+                    display = displaySetting(visibility = Visibility.HIDDEN),
+                    availability = ownerAvailability(stockStatus = StockStatus.SOLD_OUT),
                 )
 
             assertEquals(StoreVisibility.NotVisible, result)
@@ -124,7 +122,7 @@ class ProductVisibilityPolicyTest {
     inner class UntrackedStock {
         @Test
         fun `판매 가능 여부가 바뀐 적 없으면 판매중이다`() {
-            val result = resolve(product(tracksInventory = false))
+            val result = resolve(product(status = ProductStatus.ACTIVE, tracksInventory = false))
 
             assertEquals(StoreVisibility.Visible(StockStatus.ON_SALE), result)
         }
@@ -134,9 +132,9 @@ class ProductVisibilityPolicyTest {
             // 노출 여부와 품절 상태는 독립적이다(요구사항 2.5).
             val result =
                 resolve(
-                    product(tracksInventory = false),
-                    display = display(Visibility.VISIBLE),
-                    availability = ownerAvailability(StockStatus.SOLD_OUT),
+                    product(status = ProductStatus.ACTIVE, tracksInventory = false),
+                    display = displaySetting(visibility = Visibility.VISIBLE),
+                    availability = ownerAvailability(stockStatus = StockStatus.SOLD_OUT),
                 )
 
             assertEquals(StoreVisibility.Visible(StockStatus.SOLD_OUT), result)
@@ -149,7 +147,7 @@ class ProductVisibilityPolicyTest {
         @Test
         fun `재고 정보를 받은 적 없으면 처음 재고 0이라 품절로 노출된다`() {
             // 재고 추적 상품도 활성화되면 곧바로 판매 목록에 나타나되 품절로 표시된다(요구사항 2.4).
-            val result = resolve(product(tracksInventory = true))
+            val result = resolve(product(status = ProductStatus.ACTIVE, tracksInventory = true))
 
             assertEquals(StoreVisibility.Visible(StockStatus.SOLD_OUT), result)
         }
@@ -158,8 +156,8 @@ class ProductVisibilityPolicyTest {
         fun `입고로 재고가 생기면 판매중으로 노출된다`() {
             val result =
                 resolve(
-                    product(tracksInventory = true),
-                    availability = inventoryAvailability(StockStatus.ON_SALE),
+                    product(status = ProductStatus.ACTIVE, tracksInventory = true),
+                    availability = inventoryAvailability(stockStatus = StockStatus.ON_SALE),
                 )
 
             assertEquals(StoreVisibility.Visible(StockStatus.ON_SALE), result)
@@ -169,9 +167,9 @@ class ProductVisibilityPolicyTest {
         fun `재고가 있어도 점주가 숨겼으면 노출되지 않는다`() {
             val result =
                 resolve(
-                    product(tracksInventory = true),
-                    display = display(Visibility.HIDDEN),
-                    availability = inventoryAvailability(StockStatus.ON_SALE),
+                    product(status = ProductStatus.ACTIVE, tracksInventory = true),
+                    display = displaySetting(visibility = Visibility.HIDDEN),
+                    availability = inventoryAvailability(stockStatus = StockStatus.ON_SALE),
                 )
 
             assertEquals(StoreVisibility.NotVisible, result)
@@ -180,8 +178,13 @@ class ProductVisibilityPolicyTest {
         @Test
         fun `판매 범위에서 빠졌다가 다시 포함되면 유지된 재고 상태를 따른다`() {
             // INVENTORY 출처 판매 가능 여부는 판매 범위에서 빠져도 지우지 않는다(요구사항 1.5).
-            val product = product(tracksInventory = true, storeScope = StoreScope.Limited(emptySet()))
-            val availability = inventoryAvailability(StockStatus.ON_SALE)
+            val product =
+                product(
+                    status = ProductStatus.ACTIVE,
+                    tracksInventory = true,
+                    storeScope = StoreScope.Limited(emptySet()),
+                )
+            val availability = inventoryAvailability(stockStatus = StockStatus.ON_SALE)
             assertEquals(StoreVisibility.NotVisible, resolve(product, availability = availability))
 
             product.changeStoreScope(StoreScope.Limited(setOf(storeId)))
@@ -210,7 +213,7 @@ class ProductVisibilityPolicyTest {
         @Test
         fun `노출 상태로 설정해둔 매장은 재활성화되면 그대로 노출된다`() {
             val product = product(status = ProductStatus.ACTIVE)
-            val display = display(Visibility.VISIBLE)
+            val display = displaySetting(visibility = Visibility.VISIBLE)
 
             product.discontinue()
             assertEquals(StoreVisibility.NotVisible, resolve(product, display = display))
@@ -223,7 +226,7 @@ class ProductVisibilityPolicyTest {
         fun `점주가 직접 숨긴 매장은 재활성화돼도 숨김이 유지된다`() {
             // 점주 의도를 덮어쓰면 안 된다.
             val product = product(status = ProductStatus.ACTIVE)
-            val display = display(Visibility.HIDDEN)
+            val display = displaySetting(visibility = Visibility.HIDDEN)
 
             product.discontinue()
             assertEquals(StoreVisibility.NotVisible, resolve(product, display = display))
@@ -236,7 +239,8 @@ class ProductVisibilityPolicyTest {
         fun `단종 중 재고가 소진됐으면 재활성화 후 품절로 노출된다`() {
             // 재고 이벤트는 단종 중에도 계속 반영된다(요구사항 2.4).
             val product = product(status = ProductStatus.ACTIVE, tracksInventory = true)
-            val availability = inventoryAvailability(StockStatus.ON_SALE)
+            val availability =
+                inventoryAvailability(stockStatus = StockStatus.ON_SALE, occurredAt = Instant.parse("2026-09-18T00:00:00Z"))
 
             product.discontinue()
             availability.applyInventoryEvent(StockStatus.SOLD_OUT, Instant.parse("2026-09-18T01:00:00Z"))
@@ -251,41 +255,4 @@ class ProductVisibilityPolicyTest {
         display: StoreDisplaySetting? = null,
         availability: StoreProductAvailability? = null,
     ) = ProductVisibilityPolicy.resolve(product, storeId, display, availability)
-
-    private fun product(
-        status: ProductStatus = ProductStatus.ACTIVE,
-        storeScope: StoreScope = StoreScope.All,
-        tracksInventory: Boolean = false,
-    ) = Product(
-        id = ProductId(1),
-        sku = null,
-        name = "아메리카노",
-        categoryId = CategoryId(10),
-        description = null,
-        imageUrl = null,
-        basePrice = Money(4500),
-        tracksInventory = tracksInventory,
-        status = status,
-        storeScope = storeScope,
-    )
-
-    private fun display(visibility: Visibility) =
-        StoreDisplaySetting(
-            id = StoreDisplaySettingId(1),
-            storeId = storeId,
-            productId = ProductId(1),
-            visibility = visibility,
-        )
-
-    private fun ownerAvailability(stockStatus: StockStatus) =
-        StoreProductAvailability.initial(availabilityId, AvailabilitySource.OWNER).also {
-            it.changeByOwner(stockStatus)
-        }
-
-    private fun inventoryAvailability(stockStatus: StockStatus) =
-        StoreProductAvailability.initial(availabilityId, AvailabilitySource.INVENTORY).also {
-            it.applyInventoryEvent(stockStatus, Instant.parse("2026-09-18T00:00:00Z"))
-        }
-
-    private val availabilityId = StoreProductAvailabilityId(storeId, ProductId(1))
 }

@@ -2,6 +2,7 @@ package com.dozycoffee.catalog.domain.scheduledchange
 
 import com.dozycoffee.catalog.domain.scheduledchange.exception.InvalidScheduleStatusTransitionException
 import com.dozycoffee.catalog.domain.scheduledchange.exception.NoPendingScheduleException
+import com.dozycoffee.catalog.fixture.scheduledChange
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -80,7 +81,13 @@ class ScheduledChangeTest {
         @Test
         fun `실패해도 예약값은 그대로 유지된다`() {
             // 적용 실패 시 기존 값을 유지하고 실패 사실만 기록한다(1.4).
-            val schedule = scheduledChange(status = ScheduleStatus.PENDING)
+            val schedule =
+                scheduledChange(
+                    fieldName = "basePrice",
+                    newValue = 5000L,
+                    effectiveDate = LocalDate.of(2026, 10, 1),
+                    status = ScheduleStatus.PENDING,
+                )
 
             schedule.fail()
 
@@ -96,15 +103,4 @@ class ScheduledChangeTest {
             assertFailsWith<InvalidScheduleStatusTransitionException> { schedule.fail() }
         }
     }
-
-    private fun scheduledChange(status: ScheduleStatus) =
-        ScheduledChange(
-            id = ScheduledChangeId(1),
-            targetId = 100L,
-            targetKind = TargetKind.PRODUCT,
-            fieldName = "basePrice",
-            newValue = 5000L,
-            effectiveDate = LocalDate.of(2026, 10, 1),
-            status = status,
-        )
 }
