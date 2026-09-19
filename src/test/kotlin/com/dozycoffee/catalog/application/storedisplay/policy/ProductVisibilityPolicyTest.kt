@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.storedisplay.service
+package com.dozycoffee.catalog.application.storedisplay.policy
 
 import com.dozycoffee.catalog.domain.product.model.Product
 import com.dozycoffee.catalog.domain.product.model.ProductStatus
@@ -7,7 +7,6 @@ import com.dozycoffee.catalog.domain.shared.StoreId
 import com.dozycoffee.catalog.domain.storeavailability.StockStatus
 import com.dozycoffee.catalog.domain.storeavailability.StoreProductAvailability
 import com.dozycoffee.catalog.domain.storedisplay.model.StoreDisplaySetting
-import com.dozycoffee.catalog.domain.storedisplay.model.StoreVisibility
 import com.dozycoffee.catalog.domain.storedisplay.model.Visibility
 import com.dozycoffee.catalog.fixture.displaySetting
 import com.dozycoffee.catalog.fixture.inventoryAvailability

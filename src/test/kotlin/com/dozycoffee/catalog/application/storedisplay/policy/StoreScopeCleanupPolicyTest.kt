@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.storedisplay.service
+package com.dozycoffee.catalog.application.storedisplay.policy
 
 import com.dozycoffee.catalog.domain.product.model.ProductId
 import com.dozycoffee.catalog.domain.product.model.StoreScope

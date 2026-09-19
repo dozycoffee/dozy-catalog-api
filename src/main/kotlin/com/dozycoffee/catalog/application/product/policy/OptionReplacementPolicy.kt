@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.product.service
+package com.dozycoffee.catalog.application.product.policy
 
 import com.dozycoffee.catalog.domain.optiongroup.Option
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroup
@@ -8,8 +8,8 @@ import com.dozycoffee.catalog.domain.product.model.Product
 
 // 옵션 그룹의 옵션 목록 교체를 허용할지 판단한다(요구사항 1.9). 즉시 교체와 예약 스냅샷 적용이
 // 같은 규칙을 쓴다. 옵션 목록은 OptionGroup이, 제외 설정은 각 Product가 갖고 있어 연결 상품
-// 전체를 함께 봐야 판단할 수 있으므로 도메인 서비스로 둔다. 판단만 하고 어떤 애그리거트도
-// 바꾸지 않는다.
+// 전체를 함께 봐야 판단할 수 있으므로 application 정책으로 둔다(ADR-0012). I/O 없이 판단만 하고
+// 어떤 애그리거트도 바꾸지 않는다.
 //
 // 변경 조율과 트랜잭션 경계는 application의 몫이다. 한 트랜잭션에서
 // 옵션 그룹 잠금 → 연결 상품 전체 조회 → check() → optionGroup.replaceOptions()
