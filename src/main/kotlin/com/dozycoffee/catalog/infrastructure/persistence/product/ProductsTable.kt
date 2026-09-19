@@ -8,9 +8,8 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.inList
 
-// 상품 마스터. 매장 진열 설정·판매 가능 여부 테이블의 product_id FK가 이 테이블을 가리키므로 먼저 정의한다.
-// Exposed 스키마 검사는 FK의 대상 테이블이 Exposed에 정의되어 있어야 동작한다.
-// 하위 테이블과 Repository는 Product Repository 구현(#51) 때 추가한다.
+// 상품 마스터. 판매 범위가 LIMITED면 대상 매장은 product_target_stores에 있다(빈 목록도 허용).
+// 하위 테이블 5개와 매장 진열 설정·판매 가능 여부 테이블의 product_id FK가 이 테이블을 가리킨다.
 object ProductsTable : Table("products") {
     val id = long("id").autoIncrement()
     val sku = varchar("sku", 64).nullable().uniqueIndex("products_sku_key")
