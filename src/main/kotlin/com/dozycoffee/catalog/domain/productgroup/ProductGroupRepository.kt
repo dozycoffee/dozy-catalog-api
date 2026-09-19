@@ -7,5 +7,6 @@ interface ProductGroupRepository {
 
     suspend fun save(productGroup: ProductGroup): ProductGroup
 
+    // 상품과의 연결(product_groups_map)은 FK CASCADE로 함께 삭제된다(요구사항 1.8).
     suspend fun delete(id: ProductGroupId)
 }

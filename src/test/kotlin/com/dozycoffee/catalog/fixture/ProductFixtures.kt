@@ -20,6 +20,7 @@ fun product(
     tracksInventory: Boolean = false,
     storeScope: StoreScope = StoreScope.All,
     categoryId: Long = 10,
+    version: Long = 0,
 ) = Product(
     id = ProductId(id),
     sku = null,
@@ -32,6 +33,7 @@ fun product(
     optionGroupLinks = links.toList(),
     status = status,
     storeScope = storeScope,
+    version = version,
 )
 
 fun link(

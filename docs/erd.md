@@ -8,7 +8,7 @@
 - **금액**: `BIGINT`, 원 단위 정수 (도메인 `Money(Long)`)
 - **상태값**: `VARCHAR` + `CHECK` (PostgreSQL ENUM 타입은 쓰지 않음)
 - **시각**: `TIMESTAMPTZ` (도메인 `Instant`). 업무 날짜는 `DATE` (업무 시간대 기준)
-- **낙관적 잠금**: 애그리거트 루트 테이블에 `version BIGINT`
+- **낙관적 잠금**: `products`, `option_groups`에만 `version BIGINT` ([ADR-0013](adr/0013-optimistic-locking-for-product-and-option-group.md)). 다른 테이블의 동시성은 [동시성 처리](#동시성-처리)의 방식으로 다룬다
 - **감사 컬럼**: `created_at`/`updated_at`은 DB 시계(`now()`)로 채움
 - `store_id`는 Store BC(별도 서비스) 참조라 FK 제약이 없다
  
@@ -56,7 +56,6 @@ erDiagram
         bigint id PK
         varchar name
         bigint parent_category_id FK
-        bigint version
         timestamptz created_at
         timestamptz updated_at
     }
@@ -64,7 +63,6 @@ erDiagram
     tags {
         bigint id PK
         varchar name UK
-        bigint version
         timestamptz created_at
         timestamptz updated_at
     }
@@ -72,7 +70,6 @@ erDiagram
     product_groups {
         bigint id PK
         varchar name
-        bigint version
         timestamptz created_at
         timestamptz updated_at
     }
@@ -143,7 +140,6 @@ erDiagram
         date effective_date
         timestamptz effective_at
         varchar status
-        bigint version
         timestamptz created_at
         timestamptz updated_at
     }
@@ -154,7 +150,6 @@ erDiagram
         bigint product_id FK
         integer display_order
         varchar visibility
-        bigint version
         timestamptz created_at
         timestamptz updated_at
     }
@@ -165,7 +160,6 @@ erDiagram
         varchar source
         varchar stock_status
         timestamptz last_event_at
-        bigint version
         timestamptz created_at
         timestamptz updated_at
     }
@@ -209,7 +203,7 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | status | VARCHAR | NOT NULL, 기본 `DRAFT`, CHECK | 전용 액션(activate/discontinue)으로만 변경 |
 | store_scope | VARCHAR | NOT NULL, 기본 `ALL`, CHECK | |
 | tracks_inventory | BOOLEAN | NOT NULL | 재고형/비재고형 |
-| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
+| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 ([ADR-0013](adr/0013-optimistic-locking-for-product-and-option-group.md)) |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 
 ### categories — 카테고리 (2단계 계층)
@@ -219,7 +213,6 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | id | BIGINT | PK | |
 | name | VARCHAR | NOT NULL | 즉시 반영 |
 | parent_category_id | BIGINT | FK → categories.id, NULL 허용 | NULL이면 대분류 |
-| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 
 ### tags — 태그 (Notion select 방식)
@@ -228,7 +221,6 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 |---|---|---|---|
 | id | BIGINT | PK | |
 | name | VARCHAR | UNIQUE, NOT NULL | 동일명 재사용 |
-| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 
 ### product_groups — 상품 그룹 (내부 관리용, 단일 레벨)
@@ -237,7 +229,6 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 |---|---|---|---|
 | id | BIGINT | PK | |
 | name | VARCHAR | NOT NULL | 즉시 반영 |
-| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 
 ### product_target_stores — 판매 범위(LIMITED) 대상 매장
@@ -264,7 +255,7 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | name | VARCHAR | NOT NULL | 즉시 반영 |
 | selection_type | VARCHAR | NOT NULL, CHECK | SINGLE / MULTI |
 | required | BOOLEAN | NOT NULL | |
-| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
+| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 ([ADR-0013](adr/0013-optimistic-locking-for-product-and-option-group.md)) |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 
 ### options — 개별 옵션
@@ -313,7 +304,6 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | effective_date | DATE | NOT NULL | 업무 날짜. 업무 시간대 기준 그 날 00시에 적용 |
 | effective_at | TIMESTAMPTZ | NOT NULL | 등록할 때 `effective_date`의 00시를 업무 시간대로 해석해 계산한 순간. 배치는 이 값으로만 대상을 고른다 |
 | status | VARCHAR | NOT NULL, 기본 `PENDING`, CHECK | |
-| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 | 제약 | | `UNIQUE(target_id, target_kind, field_name) WHERE status='PENDING'` | 동일 대상·필드 Pending 최대 1건 |
 
@@ -326,7 +316,6 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | product_id | BIGINT | FK → products.id, NOT NULL | |
 | display_order | INTEGER | NULL 허용 | |
 | visibility | VARCHAR | NOT NULL, 기본 `VISIBLE`, CHECK | 점주의 노출 의도 |
-| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL | row 부재 = 기본값(노출)으로 취급 중 |
 | 제약 | | `UNIQUE(store_id, product_id)` | |
 
@@ -345,7 +334,6 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | source | VARCHAR | NOT NULL, CHECK | `INVENTORY` / `OWNER` |
 | stock_status | VARCHAR | NOT NULL, CHECK | 판매중 = `ON_SALE`, 품절 = `SOLD_OUT` |
 | last_event_at | TIMESTAMPTZ | NULL 허용 | 마지막으로 반영한 재고 이벤트의 발생 시각(`INVENTORY`만). 이보다 오래되었거나 같은 시각의 이벤트는 무시 |
-| version | BIGINT | NOT NULL, 기본 0 | 낙관적 잠금 |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL | row 부재 = 출처별 기본값(`INVENTORY`는 품절, `OWNER`는 판매중) |
 | 제약 | | `CHECK (source = 'INVENTORY' OR last_event_at IS NULL)` | `OWNER` 출처에는 재고 이벤트 시각이 없다 |
  
@@ -376,6 +364,9 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | `store_product_availabilities` 점주 수동 품절 첫 생성 (`OWNER`) | 동시 요청 시 중복 row | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE` |
 | `options` 최소 1개/0개 검증 | 검증-실행 사이 레이스 | 옵션 그룹 단위 비관적 락 |
 | `products.status` 전이 검증 | 동시 요청 시 중복 전이 | Product row 단위 비관적 락 |
+| `products`, `option_groups` 전체 교체·예외 지정 | 오래된 화면으로 저장해 다른 변경을 덮어씀 | 낙관적 잠금: `UPDATE … WHERE id = ? AND version = ?`, 바뀐 행이 0개면 충돌(409). 저장할 때마다 `version` + 1 ([ADR-0013](adr/0013-optimistic-locking-for-product-and-option-group.md)) |
+| `categories` 부모 변경·소분류 추가 | 부모 후보가 동시에 소분류로 바뀌어 3단계가 됨 | 부모 후보 행 `SELECT … FOR UPDATE` |
+| `tags` 같은 이름 동시 등록 | 중복 태그 | `INSERT … ON CONFLICT (name) DO NOTHING` 뒤 조회 |
  
 ---
 

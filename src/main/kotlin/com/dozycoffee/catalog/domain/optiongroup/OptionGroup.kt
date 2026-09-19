@@ -2,7 +2,7 @@ package com.dozycoffee.catalog.domain.optiongroup
 
 import com.dozycoffee.catalog.domain.optiongroup.exception.DuplicateOptionKeyException
 import com.dozycoffee.catalog.domain.optiongroup.exception.EmptyOptionGroupException
-import com.dozycoffee.catalog.domain.shared.AggregateRoot
+import com.dozycoffee.catalog.domain.shared.VersionedAggregateRoot
 
 class OptionGroup internal constructor(
     id: OptionGroupId,
@@ -10,7 +10,8 @@ class OptionGroup internal constructor(
     selectionType: SelectionType,
     required: Boolean,
     options: List<Option>,
-) : AggregateRoot<OptionGroupId>(id) {
+    version: Long = 0,
+) : VersionedAggregateRoot<OptionGroupId>(id, version) {
     var name: String = name
         private set
     var selectionType: SelectionType = selectionType

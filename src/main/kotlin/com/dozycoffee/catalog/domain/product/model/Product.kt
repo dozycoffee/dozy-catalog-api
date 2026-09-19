@@ -14,8 +14,8 @@ import com.dozycoffee.catalog.domain.product.exception.OptionKeyNotFoundExceptio
 import com.dozycoffee.catalog.domain.product.exception.ProductNotDeletableException
 import com.dozycoffee.catalog.domain.product.exception.ProductOptionGroupNotLinkedException
 import com.dozycoffee.catalog.domain.productgroup.ProductGroupId
-import com.dozycoffee.catalog.domain.shared.AggregateRoot
 import com.dozycoffee.catalog.domain.shared.Money
+import com.dozycoffee.catalog.domain.shared.VersionedAggregateRoot
 import com.dozycoffee.catalog.domain.tag.TagId
 
 class Product internal constructor(
@@ -32,7 +32,8 @@ class Product internal constructor(
     optionGroupLinks: List<ProductOptionGroupLink> = emptyList(),
     status: ProductStatus = ProductStatus.DRAFT,
     storeScope: StoreScope = StoreScope.All,
-) : AggregateRoot<ProductId>(id) {
+    version: Long = 0,
+) : VersionedAggregateRoot<ProductId>(id, version) {
     var sku: Sku? = sku
         private set
     var name: String = name
