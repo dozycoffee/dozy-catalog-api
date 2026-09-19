@@ -1,6 +1,7 @@
 package com.dozycoffee.catalog.domain.category
 
 import com.dozycoffee.catalog.domain.category.exception.CategoryNotAssignableException
+import com.dozycoffee.catalog.domain.category.exception.CategoryWithChildrenNotDemotableException
 import com.dozycoffee.catalog.domain.category.exception.InvalidParentCategoryException
 import com.dozycoffee.catalog.domain.category.exception.ReferencedCategoryNotPromotableException
 import com.dozycoffee.catalog.domain.shared.AggregateRoot
@@ -40,12 +41,10 @@ class TopLevelCategory internal constructor(
         hasChildren: Boolean,
     ): ChildCategory {
         if (parent.id == this.id) {
-            throw InvalidParentCategoryException("자기 자신을 부모로 지정할 수 없습니다")
+            throw InvalidParentCategoryException(id)
         }
         if (hasChildren) {
-            throw InvalidParentCategoryException(
-                "이미 하위 카테고리가 있는 카테고리는 다른 카테고리의 하위로 지정할 수 없습니다",
-            )
+            throw CategoryWithChildrenNotDemotableException(id)
         }
         return ChildCategory(id, name, parentId = parent.id)
     }
