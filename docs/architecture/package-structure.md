@@ -40,6 +40,7 @@ base package: `com.dozycoffee.catalog`
 - 서비스가 `TransactionRunner.inTransaction { … }`으로 유스케이스의 트랜잭션 경계를 연다. Repository는 그 안에서 호출된다([ADR-0011](../adr/0011-transaction-boundary-with-transaction-runner.md)).
 - 조회가 필요한 규칙(하위 카테고리 존재, 참조 상품 존재 등)은 서비스가 확인해 도메인 메서드에 값으로 넘긴다. 판단 자체가 여러 애그리거트를 보면 `application/policy`의 정책 클래스에 둔다([ADR-0012](../adr/0012-cross-aggregate-judgment-in-application-policy.md)).
 - 대상이 없으면 애그리거트별 `XxxNotFoundException`(`NOT_FOUND`, 404)으로 거부한다.
+- **여러 애그리거트를 묶어 보여 주는 조회**는 각 Repository로 불러와 application에서 합치고(`<모듈>/application/<화면 단위>/`의 `XxxQueryService`), 결과는 그 옆의 View 타입에 담는다. 전용 SQL이나 집계가 필요해지면 그때 조회 포트로 옮긴다.
 - **도메인 이벤트는 저장 후 `pullDomainEvents()`로 꺼내 같은 트랜잭션에서 동기로 처리한다.** 중간 상태를 만들지 않고, 핸들러가 실패하면 원래 변경도 함께 롤백된다. 발행·구독 방식은 아래를 따른다. 규모가 커지거나 다른 BC로 나가는 전파가 생기면 비동기로 바꾼다(전환 조건은 [미정 사항](README.md#미정-사항)).
 
 ### 도메인 이벤트 발행과 구독
@@ -117,6 +118,8 @@ com.dozycoffee.catalog
 │   │   └── availability/                  # StoreProductAvailability, AvailabilitySource, StockStatus, Repository + exception/
 │   ├── application/
 │   │   ├── policy/                        # ProductVisibilityPolicy, StoreVisibility, StoreScopeCleanupPolicy
+│   │   ├── display/ availability/         # 점주의 진열·수동 품절 유스케이스와 재고 이벤트 반영 + command/
+│   │   ├── storeproduct/                  # 매장 상품 목록 조회(StoreProductQueryService, StoreProductView)
 │   │   └── scope/                         # StoreScopeCleanupHandler (ProductStoreScopeChanged 구독)
 │   ├── infrastructure/                    # display/ availability/ (+ messaging: 재고 이벤트 구독, 5단계)
 │   └── presentation/                      # (4단계)

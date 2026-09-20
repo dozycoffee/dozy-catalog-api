@@ -1,5 +1,6 @@
 package com.dozycoffee.catalog.product.domain.product
 
+import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.product.domain.category.CategoryId
 import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.product.domain.product.Product
@@ -15,6 +16,10 @@ interface ProductRepository {
     // 이 옵션 그룹을 연결한 상품 전체를 상태와 상관없이 잠그고 가져온다. 옵션 목록을 교체할 때
     // OptionReplacementPolicy.check에 넘기고, 사라진 옵션 키의 예외를 정리해 저장한다.
     suspend fun findAllLinkedToForUpdate(optionGroupId: OptionGroupId): List<Product>
+
+    // 점주의 매장 상품 목록용. 노출 판단 1·2단계(Active, 판매 범위 포함)를 만족하는 상품을 상품 id 순으로 가져온다
+    // (요구사항 3장). 판매 범위는 상품 애그리거트의 정보라 상품 테이블만 보고 거를 수 있다(docs/adr/0012).
+    suspend fun findAllSellableAt(storeId: StoreId): List<Product>
 
     // 소분류 삭제·대분류 승격 가드(요구사항 1.6). 상품 테이블만 보므로 여기에 둔다(docs/adr/0012).
     suspend fun existsByCategory(categoryId: CategoryId): Boolean
