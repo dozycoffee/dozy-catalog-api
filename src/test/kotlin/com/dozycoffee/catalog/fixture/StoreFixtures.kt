@@ -2,13 +2,13 @@ package com.dozycoffee.catalog.fixture
 
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.domain.product.model.ProductId
-import com.dozycoffee.catalog.domain.storeavailability.AvailabilitySource
-import com.dozycoffee.catalog.domain.storeavailability.StockStatus
-import com.dozycoffee.catalog.domain.storeavailability.StoreProductAvailability
-import com.dozycoffee.catalog.domain.storeavailability.StoreProductAvailabilityId
-import com.dozycoffee.catalog.domain.storedisplay.model.StoreDisplaySetting
-import com.dozycoffee.catalog.domain.storedisplay.model.StoreDisplaySettingId
-import com.dozycoffee.catalog.domain.storedisplay.model.Visibility
+import com.dozycoffee.catalog.store.domain.availability.AvailabilitySource
+import com.dozycoffee.catalog.store.domain.availability.StockStatus
+import com.dozycoffee.catalog.store.domain.availability.StoreProductAvailability
+import com.dozycoffee.catalog.store.domain.availability.StoreProductAvailabilityId
+import com.dozycoffee.catalog.store.domain.display.StoreDisplaySetting
+import com.dozycoffee.catalog.store.domain.display.StoreDisplaySettingId
+import com.dozycoffee.catalog.store.domain.display.Visibility
 import java.time.Instant
 
 // 매장·상품 ID는 타입으로 받는다. 이 픽스처를 쓰는 테스트가 StoreScope와 결과 ID를 타입으로 다루기 때문이다.
