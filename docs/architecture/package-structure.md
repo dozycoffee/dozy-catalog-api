@@ -35,11 +35,13 @@ base package: `com.dozycoffee.catalog`
 ## 유스케이스 작성 관례
 
 - 유스케이스 서비스는 `<모듈>/application/<애그리거트>/`에 `<Aggregate>ApplicationService`로 두고, 입력 Command는 그 아래 `command/`에 클래스 하나당 한 파일로 둔다.
+- 한 애그리거트의 유스케이스가 많아지면 관심사별로 서비스를 나눈다. 협력하는 상대가 다르면 나눌 이유가 된다(예: 상품의 옵션 그룹 연결·예외는 옵션 그룹을 함께 조회하므로 `ProductOptionApplicationService`로 나눴다). 나눠도 Command는 애그리거트의 같은 `command/`에 둔다.
 - **Command는 도메인 타입으로 담는다.** 문자열·정수 ID를 그대로 넘기지 않고 `CategoryId`, `Money` 같은 타입으로 바꿔 담는다. 변환은 presentation 경계에서 한다.
 - 필드가 둘 이상인 입력만 Command로 만든다. 식별자 하나만 받는 유스케이스(삭제, 단건 조회)는 파라미터로 받는다.
 - 서비스가 `TransactionRunner.inTransaction { … }`으로 유스케이스의 트랜잭션 경계를 연다. Repository는 그 안에서 호출된다([ADR-0011](../adr/0011-transaction-boundary-with-transaction-runner.md)).
 - 조회가 필요한 규칙(하위 카테고리 존재, 참조 상품 존재 등)은 서비스가 확인해 도메인 메서드에 값으로 넘긴다. 판단 자체가 여러 애그리거트를 보면 `application/policy`의 정책 클래스에 둔다([ADR-0012](../adr/0012-cross-aggregate-judgment-in-application-policy.md)).
 - 대상이 없으면 애그리거트별 `XxxNotFoundException`(`NOT_FOUND`, 404)으로 거부한다.
+- **여러 애그리거트를 한 트랜잭션에서 바꿀 때는 서비스가 잠금·검증·저장 순서를 정한다.** 잠그고 → 정책에 넘겨 판단하고 → 애그리거트 메서드로 바꾸고 → 저장한다. 이때 **실제로 바뀐 애그리거트만 저장한다.** 바뀐 것 없이 저장하면 낙관적 잠금 대상의 `version`만 올라가 다음 수정이 충돌로 거부된다([ADR-0013](../adr/0013-optimistic-locking-for-product-and-option-group.md)). 예: 옵션 목록 교체는 옵션 그룹과 연결 상품을 함께 잠그지만, 사라진 옵션 키의 예외를 실제로 갖고 있던 상품만 저장한다.
 - **도메인 이벤트는 저장 후 `pullDomainEvents()`로 꺼내 같은 트랜잭션에서 동기로 처리한다.** 중간 상태를 만들지 않고, 핸들러가 실패하면 원래 변경도 함께 롤백된다. 규모가 커지거나 다른 BC로 나가는 전파가 생기면 비동기로 바꾼다(전환 조건은 [미정 사항](README.md#미정-사항)).
 
 ## 인터페이스와 구현 배치
@@ -94,8 +96,8 @@ com.dozycoffee.catalog
 │   │   └── productgroup/                  # ProductGroup, ProductGroupId, Repository + event/
 │   ├── application/
 │   │   ├── policy/                        # EffectiveOptionResolver, EffectiveOptionConfig, OptionReplacementPolicy
-│   │   ├── product/ category/ tag/ productgroup/  # 애그리거트별 유스케이스 서비스 + command/ (+ SkuGenerator)
-│   │   ├── optiongroup/                   # (3단계)
+│   │   ├── product/                       # ProductApplicationService, ProductOptionApplicationService + command/ (+ SkuGenerator)
+│   │   ├── optiongroup/ category/ tag/ productgroup/  # 애그리거트별 유스케이스 서비스 + command/
 │   │   └── port/                          # ProductEventPublisherPort, ValidateStoreExistsPort(3단계)
 │   ├── infrastructure/                    # 애그리거트별 Exposed Table + Repository 구현
 │   │   ├── product/ optiongroup/ category/ tag/ productgroup/
