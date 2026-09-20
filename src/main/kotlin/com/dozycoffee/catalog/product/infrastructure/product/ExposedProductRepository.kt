@@ -26,6 +26,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.inSubQuery
+import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.r2dbc.Query
@@ -54,6 +55,21 @@ class ExposedProductRepository : ProductRepository {
             selectRoots { ProductsTable.id inSubQuery linkedProductIds }
                 .orderBy(ProductsTable.id to SortOrder.ASC)
                 .forUpdate()
+                .toList(),
+        )
+    }
+
+    // 판매 범위가 ALL이거나, LIMITED이면서 이 매장이 대상 매장에 있는 Active 상품. 잠그지 않는 읽기다.
+    override suspend fun findAllSellableAt(storeId: StoreId): List<Product> {
+        val targetedProductIds =
+            ProductTargetStoresTable
+                .select(ProductTargetStoresTable.productId)
+                .where { ProductTargetStoresTable.storeId eq storeId.value }
+        return toProducts(
+            selectRoots {
+                (ProductsTable.status eq ProductStatus.ACTIVE) and
+                    ((ProductsTable.storeScope eq STORE_SCOPE_ALL) or (ProductsTable.id inSubQuery targetedProductIds))
+            }.orderBy(ProductsTable.id to SortOrder.ASC)
                 .toList(),
         )
     }
