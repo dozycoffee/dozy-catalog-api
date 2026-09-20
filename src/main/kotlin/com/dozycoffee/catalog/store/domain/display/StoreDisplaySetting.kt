@@ -2,7 +2,7 @@ package com.dozycoffee.catalog.store.domain.display
 
 import com.dozycoffee.catalog.core.AggregateRoot
 import com.dozycoffee.catalog.core.StoreId
-import com.dozycoffee.catalog.domain.product.model.ProductId
+import com.dozycoffee.catalog.product.domain.product.ProductId
 
 // 점주가 본사 카탈로그 위에 얹는 매장별 진열 설정(노출·숨김, 진열 순서). row의 부재 자체가
 // "기본값(노출)으로 취급 중"을 의미하므로(Lazy 생성), 점주가 한 번이라도 커스터마이징한

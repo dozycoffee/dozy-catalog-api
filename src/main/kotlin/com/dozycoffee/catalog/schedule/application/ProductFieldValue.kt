@@ -1,12 +1,12 @@
 package com.dozycoffee.catalog.schedule.application
 
 import com.dozycoffee.catalog.core.Money
-import com.dozycoffee.catalog.domain.category.CategoryId
-import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
-import com.dozycoffee.catalog.domain.product.model.OptionOverride
-import com.dozycoffee.catalog.domain.product.model.StoreScope
-import com.dozycoffee.catalog.domain.productgroup.ProductGroupId
-import com.dozycoffee.catalog.domain.tag.TagId
+import com.dozycoffee.catalog.product.domain.category.CategoryId
+import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroupId
+import com.dozycoffee.catalog.product.domain.product.OptionOverride
+import com.dozycoffee.catalog.product.domain.product.StoreScope
+import com.dozycoffee.catalog.product.domain.productgroup.ProductGroupId
+import com.dozycoffee.catalog.product.domain.tag.TagId
 import com.dozycoffee.catalog.schedule.domain.TargetKind
 
 // 상품을 대상으로 하는 예약 값. 상품-옵션 그룹 연결의 예약도 상품을 대상으로 한다(docs/adr/0014).

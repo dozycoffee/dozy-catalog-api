@@ -1,8 +1,8 @@
 package com.dozycoffee.catalog.store.domain.availability
 
 import com.dozycoffee.catalog.core.StoreId
-import com.dozycoffee.catalog.domain.product.model.ProductId
 import com.dozycoffee.catalog.fixture.inventoryAvailability
+import com.dozycoffee.catalog.product.domain.product.ProductId
 import com.dozycoffee.catalog.store.domain.availability.exception.InventoryEventNotApplicableException
 import com.dozycoffee.catalog.store.domain.availability.exception.StockStatusNotManuallyEditableException
 import org.junit.jupiter.api.DisplayName

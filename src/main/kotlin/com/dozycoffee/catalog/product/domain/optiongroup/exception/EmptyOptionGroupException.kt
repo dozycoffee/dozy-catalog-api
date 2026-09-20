@@ -1,0 +1,9 @@
+package com.dozycoffee.catalog.product.domain.optiongroup.exception
+
+import com.dozycoffee.catalog.core.DomainException
+
+class EmptyOptionGroupException :
+    DomainException(
+        errorCode = OptionGroupErrorCode.EMPTY_OPTION_GROUP,
+        message = "옵션 그룹은 최소 1개의 옵션을 가져야 합니다",
+    )

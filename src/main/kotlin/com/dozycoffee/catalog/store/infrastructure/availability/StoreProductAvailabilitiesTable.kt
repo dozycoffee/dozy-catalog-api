@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.store.infrastructure.availability
 
 import com.dozycoffee.catalog.common.exposed.auditTimestamp
-import com.dozycoffee.catalog.infrastructure.persistence.product.ProductsTable
+import com.dozycoffee.catalog.product.infrastructure.product.ProductsTable
 import com.dozycoffee.catalog.store.domain.availability.AvailabilitySource
 import com.dozycoffee.catalog.store.domain.availability.StockStatus
 import org.jetbrains.exposed.v1.core.ReferenceOption

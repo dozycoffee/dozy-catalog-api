@@ -2,7 +2,7 @@ package com.dozycoffee.catalog.store.infrastructure.display
 
 import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.core.StoreId
-import com.dozycoffee.catalog.domain.product.model.ProductId
+import com.dozycoffee.catalog.product.domain.product.ProductId
 import com.dozycoffee.catalog.store.domain.display.StoreDisplaySettingRepository
 import com.dozycoffee.catalog.store.domain.display.Visibility
 import com.dozycoffee.catalog.support.IntegrationTest

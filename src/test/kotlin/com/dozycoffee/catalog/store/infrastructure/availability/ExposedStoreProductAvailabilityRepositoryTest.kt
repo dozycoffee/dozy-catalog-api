@@ -2,9 +2,9 @@ package com.dozycoffee.catalog.store.infrastructure.availability
 
 import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.core.StoreId
-import com.dozycoffee.catalog.domain.product.model.ProductId
 import com.dozycoffee.catalog.fixture.inventoryAvailability
 import com.dozycoffee.catalog.fixture.ownerAvailability
+import com.dozycoffee.catalog.product.domain.product.ProductId
 import com.dozycoffee.catalog.store.domain.availability.AvailabilitySource
 import com.dozycoffee.catalog.store.domain.availability.StockStatus
 import com.dozycoffee.catalog.store.domain.availability.StoreProductAvailabilityId

@@ -1,15 +1,15 @@
 package com.dozycoffee.catalog.fixture
 
 import com.dozycoffee.catalog.core.Money
-import com.dozycoffee.catalog.domain.category.CategoryId
-import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
-import com.dozycoffee.catalog.domain.optiongroup.OptionKey
-import com.dozycoffee.catalog.domain.product.model.OptionOverride
-import com.dozycoffee.catalog.domain.product.model.Product
-import com.dozycoffee.catalog.domain.product.model.ProductId
-import com.dozycoffee.catalog.domain.product.model.ProductOptionGroupLink
-import com.dozycoffee.catalog.domain.product.model.ProductStatus
-import com.dozycoffee.catalog.domain.product.model.StoreScope
+import com.dozycoffee.catalog.product.domain.category.CategoryId
+import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroupId
+import com.dozycoffee.catalog.product.domain.optiongroup.OptionKey
+import com.dozycoffee.catalog.product.domain.product.OptionOverride
+import com.dozycoffee.catalog.product.domain.product.Product
+import com.dozycoffee.catalog.product.domain.product.ProductId
+import com.dozycoffee.catalog.product.domain.product.ProductOptionGroupLink
+import com.dozycoffee.catalog.product.domain.product.ProductStatus
+import com.dozycoffee.catalog.product.domain.product.StoreScope
 
 // 기본값은 등록 직후 상태(DRAFT)다. 다른 상태가 필요하면 테스트에서 명시한다.
 fun product(

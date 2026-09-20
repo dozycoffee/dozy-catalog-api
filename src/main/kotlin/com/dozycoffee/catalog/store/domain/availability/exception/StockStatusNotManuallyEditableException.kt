@@ -2,7 +2,7 @@ package com.dozycoffee.catalog.store.domain.availability.exception
 
 import com.dozycoffee.catalog.core.DomainException
 import com.dozycoffee.catalog.core.StoreId
-import com.dozycoffee.catalog.domain.product.model.ProductId
+import com.dozycoffee.catalog.product.domain.product.ProductId
 
 class StockStatusNotManuallyEditableException(
     storeId: StoreId,

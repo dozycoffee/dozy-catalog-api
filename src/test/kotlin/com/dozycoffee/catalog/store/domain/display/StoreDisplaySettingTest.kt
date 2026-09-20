@@ -1,8 +1,8 @@
 package com.dozycoffee.catalog.store.domain.display
 
 import com.dozycoffee.catalog.core.StoreId
-import com.dozycoffee.catalog.domain.product.model.ProductId
 import com.dozycoffee.catalog.fixture.displaySetting
+import com.dozycoffee.catalog.product.domain.product.ProductId
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals

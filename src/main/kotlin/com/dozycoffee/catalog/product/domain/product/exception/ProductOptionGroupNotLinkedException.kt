@@ -1,0 +1,13 @@
+package com.dozycoffee.catalog.product.domain.product.exception
+
+import com.dozycoffee.catalog.core.DomainException
+import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroupId
+import com.dozycoffee.catalog.product.domain.product.ProductId
+
+class ProductOptionGroupNotLinkedException(
+    productId: ProductId,
+    optionGroupId: OptionGroupId,
+) : DomainException(
+        errorCode = ProductErrorCode.PRODUCT_OPTION_GROUP_NOT_LINKED,
+        message = "상품(${productId.value})에 연결되지 않은 옵션 그룹입니다: ${optionGroupId.value}",
+    )

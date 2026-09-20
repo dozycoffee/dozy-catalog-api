@@ -1,16 +1,16 @@
 package com.dozycoffee.catalog.support
 
-import com.dozycoffee.catalog.infrastructure.persistence.category.CategoriesTable
-import com.dozycoffee.catalog.infrastructure.persistence.optiongroup.OptionGroupsTable
-import com.dozycoffee.catalog.infrastructure.persistence.optiongroup.OptionsTable
-import com.dozycoffee.catalog.infrastructure.persistence.product.ProductGroupsMapTable
-import com.dozycoffee.catalog.infrastructure.persistence.product.ProductOptionGroupsTable
-import com.dozycoffee.catalog.infrastructure.persistence.product.ProductOptionOverridesTable
-import com.dozycoffee.catalog.infrastructure.persistence.product.ProductTagsTable
-import com.dozycoffee.catalog.infrastructure.persistence.product.ProductTargetStoresTable
-import com.dozycoffee.catalog.infrastructure.persistence.product.ProductsTable
-import com.dozycoffee.catalog.infrastructure.persistence.productgroup.ProductGroupsTable
-import com.dozycoffee.catalog.infrastructure.persistence.tag.TagsTable
+import com.dozycoffee.catalog.product.infrastructure.category.CategoriesTable
+import com.dozycoffee.catalog.product.infrastructure.optiongroup.OptionGroupsTable
+import com.dozycoffee.catalog.product.infrastructure.optiongroup.OptionsTable
+import com.dozycoffee.catalog.product.infrastructure.product.ProductGroupsMapTable
+import com.dozycoffee.catalog.product.infrastructure.product.ProductOptionGroupsTable
+import com.dozycoffee.catalog.product.infrastructure.product.ProductOptionOverridesTable
+import com.dozycoffee.catalog.product.infrastructure.product.ProductTagsTable
+import com.dozycoffee.catalog.product.infrastructure.product.ProductTargetStoresTable
+import com.dozycoffee.catalog.product.infrastructure.product.ProductsTable
+import com.dozycoffee.catalog.product.infrastructure.productgroup.ProductGroupsTable
+import com.dozycoffee.catalog.product.infrastructure.tag.TagsTable
 import com.dozycoffee.catalog.schedule.infrastructure.ScheduledChangesTable
 import com.dozycoffee.catalog.store.infrastructure.availability.StoreProductAvailabilitiesTable
 import com.dozycoffee.catalog.store.infrastructure.display.StoreDisplaySettingsTable

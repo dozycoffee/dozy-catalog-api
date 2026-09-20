@@ -1,11 +1,11 @@
 package com.dozycoffee.catalog.store.application.policy
 
 import com.dozycoffee.catalog.core.StoreId
-import com.dozycoffee.catalog.domain.product.model.ProductId
-import com.dozycoffee.catalog.domain.product.model.StoreScope
 import com.dozycoffee.catalog.fixture.displaySetting
 import com.dozycoffee.catalog.fixture.inventoryAvailability
 import com.dozycoffee.catalog.fixture.ownerAvailability
+import com.dozycoffee.catalog.product.domain.product.ProductId
+import com.dozycoffee.catalog.product.domain.product.StoreScope
 import com.dozycoffee.catalog.store.domain.availability.StoreProductAvailability
 import com.dozycoffee.catalog.store.domain.availability.StoreProductAvailabilityId
 import com.dozycoffee.catalog.store.domain.display.StoreDisplaySetting

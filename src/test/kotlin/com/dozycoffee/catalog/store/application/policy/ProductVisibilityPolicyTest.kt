@@ -1,13 +1,13 @@
 package com.dozycoffee.catalog.store.application.policy
 
 import com.dozycoffee.catalog.core.StoreId
-import com.dozycoffee.catalog.domain.product.model.Product
-import com.dozycoffee.catalog.domain.product.model.ProductStatus
-import com.dozycoffee.catalog.domain.product.model.StoreScope
 import com.dozycoffee.catalog.fixture.displaySetting
 import com.dozycoffee.catalog.fixture.inventoryAvailability
 import com.dozycoffee.catalog.fixture.ownerAvailability
 import com.dozycoffee.catalog.fixture.product
+import com.dozycoffee.catalog.product.domain.product.Product
+import com.dozycoffee.catalog.product.domain.product.ProductStatus
+import com.dozycoffee.catalog.product.domain.product.StoreScope
 import com.dozycoffee.catalog.store.domain.availability.StockStatus
 import com.dozycoffee.catalog.store.domain.availability.StoreProductAvailability
 import com.dozycoffee.catalog.store.domain.display.StoreDisplaySetting
