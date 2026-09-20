@@ -34,7 +34,7 @@ base package: `com.dozycoffee.catalog`
 
 ## 유스케이스 작성 관례
 
-- 유스케이스 서비스는 `<모듈>/application/<애그리거트>/`에 `<Aggregate>ApplicationService`로 두고, 입력 Command는 그 아래 `command/`에 둔다(애그리거트별로 한 파일에 모은다).
+- 유스케이스 서비스는 `<모듈>/application/<애그리거트>/`에 `<Aggregate>ApplicationService`로 두고, 입력 Command는 그 아래 `command/`에 클래스 하나당 한 파일로 둔다.
 - **Command는 도메인 타입으로 담는다.** 문자열·정수 ID를 그대로 넘기지 않고 `CategoryId`, `Money` 같은 타입으로 바꿔 담는다. 변환은 presentation 경계에서 한다.
 - 필드가 둘 이상인 입력만 Command로 만든다. 식별자 하나만 받는 유스케이스(삭제, 단건 조회)는 파라미터로 받는다.
 - 서비스가 `TransactionRunner.inTransaction { … }`으로 유스케이스의 트랜잭션 경계를 연다. Repository는 그 안에서 호출된다([ADR-0011](../adr/0011-transaction-boundary-with-transaction-runner.md)).
