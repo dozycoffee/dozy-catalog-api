@@ -26,7 +26,16 @@ interface ScheduledChangeRepository {
     // 배치 적용 대상 조회: 대기 중이고 적용 시각(effectiveAt)이 now 이전인 예약을 적용 시각 순으로 잠가 가져온다.
     // 시간대와 무관하며, 놓친 예약도 다음 실행에서 함께 고른다. 다른 트랜잭션이 잠근 예약은 건너뛰므로
     // (FOR UPDATE SKIP LOCKED) 여러 워커가 같은 예약을 두 번 처리하지 않는다.
-    suspend fun findDueForApplication(now: Instant): List<ScheduledChange>
+    // limit은 한 번에 처리할 건수 상한이다. 남은 예약은 다음 실행에서 고른다.
+    suspend fun findDueForApplication(
+        now: Instant,
+        limit: Int,
+    ): List<ScheduledChange>
+
+    // 배치가 예약 한 건을 적용하기 직전에 그 행만 다시 잠근다. 대상 조회와 적용을 각각 다른 트랜잭션에서 하므로
+    // (건별 격리) 그 사이 다른 워커가 가져갔거나 관리자가 취소했을 수 있다. 그런 예약은 더는 대기가 아니거나
+    // 다른 트랜잭션이 잠갔으므로 null이 돌아오고, 배치는 기다리지 않고 건너뛴다.
+    suspend fun findPendingByIdForUpdateSkipLocked(id: ScheduledChangeId): ScheduledChange?
 
     // effectiveDate와 effectiveAt을 함께 저장한다. 같은 대상·필드에 대기 예약이 이미 있으면 DB의 부분 UNIQUE가 거부한다.
     suspend fun insert(newScheduledChange: ScheduledChange.NewScheduledChange): ScheduledChange

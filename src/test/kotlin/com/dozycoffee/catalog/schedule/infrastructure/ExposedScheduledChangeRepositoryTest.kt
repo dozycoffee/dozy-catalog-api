@@ -239,9 +239,20 @@ class ExposedScheduledChangeRepositoryTest : IntegrationTest() {
                 val cancelled = register(targetId = 4, effectiveDate = LocalDate.of(2026, 9, 25))
                 tx.inTransaction { repository.save(cancelled.also { it.cancel() }) }
 
-                val due = tx.inTransaction { repository.findDueForApplication(now) }
+                val due = tx.inTransaction { repository.findDueForApplication(now, limit = 10) }
 
                 assertEquals(listOf(missed.id, onTime.id), due.map { it.id })
+            }
+
+        @Test
+        fun `건수 상한만큼만 가져온다`() =
+            runTest {
+                val first = register(targetId = 1, effectiveDate = LocalDate.of(2026, 9, 25))
+                register(targetId = 2, effectiveDate = LocalDate.of(2026, 10, 1))
+
+                val due = tx.inTransaction { repository.findDueForApplication(now, limit = 1) }
+
+                assertEquals(listOf(first.id), due.map { it.id })
             }
 
         @Test
@@ -256,7 +267,7 @@ class ExposedScheduledChangeRepositoryTest : IntegrationTest() {
                 val workerA =
                     launch {
                         tx.inTransaction {
-                            lockedByA.complete(repository.findDueForApplication(now))
+                            lockedByA.complete(repository.findDueForApplication(now, limit = 10))
                             releaseA.await()
                         }
                     }
@@ -266,9 +277,52 @@ class ExposedScheduledChangeRepositoryTest : IntegrationTest() {
                     val third = register(targetId = 3, effectiveDate = LocalDate.of(2026, 9, 29))
 
                     // 워커 B: A의 잠금을 기다리지 않고, A가 잠근 예약을 건너뛴다.
-                    val dueForB = tx.inTransaction { repository.findDueForApplication(now) }
+                    val dueForB = tx.inTransaction { repository.findDueForApplication(now, limit = 10) }
 
                     assertEquals(listOf(third.id), dueForB.map { it.id })
+                } finally {
+                    releaseA.complete(Unit)
+                    workerA.join()
+                }
+            }
+    }
+
+    @Nested
+    @DisplayName("적용 직전 단건 잠금")
+    inner class PendingByIdForUpdate {
+        @Test
+        fun `대기 중인 예약만 잠가 가져온다`() =
+            runTest {
+                val pending = register(targetId = 1)
+                val processed = register(targetId = 2)
+                tx.inTransaction { repository.save(processed.also { it.apply() }) }
+
+                assertEquals(
+                    pending.id,
+                    tx.inTransaction { repository.findPendingByIdForUpdateSkipLocked(pending.id) }?.id,
+                )
+                assertNull(tx.inTransaction { repository.findPendingByIdForUpdateSkipLocked(processed.id) })
+            }
+
+        @Test
+        fun `다른 트랜잭션이 잠근 예약은 기다리지 않고 건너뛴다`() =
+            runTest {
+                val locked = register(targetId = 1)
+                val lockedByA = CompletableDeferred<Unit>()
+                val releaseA = CompletableDeferred<Unit>()
+
+                val workerA =
+                    launch {
+                        tx.inTransaction {
+                            repository.findPendingByIdForUpdateSkipLocked(locked.id)
+                            lockedByA.complete(Unit)
+                            releaseA.await()
+                        }
+                    }
+                try {
+                    lockedByA.await()
+
+                    assertNull(tx.inTransaction { repository.findPendingByIdForUpdateSkipLocked(locked.id) })
                 } finally {
                     releaseA.complete(Unit)
                     workerA.join()

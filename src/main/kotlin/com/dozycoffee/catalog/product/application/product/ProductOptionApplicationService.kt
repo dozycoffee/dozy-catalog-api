@@ -14,6 +14,7 @@ import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroupRepository
 import com.dozycoffee.catalog.product.domain.optiongroup.OptionKey
 import com.dozycoffee.catalog.product.domain.optiongroup.exception.OptionGroupNotFoundException
+import com.dozycoffee.catalog.product.domain.product.OptionOverride
 import com.dozycoffee.catalog.product.domain.product.Product
 import com.dozycoffee.catalog.product.domain.product.ProductId
 import com.dozycoffee.catalog.product.domain.product.ProductRepository
@@ -74,6 +75,50 @@ class ProductOptionApplicationService(
             product.removeOverride(command.optionGroupId, command.optionKey)
         }
 
+    // 예약 적용(배치) 경로: 연결할 옵션 그룹 목록 전체를 스냅샷대로 맞추고 목록 순서를 노출 순서로 삼는다.
+    // 목록에서 빠진 연결은 그 연결의 예외와 함께 해제된다(요구사항 1.4의 optionGroupLinks 필드).
+    suspend fun replaceOptionGroupLinks(
+        productId: ProductId,
+        optionGroupIds: List<OptionGroupId>,
+    ): Product =
+        changeLocked(productId) { product ->
+            optionGroupIds.forEach { requireOptionGroup(it) }
+            val linkedIds = product.optionGroupLinks.map { it.id }
+            (linkedIds - optionGroupIds.toSet()).forEach { product.unlinkOptionGroup(it) }
+            var nextOrder = (product.optionGroupLinks.maxOfOrNull { it.displayOrder } ?: -1) + 1
+            optionGroupIds.filterNot { it in linkedIds }.forEach { product.linkOptionGroup(it, nextOrder++) }
+            product.reorderOptionGroups(optionGroupIds)
+        }
+
+    // 예약 적용(배치) 경로: 이 옵션 그룹에 대한 이 상품의 예외 전체를 스냅샷으로 교체한다.
+    // 기존 예외를 모두 비운 뒤 스냅샷을 하나씩 지정하므로, 옵션 키 존재 여부와 "선택 가능한 옵션 0개" 검증은
+    // 스냅샷만을 기준으로 이뤄진다. 적용 시점에 옵션 키가 사라졌으면 Product가 거부하고 예약은 실패로 기록된다.
+    suspend fun replaceOptionOverrides(
+        productId: ProductId,
+        optionGroupId: OptionGroupId,
+        overrides: List<OptionOverride>,
+    ): Product =
+        changeLocked(productId) { product ->
+            val groupOptionKeys = optionKeysOf(optionGroupId)
+            val currentOverrideKeys =
+                product.optionGroupLinks
+                    .firstOrNull { it.id == optionGroupId }
+                    ?.overrides
+                    .orEmpty()
+                    .map { it.optionKey }
+                    .toSet()
+            // 연결되지 않은 옵션 그룹이면 여기서 거부된다.
+            product.removeOverrides(optionGroupId, currentOverrideKeys)
+            overrides.forEach { override ->
+                when (override) {
+                    is OptionOverride.Price ->
+                        product.overrideOptionPrice(optionGroupId, groupOptionKeys, override.optionKey, override.price)
+                    is OptionOverride.Exclude ->
+                        product.excludeOption(optionGroupId, groupOptionKeys, override.optionKey)
+                }
+            }
+        }
+
     // 상품별 예외를 반영한 유효 옵션 구성(요구사항 1.9). 연결된 옵션 그룹 전체를 불러와 정책에 넘긴다.
     suspend fun getEffectiveOptions(productId: ProductId): EffectiveOptionConfig =
         transactionRunner.inTransaction {
@@ -91,6 +136,18 @@ class ProductOptionApplicationService(
         transactionRunner.inTransaction {
             val product = productRepository.findById(productId) ?: throw ProductNotFoundException(productId)
             product.checkVersion(version)
+            block(product)
+            productRepository.save(product)
+        }
+
+    // 예약 적용 경로는 버전을 요구하지 않는 대신 행을 잠그고 최신 상태에 적용한다
+    // (배치에는 사람이 보던 화면이 없다, ADR-0013).
+    private suspend fun changeLocked(
+        productId: ProductId,
+        block: suspend (Product) -> Unit,
+    ): Product =
+        transactionRunner.inTransaction {
+            val product = productRepository.findByIdForUpdate(productId) ?: throw ProductNotFoundException(productId)
             block(product)
             productRepository.save(product)
         }

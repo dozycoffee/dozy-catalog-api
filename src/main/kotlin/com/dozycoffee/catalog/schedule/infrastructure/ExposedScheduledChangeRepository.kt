@@ -62,16 +62,30 @@ class ExposedScheduledChangeRepository : ScheduledChangeRepository {
             .map { it.toScheduledChange() }
             .toList()
 
-    override suspend fun findDueForApplication(now: Instant): List<ScheduledChange> =
+    override suspend fun findDueForApplication(
+        now: Instant,
+        limit: Int,
+    ): List<ScheduledChange> =
         ScheduledChangesTable
             .selectAll()
             .where {
                 (ScheduledChangesTable.status eq ScheduleStatus.PENDING) and
                     (ScheduledChangesTable.effectiveAt lessEq now.atOffset(ZoneOffset.UTC))
             }.orderBy(ScheduledChangesTable.effectiveAt to SortOrder.ASC, ScheduledChangesTable.id to SortOrder.ASC)
+            .limit(limit)
             .forUpdate(ForUpdateOption.PostgreSQL.ForUpdate(ForUpdateOption.PostgreSQL.MODE.SKIP_LOCKED))
             .map { it.toScheduledChange() }
             .toList()
+
+    override suspend fun findPendingByIdForUpdateSkipLocked(id: ScheduledChangeId): ScheduledChange? =
+        ScheduledChangesTable
+            .selectAll()
+            .where {
+                (ScheduledChangesTable.id eq id.value) and
+                    (ScheduledChangesTable.status eq ScheduleStatus.PENDING)
+            }.forUpdate(ForUpdateOption.PostgreSQL.ForUpdate(ForUpdateOption.PostgreSQL.MODE.SKIP_LOCKED))
+            .firstOrNull()
+            ?.toScheduledChange()
 
     override suspend fun insert(newScheduledChange: ScheduledChange.NewScheduledChange): ScheduledChange {
         val id =
