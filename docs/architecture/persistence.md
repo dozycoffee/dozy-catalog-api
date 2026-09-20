@@ -32,8 +32,8 @@
 
 ## Exposed 매핑
 
-- `Table` 객체와 row 매핑은 `infrastructure/persistence/<module>/`에 두고, domain 모델과 분리한다([패키지 구조](package-structure.md)).
-- 새 `Table`을 만들면 `infrastructure.persistence.ExposedTables.all`에 등록한다. 그래야 불일치 검사 대상이 된다.
+- `Table` 객체와 row 매핑은 `<모듈>/infrastructure/<애그리거트>/`에 두고, domain 모델과 분리한다([패키지 구조](package-structure.md)).
+- 새 `Table`을 만들면 테스트 소스의 `support.ExposedTables.all`에 등록한다. 그래야 불일치 검사 대상이 된다.
 - `Table` 정의는 마이그레이션과 같은 이름·옵션으로 쓴다. 다르면 `ExposedSchemaConsistencyTest`가 잡는다.
   - 감사 컬럼은 `auditTimestamp("created_at")`로 만든다. 기본값이 마이그레이션과 같은 `now()`로 표현된다(Exposed 기본 `CurrentTimestampWithTimeZone`은 `CURRENT_TIMESTAMP`로 표현되어 불일치로 보인다).
   - 이름을 붙이지 않은 제약(FK, UNIQUE)은 PostgreSQL이 만든 이름(`<테이블>_<컬럼>_fkey`, `<테이블>_<컬럼>_key`)을 그대로 적는다. FK의 삭제 옵션도 마이그레이션과 맞춘다(지정하지 않았으면 `NO_ACTION`).
@@ -54,7 +54,7 @@
 
 ## Repository 구현 규칙
 
-- 파일 배치: `infrastructure/persistence/<module>/`에 `XxxTable.kt`와 `ExposedXxxRepository.kt`를 둔다. 매핑이 길어지면 매퍼 파일을 따로 둔다.
+- 파일 배치: `<모듈>/infrastructure/<애그리거트>/`에 `XxxTable.kt`와 `ExposedXxxRepository.kt`를 둔다. 매핑이 길어지면 매퍼 파일을 따로 둔다.
 - **Repository는 자기 애그리거트 테이블만 다룬다**([ADR-0012](../adr/0012-cross-aggregate-judgment-in-application-policy.md)). 다른 애그리거트의 데이터가 필요하면 application이 그 애그리거트의 Repository나 조회 포트를 호출한다.
 - Repository는 트랜잭션을 열지 않는다. application의 `TransactionRunner.inTransaction` 안에서 호출된다.
 - 잠금 조회는 `findByIdForUpdate`처럼 `…ForUpdate` 이름으로 쓴다(`SELECT … FOR UPDATE`). 잠금은 트랜잭션이 끝날 때 풀리므로 반드시 트랜잭션 안에서 부른다.

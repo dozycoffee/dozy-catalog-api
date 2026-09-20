@@ -70,14 +70,16 @@ pre-commit 훅(`./gradlew addKtlintFormatGitPreCommitHook`으로 설치, [시작
 
 ## 프로젝트 구조
 
-레이어 우선 구조를 사용합니다: 최상위 패키지는 `domain / application / infrastructure / presentation`이고, 그 아래에 애그리거트별 서브패키지(`product`, `optiongroup`, `category`, ...)를 둡니다. domain의 애그리거트끼리는 ID로만 참조하고, 여러 애그리거트를 함께 보는 판단은 application의 정책 클래스에 둡니다. Repository 인터페이스는 domain에, 외부 시스템 포트와 조회 포트는 application에 두고 infrastructure가 구현합니다.
+최상위 패키지는 요구사항의 장 구분을 따르는 도메인 모듈이고, 각 모듈 안에서 `domain / application / infrastructure / presentation` 계층으로 나눕니다. 모듈 간 의존은 단방향(`store → product`, `schedule → product`, `exposure → product, store`)이며, 모듈의 domain은 다른 모듈의 ID만 참조하고 도메인 모델을 읽는 일은 application에서만 합니다.
 
 ```
 com.dozycoffee.catalog
-├── domain/            # 애그리거트, 값 객체, 도메인 이벤트, Repository 인터페이스
-├── application/        # 유스케이스, 여러 애그리거트를 보는 정책, Command/Query, 포트(외부 시스템·조회)
-├── infrastructure/      # Repository·조회 포트 구현(Exposed), 외부 시스템 Client·어댑터(acl/messaging/eventing), 스케줄러, 설정
-└── presentation/        # REST 컨트롤러, 요청/응답 DTO
+├── core/           # 여러 모듈이 쓰는 도메인 타입 (Money, DomainEvent, DomainException …)
+├── common/         # 기술 공통 (트랜잭션, Exposed 설정, 시간, 전역 예외 핸들러)
+├── product/        # 본사가 정의하는 상품 (요구사항 1장)
+├── store/          # 가맹점 진열·판매 가능 여부 (요구사항 2·3장)
+├── schedule/       # 예약 변경 (요구사항 1.4)
+└── exposure/       # 노출 현황 조회 (요구사항 1.10)
 ```
 
 자세한 원칙과 전체 패키지 트리는 [docs/architecture/package-structure.md](docs/architecture/package-structure.md)를 참고하세요.

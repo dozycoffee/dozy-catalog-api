@@ -5,7 +5,7 @@
 도메인 규칙 위반은 `DomainException`을 상속한 애그리거트별 예외 클래스로 던진다. 각 예외는 `errorCode: ErrorCode`를 가지며, 코드 값은 애그리거트별 enum(`<Aggregate>ErrorCode`)으로 해당 애그리거트의 `exception/` 패키지에 둔다. 공통 커널용은 `domain/shared/SharedErrorCode`다.
 
 ```kotlin
-// domain/shared
+// core
 enum class ErrorType { INVALID_INPUT, NOT_FOUND, CONFLICT, BUSINESS_RULE_VIOLATION }
 
 interface ErrorCode {
@@ -19,7 +19,7 @@ abstract class DomainException(
     cause: Throwable? = null,
 ) : RuntimeException(message, cause)
 
-// domain/product/exception
+// product/domain/product/exception
 enum class ProductErrorCode(override val type: ErrorType) : ErrorCode {
     PRODUCT_NOT_DELETABLE(ErrorType.CONFLICT),
     ...;
