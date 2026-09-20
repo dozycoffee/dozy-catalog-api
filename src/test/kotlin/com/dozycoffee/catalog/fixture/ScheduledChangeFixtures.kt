@@ -1,10 +1,10 @@
 package com.dozycoffee.catalog.fixture
 
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduleStatus
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduledChange
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduledChangeId
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduledValue
-import com.dozycoffee.catalog.domain.scheduledchange.TargetKind
+import com.dozycoffee.catalog.schedule.domain.ScheduleStatus
+import com.dozycoffee.catalog.schedule.domain.ScheduledChange
+import com.dozycoffee.catalog.schedule.domain.ScheduledChangeId
+import com.dozycoffee.catalog.schedule.domain.ScheduledValue
+import com.dozycoffee.catalog.schedule.domain.TargetKind
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId

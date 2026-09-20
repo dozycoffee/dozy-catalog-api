@@ -1,9 +1,9 @@
-package com.dozycoffee.catalog.infrastructure.persistence.scheduledchange
+package com.dozycoffee.catalog.schedule.infrastructure
 
 import com.dozycoffee.catalog.common.exposed.auditTimestamp
 import com.dozycoffee.catalog.common.exposed.jsonb
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduleStatus
-import com.dozycoffee.catalog.domain.scheduledchange.TargetKind
+import com.dozycoffee.catalog.schedule.domain.ScheduleStatus
+import com.dozycoffee.catalog.schedule.domain.TargetKind
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList

@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.scheduledchange
+package com.dozycoffee.catalog.schedule.domain
 
 @JvmInline
 value class ScheduledChangeId(

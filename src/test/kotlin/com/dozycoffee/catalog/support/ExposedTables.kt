@@ -10,10 +10,10 @@ import com.dozycoffee.catalog.infrastructure.persistence.product.ProductTagsTabl
 import com.dozycoffee.catalog.infrastructure.persistence.product.ProductTargetStoresTable
 import com.dozycoffee.catalog.infrastructure.persistence.product.ProductsTable
 import com.dozycoffee.catalog.infrastructure.persistence.productgroup.ProductGroupsTable
-import com.dozycoffee.catalog.infrastructure.persistence.scheduledchange.ScheduledChangesTable
 import com.dozycoffee.catalog.infrastructure.persistence.storeavailability.StoreProductAvailabilitiesTable
 import com.dozycoffee.catalog.infrastructure.persistence.storedisplay.StoreDisplaySettingsTable
 import com.dozycoffee.catalog.infrastructure.persistence.tag.TagsTable
+import com.dozycoffee.catalog.schedule.infrastructure.ScheduledChangesTable
 import org.jetbrains.exposed.v1.core.Table
 
 // Flyway 스키마와 일치해야 하는 Exposed Table 목록. 애그리거트별 Repository를 구현하면서 Table 객체를 만들 때마다

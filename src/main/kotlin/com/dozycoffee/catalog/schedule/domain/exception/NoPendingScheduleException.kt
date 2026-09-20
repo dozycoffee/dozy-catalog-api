@@ -1,7 +1,7 @@
-package com.dozycoffee.catalog.domain.scheduledchange.exception
+package com.dozycoffee.catalog.schedule.domain.exception
 
 import com.dozycoffee.catalog.core.DomainException
-import com.dozycoffee.catalog.domain.scheduledchange.TargetKind
+import com.dozycoffee.catalog.schedule.domain.TargetKind
 
 class NoPendingScheduleException(
     targetId: Long,

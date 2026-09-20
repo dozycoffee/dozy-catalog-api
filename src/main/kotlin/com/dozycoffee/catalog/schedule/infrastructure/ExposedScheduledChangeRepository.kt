@@ -1,12 +1,12 @@
-package com.dozycoffee.catalog.infrastructure.persistence.scheduledchange
+package com.dozycoffee.catalog.schedule.infrastructure
 
 import com.dozycoffee.catalog.common.exposed.DbNow
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduleStatus
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduledChange
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduledChangeId
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduledChangeRepository
-import com.dozycoffee.catalog.domain.scheduledchange.TargetKind
-import com.dozycoffee.catalog.domain.scheduledchange.exception.ScheduleAlreadyProcessedException
+import com.dozycoffee.catalog.schedule.domain.ScheduleStatus
+import com.dozycoffee.catalog.schedule.domain.ScheduledChange
+import com.dozycoffee.catalog.schedule.domain.ScheduledChangeId
+import com.dozycoffee.catalog.schedule.domain.ScheduledChangeRepository
+import com.dozycoffee.catalog.schedule.domain.TargetKind
+import com.dozycoffee.catalog.schedule.domain.exception.ScheduleAlreadyProcessedException
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList

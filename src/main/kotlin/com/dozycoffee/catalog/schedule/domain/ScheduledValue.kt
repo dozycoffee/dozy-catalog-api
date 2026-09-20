@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.scheduledchange
+package com.dozycoffee.catalog.schedule.domain
 
 // 예약할 값. 예약 가능한 필드마다 구현 타입이 하나씩 있고, 대상 종류와 필드 이름은 그 타입이 정한다.
 // 값에 다른 애그리거트의 모델(StoreScope, OptionOverride, Option 등)이 들어가므로 구현 타입(sealed 계층)은

@@ -1,6 +1,6 @@
-package com.dozycoffee.catalog.application.scheduledchange
+package com.dozycoffee.catalog.schedule.application
 
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduledValue
+import com.dozycoffee.catalog.schedule.domain.ScheduledValue
 
 // 예약 가능한 필드 전체. 필드마다 값 타입이 하나씩 있고 필드 이름은 타입이 만든다.
 // 배치의 적용과 JSONB 직렬화가 when으로 빠짐없이 처리하므로, 필드를 추가하고 처리를 빠뜨리면 컴파일 에러가 된다.

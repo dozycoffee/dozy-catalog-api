@@ -1,8 +1,5 @@
-package com.dozycoffee.catalog.infrastructure.persistence.scheduledchange
+package com.dozycoffee.catalog.schedule.infrastructure
 
-import com.dozycoffee.catalog.application.scheduledchange.OptionGroupFieldValue
-import com.dozycoffee.catalog.application.scheduledchange.ProductFieldValue
-import com.dozycoffee.catalog.application.scheduledchange.ScheduledFieldValue
 import com.dozycoffee.catalog.common.exposed.JsonbCodec
 import com.dozycoffee.catalog.core.Money
 import com.dozycoffee.catalog.core.StoreId
@@ -13,8 +10,11 @@ import com.dozycoffee.catalog.domain.optiongroup.OptionKey
 import com.dozycoffee.catalog.domain.product.model.OptionOverride
 import com.dozycoffee.catalog.domain.product.model.StoreScope
 import com.dozycoffee.catalog.domain.productgroup.ProductGroupId
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduledValue
 import com.dozycoffee.catalog.domain.tag.TagId
+import com.dozycoffee.catalog.schedule.application.OptionGroupFieldValue
+import com.dozycoffee.catalog.schedule.application.ProductFieldValue
+import com.dozycoffee.catalog.schedule.application.ScheduledFieldValue
+import com.dozycoffee.catalog.schedule.domain.ScheduledValue
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.JsonNodeFactory

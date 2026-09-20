@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.scheduledchange.exception
+package com.dozycoffee.catalog.schedule.domain.exception
 
 import com.dozycoffee.catalog.core.ErrorCode
 import com.dozycoffee.catalog.core.ErrorType

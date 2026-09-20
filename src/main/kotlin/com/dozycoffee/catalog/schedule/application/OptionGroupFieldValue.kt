@@ -1,7 +1,7 @@
-package com.dozycoffee.catalog.application.scheduledchange
+package com.dozycoffee.catalog.schedule.application
 
 import com.dozycoffee.catalog.domain.optiongroup.Option
-import com.dozycoffee.catalog.domain.scheduledchange.TargetKind
+import com.dozycoffee.catalog.schedule.domain.TargetKind
 
 // 옵션 그룹을 대상으로 하는 예약 값. 이름·선택 방식·필수 여부는 즉시 반영만 하므로 예약 대상이 아니다.
 sealed interface OptionGroupFieldValue : ScheduledFieldValue {

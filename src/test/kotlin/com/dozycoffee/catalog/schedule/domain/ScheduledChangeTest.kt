@@ -1,11 +1,11 @@
-package com.dozycoffee.catalog.domain.scheduledchange
+package com.dozycoffee.catalog.schedule.domain
 
-import com.dozycoffee.catalog.domain.scheduledchange.exception.InvalidEffectiveDateException
-import com.dozycoffee.catalog.domain.scheduledchange.exception.InvalidScheduleStatusTransitionException
-import com.dozycoffee.catalog.domain.scheduledchange.exception.NoPendingScheduleException
-import com.dozycoffee.catalog.domain.scheduledchange.exception.ScheduledChangeErrorCode
 import com.dozycoffee.catalog.fixture.TestScheduledValue
 import com.dozycoffee.catalog.fixture.scheduledChange
+import com.dozycoffee.catalog.schedule.domain.exception.InvalidEffectiveDateException
+import com.dozycoffee.catalog.schedule.domain.exception.InvalidScheduleStatusTransitionException
+import com.dozycoffee.catalog.schedule.domain.exception.NoPendingScheduleException
+import com.dozycoffee.catalog.schedule.domain.exception.ScheduledChangeErrorCode
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test

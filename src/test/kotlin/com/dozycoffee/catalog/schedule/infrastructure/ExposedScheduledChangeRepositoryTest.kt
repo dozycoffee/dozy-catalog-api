@@ -1,8 +1,5 @@
-package com.dozycoffee.catalog.infrastructure.persistence.scheduledchange
+package com.dozycoffee.catalog.schedule.infrastructure
 
-import com.dozycoffee.catalog.application.scheduledchange.OptionGroupFieldValue
-import com.dozycoffee.catalog.application.scheduledchange.ProductFieldValue
-import com.dozycoffee.catalog.application.scheduledchange.ScheduledFieldValue
 import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.core.Money
 import com.dozycoffee.catalog.core.StoreId
@@ -13,13 +10,16 @@ import com.dozycoffee.catalog.domain.optiongroup.OptionKey
 import com.dozycoffee.catalog.domain.product.model.OptionOverride
 import com.dozycoffee.catalog.domain.product.model.StoreScope
 import com.dozycoffee.catalog.domain.productgroup.ProductGroupId
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduleStatus
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduledChange
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduledChangeRepository
-import com.dozycoffee.catalog.domain.scheduledchange.ScheduledValue
-import com.dozycoffee.catalog.domain.scheduledchange.TargetKind
-import com.dozycoffee.catalog.domain.scheduledchange.exception.ScheduleAlreadyProcessedException
 import com.dozycoffee.catalog.domain.tag.TagId
+import com.dozycoffee.catalog.schedule.application.OptionGroupFieldValue
+import com.dozycoffee.catalog.schedule.application.ProductFieldValue
+import com.dozycoffee.catalog.schedule.application.ScheduledFieldValue
+import com.dozycoffee.catalog.schedule.domain.ScheduleStatus
+import com.dozycoffee.catalog.schedule.domain.ScheduledChange
+import com.dozycoffee.catalog.schedule.domain.ScheduledChangeRepository
+import com.dozycoffee.catalog.schedule.domain.ScheduledValue
+import com.dozycoffee.catalog.schedule.domain.TargetKind
+import com.dozycoffee.catalog.schedule.domain.exception.ScheduleAlreadyProcessedException
 import com.dozycoffee.catalog.support.IntegrationTest
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
