@@ -1,8 +1,8 @@
 package com.dozycoffee.catalog.fixture
 
-import com.dozycoffee.catalog.domain.category.CategoryId
-import com.dozycoffee.catalog.domain.category.ChildCategory
-import com.dozycoffee.catalog.domain.category.TopLevelCategory
+import com.dozycoffee.catalog.product.domain.category.CategoryId
+import com.dozycoffee.catalog.product.domain.category.ChildCategory
+import com.dozycoffee.catalog.product.domain.category.TopLevelCategory
 
 fun topLevelCategory(
     id: Long = 1,

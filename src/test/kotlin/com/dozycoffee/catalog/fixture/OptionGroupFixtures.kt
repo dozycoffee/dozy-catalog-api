@@ -1,11 +1,11 @@
 package com.dozycoffee.catalog.fixture
 
-import com.dozycoffee.catalog.domain.optiongroup.Option
-import com.dozycoffee.catalog.domain.optiongroup.OptionGroup
-import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
-import com.dozycoffee.catalog.domain.optiongroup.OptionKey
-import com.dozycoffee.catalog.domain.optiongroup.SelectionType
-import com.dozycoffee.catalog.domain.shared.Money
+import com.dozycoffee.catalog.core.Money
+import com.dozycoffee.catalog.product.domain.optiongroup.Option
+import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroup
+import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroupId
+import com.dozycoffee.catalog.product.domain.optiongroup.OptionKey
+import com.dozycoffee.catalog.product.domain.optiongroup.SelectionType
 
 // 옵션 이름은 옵션 키와 같게 둔다.
 fun option(

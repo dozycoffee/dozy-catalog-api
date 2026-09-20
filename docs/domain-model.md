@@ -8,6 +8,7 @@
 
 - **Store(매장)**: 별도의 Store Management BC로 분리한다. Catalog Service는 `storeId`만 참조하며, 매장의 본질적 정보(주소, 영업시간, 계약 등)는 다루지 않는다.
 - **Product**: Catalog Service가 계속 소유한다. 다른 서비스(POS, 정산 등)가 상품 정보를 필요로 하는 경우, Catalog Service가 이벤트를 발행하고 해당 서비스가 구독하는 방식으로 연동한다. Product 자체를 별도 BC로 분리하지 않는다.
+- **모듈 구분**: Catalog BC 안은 요구사항의 장 구분에 따라 `product`(본사 상품 정의), `store`(가맹점 진열·판매 가능 여부), `schedule`(예약 변경), `exposure`(노출 현황 조회) 모듈로 나눈다. 애그리거트는 모듈 안의 패키지이고, 모듈 간 의존은 단방향이다([ADR-0015](adr/0015-domain-modules-as-top-level-packages.md), [패키지 구조](architecture/package-structure.md)).
 - **"어떤 매장이 어떤 상품을 파는가"**: Catalog Service가 소유한다 (`StoreDisplaySetting`, `StoreProductAvailability`). 이는 "상품이 어떻게 판매되는가"에 대한 관심사이지 "매장이라는 개체 자체"에 대한 관심사가 아니므로, Store BC가 아닌 Catalog BC에 속한다.
 
 ```
