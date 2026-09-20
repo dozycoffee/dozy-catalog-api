@@ -14,6 +14,10 @@ management:
 catalog:
   # 업무 기준 시간대. 예약 적용일의 00시를 이 시간대로 해석한다(docs/adr/0010). 서버·JVM·DB 시간대는 UTC로 둔다.
   business-zone: Asia/Seoul
+  exposure:
+    # 전체 매장 목록. 매장의 원본은 Store BC지만 호출 방식이 정해지기 전이라, 노출 현황 조회가
+    # 판매 범위 All인 상품의 판매 가능 매장으로 이 설정값을 쓴다(5단계에서 실제 호출로 교체).
+    store-ids: []
 
 ---
 spring:
