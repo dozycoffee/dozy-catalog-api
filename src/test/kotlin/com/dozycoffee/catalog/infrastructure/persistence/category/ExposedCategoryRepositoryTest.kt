@@ -1,6 +1,6 @@
 package com.dozycoffee.catalog.infrastructure.persistence.category
 
-import com.dozycoffee.catalog.application.shared.TransactionRunner
+import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.domain.category.CategoryRepository
 import com.dozycoffee.catalog.domain.category.ChildCategory
 import com.dozycoffee.catalog.domain.category.TopLevelCategory

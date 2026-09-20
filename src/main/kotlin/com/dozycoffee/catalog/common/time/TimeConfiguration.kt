@@ -1,6 +1,6 @@
-package com.dozycoffee.catalog.infrastructure.config
+package com.dozycoffee.catalog.common.time
 
-import com.dozycoffee.catalog.application.shared.BusinessTimeZone
+import com.dozycoffee.catalog.common.BusinessTimeZone
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean

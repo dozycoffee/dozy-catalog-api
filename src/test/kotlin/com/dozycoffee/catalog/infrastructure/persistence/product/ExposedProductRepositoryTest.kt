@@ -1,6 +1,6 @@
 package com.dozycoffee.catalog.infrastructure.persistence.product
 
-import com.dozycoffee.catalog.application.shared.TransactionRunner
+import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.core.Money
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.core.VersionConflictException

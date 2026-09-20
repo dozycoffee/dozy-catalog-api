@@ -1,9 +1,9 @@
 package com.dozycoffee.catalog.infrastructure.persistence.tag
 
+import com.dozycoffee.catalog.common.exposed.DbNow
 import com.dozycoffee.catalog.domain.tag.Tag
 import com.dozycoffee.catalog.domain.tag.TagId
 import com.dozycoffee.catalog.domain.tag.TagRepository
-import com.dozycoffee.catalog.infrastructure.persistence.DbNow
 import kotlinx.coroutines.flow.firstOrNull
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq

@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.infrastructure.persistence
+package com.dozycoffee.catalog.common.exposed
 
 import io.r2dbc.spi.ConnectionFactory
 import org.jetbrains.exposed.v1.core.vendors.PostgreSQLDialect

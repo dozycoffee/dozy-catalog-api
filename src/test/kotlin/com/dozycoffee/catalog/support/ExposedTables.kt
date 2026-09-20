@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.infrastructure.persistence
+package com.dozycoffee.catalog.support
 
 import com.dozycoffee.catalog.infrastructure.persistence.category.CategoriesTable
 import com.dozycoffee.catalog.infrastructure.persistence.optiongroup.OptionGroupsTable

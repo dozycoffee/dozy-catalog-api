@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.infrastructure.persistence
+package com.dozycoffee.catalog.common.exposed
 
 import com.dozycoffee.catalog.support.IntegrationTest
 import kotlinx.coroutines.reactor.awaitSingle

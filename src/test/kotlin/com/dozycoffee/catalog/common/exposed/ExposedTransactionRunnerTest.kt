@@ -1,6 +1,6 @@
-package com.dozycoffee.catalog.infrastructure.persistence
+package com.dozycoffee.catalog.common.exposed
 
-import com.dozycoffee.catalog.application.shared.TransactionRunner
+import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.support.IntegrationTest
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.core.Table

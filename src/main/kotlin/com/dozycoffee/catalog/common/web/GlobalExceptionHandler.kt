@@ -1,8 +1,8 @@
-package com.dozycoffee.catalog.presentation
+package com.dozycoffee.catalog.common.web
 
+import com.dozycoffee.catalog.common.web.ErrorResponse
 import com.dozycoffee.catalog.core.DomainException
 import com.dozycoffee.catalog.core.ErrorType
-import com.dozycoffee.catalog.presentation.dto.ErrorResponse
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity

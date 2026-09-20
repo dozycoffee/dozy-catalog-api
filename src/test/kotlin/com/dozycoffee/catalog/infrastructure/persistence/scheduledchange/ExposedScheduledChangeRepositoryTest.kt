@@ -3,7 +3,7 @@ package com.dozycoffee.catalog.infrastructure.persistence.scheduledchange
 import com.dozycoffee.catalog.application.scheduledchange.OptionGroupFieldValue
 import com.dozycoffee.catalog.application.scheduledchange.ProductFieldValue
 import com.dozycoffee.catalog.application.scheduledchange.ScheduledFieldValue
-import com.dozycoffee.catalog.application.shared.TransactionRunner
+import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.core.Money
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.domain.category.CategoryId

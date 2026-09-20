@@ -1,6 +1,6 @@
 package com.dozycoffee.catalog.infrastructure.persistence.tag
 
-import com.dozycoffee.catalog.application.shared.TransactionRunner
+import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.domain.tag.TagRepository
 import com.dozycoffee.catalog.support.IntegrationTest
 import kotlinx.coroutines.Dispatchers

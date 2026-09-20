@@ -1,6 +1,6 @@
-package com.dozycoffee.catalog.infrastructure.config
+package com.dozycoffee.catalog.common.time
 
-import com.dozycoffee.catalog.application.shared.BusinessTimeZone
+import com.dozycoffee.catalog.common.BusinessTimeZone
 import com.dozycoffee.catalog.support.IntegrationTest
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test

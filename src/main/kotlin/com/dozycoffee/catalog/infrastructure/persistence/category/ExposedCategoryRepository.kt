@@ -1,11 +1,11 @@
 package com.dozycoffee.catalog.infrastructure.persistence.category
 
+import com.dozycoffee.catalog.common.exposed.DbNow
 import com.dozycoffee.catalog.domain.category.Category
 import com.dozycoffee.catalog.domain.category.CategoryId
 import com.dozycoffee.catalog.domain.category.CategoryRepository
 import com.dozycoffee.catalog.domain.category.ChildCategory
 import com.dozycoffee.catalog.domain.category.TopLevelCategory
-import com.dozycoffee.catalog.infrastructure.persistence.DbNow
 import kotlinx.coroutines.flow.firstOrNull
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and

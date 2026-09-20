@@ -1,9 +1,9 @@
 package com.dozycoffee.catalog.infrastructure.persistence.productgroup
 
+import com.dozycoffee.catalog.common.exposed.DbNow
 import com.dozycoffee.catalog.domain.productgroup.ProductGroup
 import com.dozycoffee.catalog.domain.productgroup.ProductGroupId
 import com.dozycoffee.catalog.domain.productgroup.ProductGroupRepository
-import com.dozycoffee.catalog.infrastructure.persistence.DbNow
 import kotlinx.coroutines.flow.firstOrNull
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq

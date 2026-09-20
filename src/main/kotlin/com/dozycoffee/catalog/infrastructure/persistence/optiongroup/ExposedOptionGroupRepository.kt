@@ -1,5 +1,6 @@
 package com.dozycoffee.catalog.infrastructure.persistence.optiongroup
 
+import com.dozycoffee.catalog.common.exposed.DbNow
 import com.dozycoffee.catalog.core.Money
 import com.dozycoffee.catalog.core.VersionConflictException
 import com.dozycoffee.catalog.domain.optiongroup.Option
@@ -8,7 +9,6 @@ import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupRepository
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
 import com.dozycoffee.catalog.domain.optiongroup.SelectionType
-import com.dozycoffee.catalog.infrastructure.persistence.DbNow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList

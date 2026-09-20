@@ -1,6 +1,6 @@
 package com.dozycoffee.catalog.infrastructure.persistence.product
 
-import com.dozycoffee.catalog.infrastructure.persistence.auditTimestamp
+import com.dozycoffee.catalog.common.exposed.auditTimestamp
 import org.jetbrains.exposed.v1.core.Table
 
 // 판매 범위가 LIMITED일 때의 대상 매장. store_id는 Store BC 참조라 FK가 없다.

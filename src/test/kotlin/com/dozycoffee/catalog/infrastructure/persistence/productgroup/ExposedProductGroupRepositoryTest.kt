@@ -1,6 +1,6 @@
 package com.dozycoffee.catalog.infrastructure.persistence.productgroup
 
-import com.dozycoffee.catalog.application.shared.TransactionRunner
+import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.domain.productgroup.ProductGroupRepository
 import com.dozycoffee.catalog.support.IntegrationTest
 import kotlinx.coroutines.test.runTest

@@ -1,12 +1,12 @@
 package com.dozycoffee.catalog.infrastructure.persistence.storeavailability
 
+import com.dozycoffee.catalog.common.exposed.DbNow
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.domain.product.model.ProductId
 import com.dozycoffee.catalog.domain.storeavailability.AvailabilitySource
 import com.dozycoffee.catalog.domain.storeavailability.StoreProductAvailability
 import com.dozycoffee.catalog.domain.storeavailability.StoreProductAvailabilityId
 import com.dozycoffee.catalog.domain.storeavailability.StoreProductAvailabilityRepository
-import com.dozycoffee.catalog.infrastructure.persistence.DbNow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList

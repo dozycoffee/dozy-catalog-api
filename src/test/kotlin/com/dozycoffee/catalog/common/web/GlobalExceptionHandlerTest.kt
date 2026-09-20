@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.presentation
+package com.dozycoffee.catalog.common.web
 
 import com.dozycoffee.catalog.core.DomainException
 import com.dozycoffee.catalog.core.ErrorCode

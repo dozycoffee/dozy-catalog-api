@@ -1,6 +1,6 @@
 package com.dozycoffee.catalog.infrastructure.persistence.product
 
-import com.dozycoffee.catalog.infrastructure.persistence.auditTimestamp
+import com.dozycoffee.catalog.common.exposed.auditTimestamp
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.and

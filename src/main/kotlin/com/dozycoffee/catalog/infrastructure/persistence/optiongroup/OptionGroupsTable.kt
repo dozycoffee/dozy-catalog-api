@@ -1,6 +1,6 @@
 package com.dozycoffee.catalog.infrastructure.persistence.optiongroup
 
-import com.dozycoffee.catalog.infrastructure.persistence.auditTimestamp
+import com.dozycoffee.catalog.common.exposed.auditTimestamp
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.inList
 

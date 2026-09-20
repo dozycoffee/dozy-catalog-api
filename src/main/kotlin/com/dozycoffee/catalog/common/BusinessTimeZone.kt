@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.application.shared
+package com.dozycoffee.catalog.common
 
 import java.time.ZoneId
 

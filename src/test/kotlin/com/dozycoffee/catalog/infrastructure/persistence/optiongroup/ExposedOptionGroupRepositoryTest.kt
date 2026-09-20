@@ -1,6 +1,6 @@
 package com.dozycoffee.catalog.infrastructure.persistence.optiongroup
 
-import com.dozycoffee.catalog.application.shared.TransactionRunner
+import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.core.VersionConflictException
 import com.dozycoffee.catalog.domain.optiongroup.Option
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroup

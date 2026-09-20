@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.infrastructure.persistence.storedisplay
 
+import com.dozycoffee.catalog.common.exposed.auditTimestamp
 import com.dozycoffee.catalog.domain.storedisplay.model.Visibility
-import com.dozycoffee.catalog.infrastructure.persistence.auditTimestamp
 import com.dozycoffee.catalog.infrastructure.persistence.product.ProductsTable
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.Table

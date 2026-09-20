@@ -1,5 +1,6 @@
 package com.dozycoffee.catalog.infrastructure.persistence.product
 
+import com.dozycoffee.catalog.common.exposed.DbNow
 import com.dozycoffee.catalog.core.Money
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.core.VersionConflictException
@@ -16,7 +17,6 @@ import com.dozycoffee.catalog.domain.product.model.Sku
 import com.dozycoffee.catalog.domain.product.model.StoreScope
 import com.dozycoffee.catalog.domain.productgroup.ProductGroupId
 import com.dozycoffee.catalog.domain.tag.TagId
-import com.dozycoffee.catalog.infrastructure.persistence.DbNow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.toList
 import org.jetbrains.exposed.v1.core.Op

@@ -1,11 +1,11 @@
 package com.dozycoffee.catalog.infrastructure.persistence.storedisplay
 
+import com.dozycoffee.catalog.common.exposed.DbNow
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.domain.product.model.ProductId
 import com.dozycoffee.catalog.domain.storedisplay.StoreDisplaySettingRepository
 import com.dozycoffee.catalog.domain.storedisplay.model.StoreDisplaySetting
 import com.dozycoffee.catalog.domain.storedisplay.model.StoreDisplaySettingId
-import com.dozycoffee.catalog.infrastructure.persistence.DbNow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.single

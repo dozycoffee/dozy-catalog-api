@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.infrastructure.persistence.product
 
+import com.dozycoffee.catalog.common.exposed.auditTimestamp
 import com.dozycoffee.catalog.domain.product.model.ProductStatus
-import com.dozycoffee.catalog.infrastructure.persistence.auditTimestamp
 import com.dozycoffee.catalog.infrastructure.persistence.category.CategoriesTable
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.Table
