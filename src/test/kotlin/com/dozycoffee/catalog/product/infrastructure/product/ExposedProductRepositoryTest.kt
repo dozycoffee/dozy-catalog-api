@@ -442,6 +442,49 @@ class ExposedProductRepositoryTest : IntegrationTest() {
     }
 
     @Nested
+    @DisplayName("매장에서 판매 가능한 상품 조회")
+    inner class FindAllSellableAt {
+        @Test
+        fun `Active이고 판매 범위에 든 상품만 상품 id 순으로 가져온다`() =
+            runTest {
+                val active = insert(newProduct(name = "아메리카노"))
+                update(active.id) { it.activate() }
+                insert(newProduct(name = "신메뉴")) // DRAFT
+                val discontinued = insert(newProduct(name = "단종 예정"))
+                update(discontinued.id) {
+                    it.activate()
+                    it.discontinue()
+                }
+                val limited = insert(newProduct(name = "강남 한정"))
+                update(limited.id) {
+                    it.activate()
+                    it.changeStoreScope(StoreScope.Limited(setOf(GANGNAM)))
+                }
+
+                assertEquals(
+                    listOf(active.id, limited.id),
+                    tx.inTransaction { repository.findAllSellableAt(GANGNAM) }.map { it.id },
+                )
+                assertEquals(
+                    listOf(active.id),
+                    tx.inTransaction { repository.findAllSellableAt(HONGDAE) }.map { it.id },
+                )
+            }
+
+        @Test
+        fun `대상 매장이 비어 있는 한정 판매 상품은 어느 매장에서도 나오지 않는다`() =
+            runTest {
+                val limited = insert(newProduct(name = "미배정 상품"))
+                update(limited.id) {
+                    it.activate()
+                    it.changeStoreScope(StoreScope.Limited(emptySet()))
+                }
+
+                assertEquals(emptyList(), tx.inTransaction { repository.findAllSellableAt(GANGNAM) })
+            }
+    }
+
+    @Nested
     @DisplayName("참조 여부 조회")
     inner class Exists {
         @Test
@@ -512,6 +555,8 @@ class ExposedProductRepositoryTest : IntegrationTest() {
     private companion object {
         const val COFFEE = 2L
         const val TEA = 3L
+        val GANGNAM = StoreId(10)
+        val HONGDAE = StoreId(20)
         val SIZE = OptionGroupId(1)
         val SHOT = OptionGroupId(2)
         val TEMPERATURE = OptionGroupId(3)
