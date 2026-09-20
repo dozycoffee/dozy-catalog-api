@@ -3,7 +3,9 @@ package com.dozycoffee.catalog.store.application.policy
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.product.domain.product.Product
 import com.dozycoffee.catalog.product.domain.product.ProductStatus
+import com.dozycoffee.catalog.product.domain.product.StoreScope
 import com.dozycoffee.catalog.store.domain.availability.AvailabilitySource
+import com.dozycoffee.catalog.store.domain.availability.StockStatus
 import com.dozycoffee.catalog.store.domain.availability.StoreProductAvailability
 import com.dozycoffee.catalog.store.domain.display.StoreDisplaySetting
 import com.dozycoffee.catalog.store.domain.display.Visibility
@@ -20,19 +22,37 @@ object ProductVisibilityPolicy {
         storeId: StoreId,
         displaySetting: StoreDisplaySetting?,
         availability: StoreProductAvailability?,
+    ): StoreVisibility =
+        resolve(
+            status = product.status,
+            storeScope = product.storeScope,
+            tracksInventory = product.tracksInventory,
+            storeId = storeId,
+            visibility = displaySetting?.visibility,
+            stockStatus = availability?.stockStatus,
+        )
+
+    // 애그리거트 대신 판단에 쓰이는 값만 받는 경로. 상품 하나가 아니라 매장 전체를 한꺼번에 보는
+    // 조회 전용 모듈(exposure)은 애그리거트를 통째로 불러오지 않는데, 그렇다고 같은 판단을 다시 구현하면
+    // 두 경로가 어긋난다. 판단은 여기 한 곳에만 둔다.
+    // visibility가 null이면 진열 설정이, stockStatus가 null이면 판매 가능 여부가 없다는 뜻이다.
+    fun resolve(
+        status: ProductStatus,
+        storeScope: StoreScope,
+        tracksInventory: Boolean,
+        storeId: StoreId,
+        visibility: Visibility?,
+        stockStatus: StockStatus?,
     ): StoreVisibility {
-        if (product.status != ProductStatus.ACTIVE) {
+        if (status != ProductStatus.ACTIVE) {
             return StoreVisibility.NotVisible
         }
-        if (!product.storeScope.covers(storeId)) {
+        if (!storeScope.covers(storeId)) {
             return StoreVisibility.NotVisible
         }
-        if (displaySetting?.visibility == Visibility.HIDDEN) {
+        if (visibility == Visibility.HIDDEN) {
             return StoreVisibility.NotVisible
         }
-        val stockStatus =
-            availability?.stockStatus
-                ?: AvailabilitySource.of(product.tracksInventory).defaultStockStatus
-        return StoreVisibility.Visible(stockStatus)
+        return StoreVisibility.Visible(stockStatus ?: AvailabilitySource.of(tracksInventory).defaultStockStatus)
     }
 }
