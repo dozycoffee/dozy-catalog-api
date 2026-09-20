@@ -1,7 +1,10 @@
 package com.dozycoffee.catalog.product.application.product
 
 import com.dozycoffee.catalog.common.TransactionRunner
+import com.dozycoffee.catalog.common.event.DomainEventDispatcher
 import com.dozycoffee.catalog.product.application.port.ProductEventPublisherPort
+import com.dozycoffee.catalog.product.application.port.ValidateStoreExistsPort
+import com.dozycoffee.catalog.product.application.product.command.ChangeStoreScopeCommand
 import com.dozycoffee.catalog.product.application.product.command.RegisterProductCommand
 import com.dozycoffee.catalog.product.application.product.command.ReplaceProductCommand
 import com.dozycoffee.catalog.product.domain.category.CategoryId
@@ -14,7 +17,9 @@ import com.dozycoffee.catalog.product.domain.optiongroup.exception.OptionGroupNo
 import com.dozycoffee.catalog.product.domain.product.Product
 import com.dozycoffee.catalog.product.domain.product.ProductId
 import com.dozycoffee.catalog.product.domain.product.ProductRepository
+import com.dozycoffee.catalog.product.domain.product.StoreScope
 import com.dozycoffee.catalog.product.domain.product.exception.ProductNotFoundException
+import com.dozycoffee.catalog.product.domain.product.exception.TargetStoreNotFoundException
 import com.dozycoffee.catalog.product.domain.productgroup.ProductGroupId
 import com.dozycoffee.catalog.product.domain.productgroup.ProductGroupRepository
 import com.dozycoffee.catalog.product.domain.productgroup.exception.ProductGroupNotFoundException
@@ -34,6 +39,8 @@ class ProductApplicationService(
     private val optionGroupRepository: OptionGroupRepository,
     private val skuGenerator: SkuGenerator,
     private val eventPublisher: ProductEventPublisherPort,
+    private val eventDispatcher: DomainEventDispatcher,
+    private val validateStoreExists: ValidateStoreExistsPort,
     private val transactionRunner: TransactionRunner,
 ) {
     suspend fun register(command: RegisterProductCommand): Product =
@@ -76,6 +83,23 @@ class ProductApplicationService(
             productRepository.save(product)
         }
 
+    // 판매 범위 변경(요구사항 1.5, 시나리오 S4). Limited면 대상 매장이 모두 존재하는지 Store BC에 확인하고,
+    // 하나라도 없으면 아무것도 바꾸지 않고 거부한다. 대상에서 빠진 매장의 설정 정리는 store 모듈이
+    // ProductStoreScopeChanged를 구독해 같은 트랜잭션에서 처리한다 — product은 store를 부르지 않는다(ADR-0015).
+    suspend fun changeStoreScope(command: ChangeStoreScopeCommand): Product =
+        transactionRunner.inTransaction {
+            val product =
+                productRepository.findByIdForUpdate(command.productId)
+                    ?: throw ProductNotFoundException(command.productId)
+            product.checkVersion(command.version)
+            requireTargetStoresExist(command.scope)
+
+            product.changeStoreScope(command.scope)
+            val saved = productRepository.save(product)
+            eventDispatcher.dispatch(saved.pullDomainEvents())
+            saved
+        }
+
     // 상태 전이는 행을 잠근 채 확인하고 바꾼다. 동시에 두 요청이 들어와도 한 번만 전이된다.
     suspend fun activate(productId: ProductId): Product = changeStatus(productId) { it.activate() }
 
@@ -113,6 +137,16 @@ class ProductApplicationService(
 
     // 같은 이름의 태그가 있으면 재사용하고 없으면 만든다(요구사항 1.7).
     private suspend fun resolveTags(tagNames: List<String>): Set<TagId> = tagNames.map { tagRepository.findOrCreateByName(it).id }.toSet()
+
+    // 대상 매장을 비운 Limited도 허용하므로(요구사항 1.5) 확인할 매장이 없으면 그대로 통과한다.
+    private suspend fun requireTargetStoresExist(scope: StoreScope) {
+        val targetStoreIds = (scope as? StoreScope.Limited)?.targetStoreIds.orEmpty()
+        if (targetStoreIds.isEmpty()) return
+        val missing = validateStoreExists.findMissing(targetStoreIds)
+        if (missing.isNotEmpty()) {
+            throw TargetStoreNotFoundException(missing)
+        }
+    }
 
     private suspend fun requireGroupsExist(groupIds: Set<ProductGroupId>) {
         groupIds.forEach { groupId ->
