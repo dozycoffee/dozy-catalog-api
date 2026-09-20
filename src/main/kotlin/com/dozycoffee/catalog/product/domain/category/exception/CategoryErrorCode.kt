@@ -6,6 +6,8 @@ import com.dozycoffee.catalog.core.ErrorType
 enum class CategoryErrorCode(
     override val type: ErrorType,
 ) : ErrorCode {
+    CATEGORY_NOT_FOUND(ErrorType.NOT_FOUND),
+    TOP_LEVEL_CATEGORY_NOT_FOUND(ErrorType.NOT_FOUND),
     CATEGORY_HAS_CHILDREN(ErrorType.CONFLICT),
     CATEGORY_STILL_REFERENCED(ErrorType.CONFLICT),
     INVALID_PARENT_CATEGORY(ErrorType.INVALID_INPUT),
