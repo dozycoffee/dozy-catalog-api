@@ -11,14 +11,24 @@
 | domain 단위 | JUnit 5 + `kotlin.test` | 애그리거트 불변식과 상태 전이. 저장소·Spring 없이 객체만 만든다 | 정해짐 |
 | application 정책 단위 | JUnit 5 + `kotlin.test` | 여러 애그리거트를 함께 보는 판단(`application/<module>/policy`, [ADR-0012](../adr/0012-cross-aggregate-judgment-in-application-policy.md)). 정책은 I/O가 없으므로 domain 단위와 같이 객체만 만든다 | 정해짐 |
 | persistence 통합 | Testcontainers(PostgreSQL), `IntegrationTest` 상속 | 마이그레이션 적용, Exposed Table 정의와 스키마 일치, Repository 매핑, CHECK·부분 UNIQUE 등 DB 제약, 트랜잭션, 동시성 처리([ERD](../erd.md#동시성-처리)) | 정해짐 (아래 통합 테스트 기반) |
-| application 서비스 | 미정 (가짜 저장소 또는 Testcontainers) | 조회·잠금·저장 오케스트레이션, 도메인 이벤트 발행, 외부 포트 호출 | 미정 |
+| application 서비스(유스케이스) | Testcontainers(PostgreSQL), `ApplicationTest` 상속 | 조회·잠금·저장 오케스트레이션, 도메인 이벤트 처리, 외부 포트 호출, 거부 시 DB 상태 불변 | 정해짐 |
 | API 슬라이스 | `spring-boot-starter-webflux-test`, `spring-boot-starter-security-test` | 요청·응답 형식, `ErrorType`별 HTTP 상태([예외 구조](exception.md)), 인가 | 해당 작업 때 정함 |
 
-여러 애그리거트와 외부 시스템이 얽히는 흐름의 통합 테스트는 [시나리오](../scenarios.md)의 S1~S7을 기준으로 쓴다. 시나리오의 기본·대체·예외 흐름이 테스트 케이스가 된다.
+**유스케이스 테스트에 가짜 저장소를 쓰지 않는다.** 이 계층에서 틀리기 쉬운 것이 잠금 순서, 조건부 upsert, 트랜잭션 롤백, 상태 조건 저장인데 가짜 저장소는 이를 전부 통과시킨다. 실제 Repository와 DB로 검증한다.
+
+### 시나리오를 테스트로 옮기는 방법
+
+[시나리오](../scenarios.md) S1~S7이 테스트의 기준이다. 두 가지로 나눠 쓴다.
+
+- **유스케이스 테스트**: 서비스 메서드 하나를 검증한다. 시나리오의 각 단계와 예외 흐름이 테스트 메서드가 되고, `@Nested`로 "S4 기본 흐름" / "S4 예외 흐름"처럼 묶는다. 수가 많고 규칙을 촘촘히 덮는다.
+- **시나리오 테스트**: 여러 유스케이스에 걸친 흐름(S1, S3, S5, S7)을 한 테스트가 순서대로 밟는다. 이어 붙였을 때 동작하는지를 본다. 수는 적다.
+- 클래스 `@DisplayName`에 시나리오 번호를 남긴다. 시나리오 문서가 바뀔 때 고칠 테스트를 찾을 수 있어야 한다.
 
 ## 통합 테스트 기반
 
-- 영속성 통합 테스트는 `src/test/.../support/IntegrationTest`를 상속한다(`@SpringBootTest`).
+- 영속성 통합 테스트는 `src/test/.../support/IntegrationTest`를 상속한다(`@SpringBootTest`). 유스케이스 테스트는 그 하위인 `ApplicationTest`를 상속한다.
+- `ApplicationTest`는 결과 확인용 `tx { … }`를 준다. 유스케이스는 스스로 트랜잭션을 열지만, 테스트가 Repository를 직접 불러 상태를 확인할 때는 트랜잭션이 필요하다.
+- `IntegrationTest`에는 `integration` 태그가 붙는다. `./gradlew unitTest`는 이 태그를 빼고 돌려 Docker 없이 도메인·정책 테스트만 빠르게 확인한다. `./gradlew test`(그리고 CI의 `build`)는 전체를 돌린다.
 - PostgreSQL 컨테이너는 JVM 전체에서 하나만 띄워 공유한다. `@ServiceConnection`이 R2DBC와 JDBC(Flyway) 연결 정보를 함께 만들므로 설정 파일에 접속 정보를 두지 않는다.
 - 스키마는 실제 앱과 같이 Flyway가 만든다.
 - **데이터 정리**: 테스트마다 `flyway_schema_history`를 뺀 모든 테이블을 `TRUNCATE … RESTART IDENTITY CASCADE`로 비운다. R2DBC는 테스트 트랜잭션 롤백이 어렵기 때문이다. 그래서 테스트는 다른 테스트가 남긴 데이터에 기대지 않는다.
@@ -43,9 +53,6 @@
 4. ID와 값은 고정값을 쓴다. 랜덤 데이터는 쓰지 않는다.
 5. 이름 있는 시나리오 픽스처(예: "옵션 두 개짜리 사이즈 그룹")는 여러 테스트에서 3회 이상 반복되는 상황에만 만든다.
 
-## 미정 사항
+## 픽스처 밖의 준비 데이터
 
-| 항목 | 내용 |
-|---|---|
-| application 테스트의 저장소 | 가짜(in-memory) 저장소를 쓸지 Testcontainers로 실제 DB를 쓸지. application 계층 구현 때 정한다 |
-| 단위·통합 테스트 분리 | JUnit 태그 등으로 단위와 통합 테스트를 나눠 실행할지, CI에서 통합 테스트 시간을 어떻게 관리할지 |
+유스케이스 테스트에서 검증 대상이 아닌 테이블(예: 카테고리 테스트의 상품)은 `execute(sql)`로 직접 넣는다. 다른 유스케이스를 거쳐 준비하면 그 유스케이스가 깨질 때 관계없는 테스트가 함께 실패한다.

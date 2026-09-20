@@ -242,10 +242,9 @@ stateDiagram-v2
 | `ProductActivated` | `Product.activate()` (최초 활성화·재활성화) | productId | 외부 서비스(POS 등)에 상품 판매 개시 전파 |
 | `ProductDiscontinued` | `Product.discontinue()` | productId | 외부 서비스에 판매 중단 전파 |
 | `ProductStoreScopeChanged` | `Product.changeStoreScope()` | productId, newScope | `StoreScopeCleanupPolicy`로 대상에서 빠진 매장의 진열 설정과 `OWNER` 판매 가능 여부를 골라 삭제 (재포함되어도 복원하지 않음, `INVENTORY`는 유지) |
-| `TagDeleted` | `Tag.delete()` | tagId | 이 태그를 참조하던 모든 상품에서 태그 제거 |
-| `ProductGroupDeleted` | `ProductGroup.delete()` | groupId | 이 그룹을 참조하던 모든 상품에서 참조 제거 |
 
-- 이벤트는 애그리거트가 `registerEvent()`로 쌓아 두고, 저장 후 application이 꺼내 발행한다.
+- 이벤트는 애그리거트가 `registerEvent()`로 쌓아 두고, 저장 후 application이 꺼내 같은 트랜잭션에서 동기로 처리한다([패키지 구조](architecture/package-structure.md#유스케이스-작성-관례)).
+- 태그·상품 그룹 삭제 시 참조하던 상품에서 자동으로 빠지는 것(요구사항 1.7, 1.8)은 이벤트가 아니라 연결 테이블의 FK CASCADE로 지킨다. 이벤트를 두면 DB가 이미 하는 일을 한 번 더 하게 된다.
 - `ProductStoreScopeChanged`가 "제외된 매장 목록" 대신 새 판매 범위만 담는 이유: domain은 전체 매장 목록을 모르므로 어떤 매장이 빠졌는지 계산할 수 없다.
 
 ### 외부에서 받는 이벤트

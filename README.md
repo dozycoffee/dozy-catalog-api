@@ -41,6 +41,12 @@ cp .env.example .env
 ./gradlew test
 ```
 
+Docker 없이 도메인·정책 테스트만 빠르게 돌리려면 다음을 씁니다.
+
+```bash
+./gradlew unitTest
+```
+
 영속성 코드를 다루는 테스트는 Testcontainers로 PostgreSQL 컨테이너를 직접 띄워 검증합니다 (`compose.yaml`과는 무관하게 동작).
 
 계층별 테스트 전략, 작성 관례, 공용 픽스처는 [docs/architecture/testing.md](docs/architecture/testing.md)를 참고하세요.
