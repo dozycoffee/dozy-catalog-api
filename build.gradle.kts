@@ -93,3 +93,16 @@ tasks.withType<Test> {
     // 코드는 시스템 기본 시간대에 의존하지 않는다(docs/adr/0010). 개발 PC(KST)와 CI(UTC)에서 결과가 같도록 고정한다.
     systemProperty("user.timezone", "UTC")
 }
+
+// Docker(Testcontainers) 없이 빠르게 돌리는 단위 테스트. IntegrationTest를 상속한 테스트는 integration 태그가 붙는다.
+// 전체는 ./gradlew test로 돌린다(CI도 build로 전체를 돌린다).
+tasks.register<Test>("unitTest") {
+    description = "통합 태그가 없는 테스트만 실행한다 (Docker 불필요)"
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    testClassesDirs =
+        sourceSets.test
+            .get()
+            .output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform { excludeTags("integration") }
+}

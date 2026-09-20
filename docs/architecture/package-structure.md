@@ -32,6 +32,16 @@ base package: `com.dozycoffee.catalog`
 - **다른 모듈의 애그리거트는 읽기만 한다.** 바꿔야 하면 그 모듈의 유스케이스를 호출하거나 이벤트를 발행한다. 예약 적용 배치는 `Product`를 직접 조작하지 않고 `product` 모듈의 유스케이스를 호출하고, 판매 범위 변경으로 매장 설정을 지우는 일은 `product`이 이벤트를 발행하고 `store`가 구독한다. 그래야 잠금·검증·이벤트 발행이 한곳에 남고 의존 방향이 유지된다.
 - **모듈 안에서도 애그리거트끼리는 ID로만 참조한다.** 여러 애그리거트를 함께 보는 판단은 그 모듈의 `application/policy`에 I/O 없는 순수 클래스로 둔다([ADR-0012](../adr/0012-cross-aggregate-judgment-in-application-policy.md)).
 
+## 유스케이스 작성 관례
+
+- 유스케이스 서비스는 `<모듈>/application/<애그리거트>/`에 `<Aggregate>ApplicationService`로 두고, 입력 Command는 그 아래 `command/`에 클래스 하나당 한 파일로 둔다.
+- **Command는 도메인 타입으로 담는다.** 문자열·정수 ID를 그대로 넘기지 않고 `CategoryId`, `Money` 같은 타입으로 바꿔 담는다. 변환은 presentation 경계에서 한다.
+- 필드가 둘 이상인 입력만 Command로 만든다. 식별자 하나만 받는 유스케이스(삭제, 단건 조회)는 파라미터로 받는다.
+- 서비스가 `TransactionRunner.inTransaction { … }`으로 유스케이스의 트랜잭션 경계를 연다. Repository는 그 안에서 호출된다([ADR-0011](../adr/0011-transaction-boundary-with-transaction-runner.md)).
+- 조회가 필요한 규칙(하위 카테고리 존재, 참조 상품 존재 등)은 서비스가 확인해 도메인 메서드에 값으로 넘긴다. 판단 자체가 여러 애그리거트를 보면 `application/policy`의 정책 클래스에 둔다([ADR-0012](../adr/0012-cross-aggregate-judgment-in-application-policy.md)).
+- 대상이 없으면 애그리거트별 `XxxNotFoundException`(`NOT_FOUND`, 404)으로 거부한다.
+- **도메인 이벤트는 저장 후 `pullDomainEvents()`로 꺼내 같은 트랜잭션에서 동기로 처리한다.** 중간 상태를 만들지 않고, 핸들러가 실패하면 원래 변경도 함께 롤백된다. 규모가 커지거나 다른 BC로 나가는 전파가 생기면 비동기로 바꾼다(전환 조건은 [미정 사항](README.md#미정-사항)).
+
 ## 인터페이스와 구현 배치
 
 | 종류 | 인터페이스 위치 | 구현 | 구현이 쓰는 것 |
@@ -84,7 +94,8 @@ com.dozycoffee.catalog
 │   │   └── productgroup/                  # ProductGroup, ProductGroupId, Repository + event/
 │   ├── application/
 │   │   ├── policy/                        # EffectiveOptionResolver, EffectiveOptionConfig, OptionReplacementPolicy
-│   │   ├── command/                       # (3단계)
+│   │   ├── category/ tag/ productgroup/   # 애그리거트별 유스케이스 서비스 + command/
+│   │   ├── product/ optiongroup/          # (3단계)
 │   │   └── port/                          # ValidateStoreExistsPort, ProductEventPublisherPort (3단계)
 │   ├── infrastructure/                    # 애그리거트별 Exposed Table + Repository 구현
 │   │   ├── product/ optiongroup/ category/ tag/ productgroup/
