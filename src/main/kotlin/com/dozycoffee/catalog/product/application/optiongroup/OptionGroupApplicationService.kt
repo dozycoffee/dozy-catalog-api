@@ -5,6 +5,7 @@ import com.dozycoffee.catalog.product.application.optiongroup.command.ChangeOpti
 import com.dozycoffee.catalog.product.application.optiongroup.command.RegisterOptionGroupCommand
 import com.dozycoffee.catalog.product.application.optiongroup.command.ReplaceOptionsCommand
 import com.dozycoffee.catalog.product.application.policy.OptionReplacementPolicy
+import com.dozycoffee.catalog.product.domain.optiongroup.Option
 import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroup
 import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroupRepository
@@ -51,15 +52,31 @@ class OptionGroupApplicationService(
     // 검증과 교체 사이에 다른 변경이 끼어들지 않도록 옵션 그룹을 먼저 잠그고, 연결 상품을 상태와
     // 무관하게 모두(id 순서로) 잠근 뒤 한 트랜잭션에서 옵션 그룹과 상품을 함께 저장한다(ADR-0012).
     suspend fun replaceOptions(command: ReplaceOptionsCommand): OptionGroup =
+        replaceOptionsLocked(command.optionGroupId, command.options) { it.checkVersion(command.version) }
+
+    // 예약 적용(배치) 경로: 등록 시점의 옵션 목록 스냅샷으로 교체한다(요구사항 1.9).
+    // 검증(연결 상품의 선택 가능 옵션이 1개 이상 남는지)은 적용 시점에 다시 이뤄지고,
+    // 실패하면 예약만 실패로 기록되고 옵션 그룹은 그대로다.
+    // 배치에는 사람이 보던 화면이 없으므로 버전을 확인하지 않는다(ADR-0013).
+    suspend fun replaceOptions(
+        optionGroupId: OptionGroupId,
+        options: List<Option>,
+    ): OptionGroup = replaceOptionsLocked(optionGroupId, options) { }
+
+    private suspend fun replaceOptionsLocked(
+        optionGroupId: OptionGroupId,
+        options: List<Option>,
+        checkVersion: (OptionGroup) -> Unit,
+    ): OptionGroup =
         transactionRunner.inTransaction {
             val optionGroup =
-                optionGroupRepository.findByIdForUpdate(command.optionGroupId)
-                    ?: throw OptionGroupNotFoundException(command.optionGroupId)
-            optionGroup.checkVersion(command.version)
+                optionGroupRepository.findByIdForUpdate(optionGroupId)
+                    ?: throw OptionGroupNotFoundException(optionGroupId)
+            checkVersion(optionGroup)
             val linkedProducts = productRepository.findAllLinkedToForUpdate(optionGroup.id)
 
-            val plan = OptionReplacementPolicy.check(optionGroup, command.options, linkedProducts)
-            optionGroup.replaceOptions(command.options)
+            val plan = OptionReplacementPolicy.check(optionGroup, options, linkedProducts)
+            optionGroup.replaceOptions(options)
             val saved = optionGroupRepository.save(optionGroup)
 
             // 사라진 옵션 키의 예외를 실제로 갖고 있던 상품만 저장한다. 나머지 상품까지 저장하면
