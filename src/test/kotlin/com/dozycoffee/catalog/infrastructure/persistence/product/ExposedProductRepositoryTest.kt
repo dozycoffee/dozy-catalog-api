@@ -1,6 +1,9 @@
 package com.dozycoffee.catalog.infrastructure.persistence.product
 
 import com.dozycoffee.catalog.application.shared.TransactionRunner
+import com.dozycoffee.catalog.core.Money
+import com.dozycoffee.catalog.core.StoreId
+import com.dozycoffee.catalog.core.VersionConflictException
 import com.dozycoffee.catalog.domain.category.CategoryId
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
@@ -12,9 +15,6 @@ import com.dozycoffee.catalog.domain.product.model.ProductStatus
 import com.dozycoffee.catalog.domain.product.model.Sku
 import com.dozycoffee.catalog.domain.product.model.StoreScope
 import com.dozycoffee.catalog.domain.productgroup.ProductGroupId
-import com.dozycoffee.catalog.domain.shared.Money
-import com.dozycoffee.catalog.domain.shared.StoreId
-import com.dozycoffee.catalog.domain.shared.VersionConflictException
 import com.dozycoffee.catalog.domain.tag.TagId
 import com.dozycoffee.catalog.fixture.exclude
 import com.dozycoffee.catalog.fixture.priceOverride

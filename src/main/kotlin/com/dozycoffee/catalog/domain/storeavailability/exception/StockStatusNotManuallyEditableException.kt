@@ -1,8 +1,8 @@
 package com.dozycoffee.catalog.domain.storeavailability.exception
 
+import com.dozycoffee.catalog.core.DomainException
+import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.domain.product.model.ProductId
-import com.dozycoffee.catalog.domain.shared.DomainException
-import com.dozycoffee.catalog.domain.shared.StoreId
 
 class StockStatusNotManuallyEditableException(
     storeId: StoreId,

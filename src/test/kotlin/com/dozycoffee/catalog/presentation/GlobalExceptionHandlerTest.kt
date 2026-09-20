@@ -1,8 +1,8 @@
 package com.dozycoffee.catalog.presentation
 
-import com.dozycoffee.catalog.domain.shared.DomainException
-import com.dozycoffee.catalog.domain.shared.ErrorCode
-import com.dozycoffee.catalog.domain.shared.ErrorType
+import com.dozycoffee.catalog.core.DomainException
+import com.dozycoffee.catalog.core.ErrorCode
+import com.dozycoffee.catalog.core.ErrorType
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest

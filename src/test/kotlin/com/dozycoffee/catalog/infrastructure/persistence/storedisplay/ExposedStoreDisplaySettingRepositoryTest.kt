@@ -1,8 +1,8 @@
 package com.dozycoffee.catalog.infrastructure.persistence.storedisplay
 
 import com.dozycoffee.catalog.application.shared.TransactionRunner
+import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.domain.product.model.ProductId
-import com.dozycoffee.catalog.domain.shared.StoreId
 import com.dozycoffee.catalog.domain.storedisplay.StoreDisplaySettingRepository
 import com.dozycoffee.catalog.domain.storedisplay.model.Visibility
 import com.dozycoffee.catalog.support.IntegrationTest

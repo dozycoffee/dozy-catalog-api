@@ -4,6 +4,8 @@ import com.dozycoffee.catalog.application.scheduledchange.OptionGroupFieldValue
 import com.dozycoffee.catalog.application.scheduledchange.ProductFieldValue
 import com.dozycoffee.catalog.application.scheduledchange.ScheduledFieldValue
 import com.dozycoffee.catalog.application.shared.TransactionRunner
+import com.dozycoffee.catalog.core.Money
+import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.domain.category.CategoryId
 import com.dozycoffee.catalog.domain.optiongroup.Option
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
@@ -17,8 +19,6 @@ import com.dozycoffee.catalog.domain.scheduledchange.ScheduledChangeRepository
 import com.dozycoffee.catalog.domain.scheduledchange.ScheduledValue
 import com.dozycoffee.catalog.domain.scheduledchange.TargetKind
 import com.dozycoffee.catalog.domain.scheduledchange.exception.ScheduleAlreadyProcessedException
-import com.dozycoffee.catalog.domain.shared.Money
-import com.dozycoffee.catalog.domain.shared.StoreId
 import com.dozycoffee.catalog.domain.tag.TagId
 import com.dozycoffee.catalog.support.IntegrationTest
 import kotlinx.coroutines.CompletableDeferred

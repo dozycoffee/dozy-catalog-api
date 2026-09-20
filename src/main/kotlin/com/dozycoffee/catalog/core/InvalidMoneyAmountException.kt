@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.shared
+package com.dozycoffee.catalog.core
 
 class InvalidMoneyAmountException(
     amount: Long,

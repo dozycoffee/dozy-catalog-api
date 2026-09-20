@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.shared
+package com.dozycoffee.catalog.core
 
 enum class SharedErrorCode(
     override val type: ErrorType,

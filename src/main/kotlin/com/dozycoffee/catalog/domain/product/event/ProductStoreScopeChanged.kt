@@ -1,8 +1,8 @@
 package com.dozycoffee.catalog.domain.product.event
 
+import com.dozycoffee.catalog.core.DomainEvent
 import com.dozycoffee.catalog.domain.product.model.ProductId
 import com.dozycoffee.catalog.domain.product.model.StoreScope
-import com.dozycoffee.catalog.domain.shared.DomainEvent
 
 // 어떤 매장이 새로 제외됐는지는 domain이 전체 매장 목록을 알지 못해 계산할 수
 // 없다. 구독 측(application)이 기존 StoreDisplaySetting·StoreProductAvailability(OWNER 출처)와

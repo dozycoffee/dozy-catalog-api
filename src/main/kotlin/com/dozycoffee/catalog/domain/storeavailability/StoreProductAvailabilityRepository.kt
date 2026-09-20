@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.domain.storeavailability
 
+import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.domain.product.model.ProductId
-import com.dozycoffee.catalog.domain.shared.StoreId
 
 interface StoreProductAvailabilityRepository {
     // null은 "아직 변경된 적 없음 = 출처별 기본값"을 의미하므로 호출자는 오류로 다루지 않는다.

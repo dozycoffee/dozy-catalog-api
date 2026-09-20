@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.shared
+package com.dozycoffee.catalog.core
 
 // 낙관적 잠금을 쓰는 애그리거트 루트(docs/adr/0013). 관리자가 화면에서 오래 보다가 전체를 덮어쓰는 수정이 있고,
 // 관리자와 시스템(예약 배치, 옵션 교체)이 같은 대상을 바꾸는 Product와 OptionGroup만 상속한다.

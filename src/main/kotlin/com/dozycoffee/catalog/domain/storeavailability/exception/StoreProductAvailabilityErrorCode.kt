@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.domain.storeavailability.exception
 
-import com.dozycoffee.catalog.domain.shared.ErrorCode
-import com.dozycoffee.catalog.domain.shared.ErrorType
+import com.dozycoffee.catalog.core.ErrorCode
+import com.dozycoffee.catalog.core.ErrorType
 
 enum class StoreProductAvailabilityErrorCode(
     override val type: ErrorType,

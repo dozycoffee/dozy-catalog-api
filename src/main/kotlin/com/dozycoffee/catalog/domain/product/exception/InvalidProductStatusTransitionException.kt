@@ -1,8 +1,8 @@
 package com.dozycoffee.catalog.domain.product.exception
 
+import com.dozycoffee.catalog.core.DomainException
 import com.dozycoffee.catalog.domain.product.model.ProductId
 import com.dozycoffee.catalog.domain.product.model.ProductStatus
-import com.dozycoffee.catalog.domain.shared.DomainException
 
 class InvalidProductStatusTransitionException(
     productId: ProductId,

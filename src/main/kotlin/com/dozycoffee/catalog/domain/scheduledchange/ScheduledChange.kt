@@ -1,9 +1,9 @@
 package com.dozycoffee.catalog.domain.scheduledchange
 
+import com.dozycoffee.catalog.core.AggregateRoot
 import com.dozycoffee.catalog.domain.scheduledchange.exception.InvalidEffectiveDateException
 import com.dozycoffee.catalog.domain.scheduledchange.exception.InvalidScheduleStatusTransitionException
 import com.dozycoffee.catalog.domain.scheduledchange.exception.NoPendingScheduleException
-import com.dozycoffee.catalog.domain.shared.AggregateRoot
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId

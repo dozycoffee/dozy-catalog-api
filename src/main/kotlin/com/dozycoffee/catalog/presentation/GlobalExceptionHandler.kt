@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.presentation
 
-import com.dozycoffee.catalog.domain.shared.DomainException
-import com.dozycoffee.catalog.domain.shared.ErrorType
+import com.dozycoffee.catalog.core.DomainException
+import com.dozycoffee.catalog.core.ErrorType
 import com.dozycoffee.catalog.presentation.dto.ErrorResponse
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpStatus

@@ -1,6 +1,6 @@
 package com.dozycoffee.catalog.domain.optiongroup
 
-import com.dozycoffee.catalog.domain.shared.Money
+import com.dozycoffee.catalog.core.Money
 
 // options.id(물리 PK)를 참조하는 곳이 스키마에 없고(product_option_overrides는
 // option_group_id + option_key로 참조), PUT이 항상 옵션 전체를 배치로 교체하므로

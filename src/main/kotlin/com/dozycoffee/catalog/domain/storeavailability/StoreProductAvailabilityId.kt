@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.domain.storeavailability
 
+import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.domain.product.model.ProductId
-import com.dozycoffee.catalog.domain.shared.StoreId
 
 // store_product_availabilities의 복합 PK(store_id, product_id)를 그대로 식별자로 쓴다.
 data class StoreProductAvailabilityId(

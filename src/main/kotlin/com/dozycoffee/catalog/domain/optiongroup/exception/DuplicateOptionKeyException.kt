@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.domain.optiongroup.exception
 
+import com.dozycoffee.catalog.core.DomainException
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
-import com.dozycoffee.catalog.domain.shared.DomainException
 
 class DuplicateOptionKeyException(
     optionKey: OptionKey,

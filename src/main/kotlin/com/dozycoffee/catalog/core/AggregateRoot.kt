@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.shared
+package com.dozycoffee.catalog.core
 
 abstract class AggregateRoot<ID : Any>(
     id: ID,

@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.domain.productgroup
 
+import com.dozycoffee.catalog.core.AggregateRoot
 import com.dozycoffee.catalog.domain.productgroup.event.ProductGroupDeleted
-import com.dozycoffee.catalog.domain.shared.AggregateRoot
 
 class ProductGroup internal constructor(
     id: ProductGroupId,

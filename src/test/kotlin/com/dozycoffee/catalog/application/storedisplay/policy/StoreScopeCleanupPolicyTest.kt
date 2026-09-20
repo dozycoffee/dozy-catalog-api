@@ -1,8 +1,8 @@
 package com.dozycoffee.catalog.application.storedisplay.policy
 
+import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.domain.product.model.ProductId
 import com.dozycoffee.catalog.domain.product.model.StoreScope
-import com.dozycoffee.catalog.domain.shared.StoreId
 import com.dozycoffee.catalog.domain.storeavailability.StoreProductAvailability
 import com.dozycoffee.catalog.domain.storeavailability.StoreProductAvailabilityId
 import com.dozycoffee.catalog.domain.storedisplay.model.StoreDisplaySetting

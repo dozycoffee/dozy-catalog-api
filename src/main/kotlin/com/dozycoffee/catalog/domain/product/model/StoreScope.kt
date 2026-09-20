@@ -1,6 +1,6 @@
 package com.dozycoffee.catalog.domain.product.model
 
-import com.dozycoffee.catalog.domain.shared.StoreId
+import com.dozycoffee.catalog.core.StoreId
 
 sealed class StoreScope {
     // 이 판매 범위가 해당 매장을 취급 대상으로 포함하는지. Limited의 대상 목록은

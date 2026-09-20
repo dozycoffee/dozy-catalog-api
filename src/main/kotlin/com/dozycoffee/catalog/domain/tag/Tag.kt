@@ -1,6 +1,6 @@
 package com.dozycoffee.catalog.domain.tag
 
-import com.dozycoffee.catalog.domain.shared.AggregateRoot
+import com.dozycoffee.catalog.core.AggregateRoot
 import com.dozycoffee.catalog.domain.tag.event.TagDeleted
 
 class Tag internal constructor(

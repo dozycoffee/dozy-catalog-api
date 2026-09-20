@@ -1,6 +1,6 @@
 package com.dozycoffee.catalog.domain.scheduledchange.exception
 
-import com.dozycoffee.catalog.domain.shared.DomainException
+import com.dozycoffee.catalog.core.DomainException
 import java.time.LocalDate
 
 class InvalidEffectiveDateException(

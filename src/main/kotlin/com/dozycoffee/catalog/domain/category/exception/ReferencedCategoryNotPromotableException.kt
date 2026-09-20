@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.domain.category.exception
 
+import com.dozycoffee.catalog.core.DomainException
 import com.dozycoffee.catalog.domain.category.CategoryId
-import com.dozycoffee.catalog.domain.shared.DomainException
 
 class ReferencedCategoryNotPromotableException(
     categoryId: CategoryId,

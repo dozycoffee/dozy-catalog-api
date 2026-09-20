@@ -1,5 +1,7 @@
 package com.dozycoffee.catalog.domain.product.model
 
+import com.dozycoffee.catalog.core.Money
+import com.dozycoffee.catalog.core.VersionedAggregateRoot
 import com.dozycoffee.catalog.domain.category.CategoryId
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
@@ -14,8 +16,6 @@ import com.dozycoffee.catalog.domain.product.exception.OptionKeyNotFoundExceptio
 import com.dozycoffee.catalog.domain.product.exception.ProductNotDeletableException
 import com.dozycoffee.catalog.domain.product.exception.ProductOptionGroupNotLinkedException
 import com.dozycoffee.catalog.domain.productgroup.ProductGroupId
-import com.dozycoffee.catalog.domain.shared.Money
-import com.dozycoffee.catalog.domain.shared.VersionedAggregateRoot
 import com.dozycoffee.catalog.domain.tag.TagId
 
 class Product internal constructor(

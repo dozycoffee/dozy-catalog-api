@@ -3,6 +3,8 @@ package com.dozycoffee.catalog.infrastructure.persistence.scheduledchange
 import com.dozycoffee.catalog.application.scheduledchange.OptionGroupFieldValue
 import com.dozycoffee.catalog.application.scheduledchange.ProductFieldValue
 import com.dozycoffee.catalog.application.scheduledchange.ScheduledFieldValue
+import com.dozycoffee.catalog.core.Money
+import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.domain.category.CategoryId
 import com.dozycoffee.catalog.domain.optiongroup.Option
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
@@ -11,8 +13,6 @@ import com.dozycoffee.catalog.domain.product.model.OptionOverride
 import com.dozycoffee.catalog.domain.product.model.StoreScope
 import com.dozycoffee.catalog.domain.productgroup.ProductGroupId
 import com.dozycoffee.catalog.domain.scheduledchange.ScheduledValue
-import com.dozycoffee.catalog.domain.shared.Money
-import com.dozycoffee.catalog.domain.shared.StoreId
 import com.dozycoffee.catalog.domain.tag.TagId
 import com.dozycoffee.catalog.infrastructure.persistence.JsonbCodec
 import tools.jackson.databind.JsonNode

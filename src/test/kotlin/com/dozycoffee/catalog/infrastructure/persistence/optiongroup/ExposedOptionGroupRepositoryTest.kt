@@ -1,11 +1,11 @@
 package com.dozycoffee.catalog.infrastructure.persistence.optiongroup
 
 import com.dozycoffee.catalog.application.shared.TransactionRunner
+import com.dozycoffee.catalog.core.VersionConflictException
 import com.dozycoffee.catalog.domain.optiongroup.Option
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroup
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupRepository
 import com.dozycoffee.catalog.domain.optiongroup.SelectionType
-import com.dozycoffee.catalog.domain.shared.VersionConflictException
 import com.dozycoffee.catalog.fixture.option
 import com.dozycoffee.catalog.support.IntegrationTest
 import kotlinx.coroutines.test.runTest

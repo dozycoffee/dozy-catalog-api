@@ -1,10 +1,10 @@
 package com.dozycoffee.catalog.application.product.policy
 
+import com.dozycoffee.catalog.core.Money
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
 import com.dozycoffee.catalog.domain.optiongroup.SelectionType
 import com.dozycoffee.catalog.domain.product.model.ProductId
-import com.dozycoffee.catalog.domain.shared.Money
 
 // 상품의 유효 옵션 구성: 연결된 옵션 그룹에 이 상품의 예외(제외·가격)를 반영한 결과.
 // Catalog는 여기까지(가격 데이터, 유효 구성, 표시용 시작가)만 제공한다. 손님이 고른 조합의

@@ -1,8 +1,8 @@
 package com.dozycoffee.catalog.domain.storeavailability.exception
 
+import com.dozycoffee.catalog.core.DomainException
+import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.domain.product.model.ProductId
-import com.dozycoffee.catalog.domain.shared.DomainException
-import com.dozycoffee.catalog.domain.shared.StoreId
 
 // 재고 미추적 상품에 재고 이벤트가 도착한 경우. 사용자 요청이 아니라 연동 데이터 불일치라
 // 이벤트 구독 측이 잡아서 기록하고 넘긴다.

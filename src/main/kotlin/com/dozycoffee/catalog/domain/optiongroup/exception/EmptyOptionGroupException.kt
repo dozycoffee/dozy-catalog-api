@@ -1,6 +1,6 @@
 package com.dozycoffee.catalog.domain.optiongroup.exception
 
-import com.dozycoffee.catalog.domain.shared.DomainException
+import com.dozycoffee.catalog.core.DomainException
 
 class EmptyOptionGroupException :
     DomainException(

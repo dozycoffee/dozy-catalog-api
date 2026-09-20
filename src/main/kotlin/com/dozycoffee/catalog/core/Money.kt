@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.shared
+package com.dozycoffee.catalog.core
 
 // 원(KRW) 단위 정수 금액. 전 매장 동일가 정책이라 통화 구분은 두지 않는다.
 @JvmInline

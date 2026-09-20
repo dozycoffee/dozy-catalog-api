@@ -1,6 +1,6 @@
 package com.dozycoffee.catalog.domain.storeavailability
 
-import com.dozycoffee.catalog.domain.shared.AggregateRoot
+import com.dozycoffee.catalog.core.AggregateRoot
 import com.dozycoffee.catalog.domain.storeavailability.exception.InventoryEventNotApplicableException
 import com.dozycoffee.catalog.domain.storeavailability.exception.StockStatusNotManuallyEditableException
 import java.time.Instant

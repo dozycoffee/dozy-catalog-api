@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.shared
+package com.dozycoffee.catalog.core
 
 // 에러의 성격 분류. domain은 HTTP를 모르므로 상태 코드 대신 이 분류까지만 표현하고,
 // 실제 HTTP 상태 코드로의 변환은 presentation에서 한 곳에 모아 처리한다.

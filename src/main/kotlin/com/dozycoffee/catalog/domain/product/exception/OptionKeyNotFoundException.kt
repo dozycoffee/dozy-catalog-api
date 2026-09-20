@@ -1,8 +1,8 @@
 package com.dozycoffee.catalog.domain.product.exception
 
+import com.dozycoffee.catalog.core.DomainException
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
-import com.dozycoffee.catalog.domain.shared.DomainException
 
 class OptionKeyNotFoundException(
     optionGroupId: OptionGroupId,

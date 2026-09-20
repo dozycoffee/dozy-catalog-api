@@ -1,10 +1,10 @@
 package com.dozycoffee.catalog.domain.category
 
+import com.dozycoffee.catalog.core.AggregateRoot
 import com.dozycoffee.catalog.domain.category.exception.CategoryNotAssignableException
 import com.dozycoffee.catalog.domain.category.exception.CategoryWithChildrenNotDemotableException
 import com.dozycoffee.catalog.domain.category.exception.InvalidParentCategoryException
 import com.dozycoffee.catalog.domain.category.exception.ReferencedCategoryNotPromotableException
-import com.dozycoffee.catalog.domain.shared.AggregateRoot
 
 // categories는 2단계 계층만 허용한다(catalog-erd.md). TopLevelCategory/ChildCategory로
 // 타입을 나눠서 "부모가 이미 소분류인 경우"와 자기참조(하위 타입 간 전이 한정)를

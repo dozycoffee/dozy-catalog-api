@@ -1,9 +1,9 @@
 package com.dozycoffee.catalog.application.product.policy
 
+import com.dozycoffee.catalog.core.Money
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
 import com.dozycoffee.catalog.domain.optiongroup.SelectionType
-import com.dozycoffee.catalog.domain.shared.Money
 import com.dozycoffee.catalog.fixture.exclude
 import com.dozycoffee.catalog.fixture.link
 import com.dozycoffee.catalog.fixture.option

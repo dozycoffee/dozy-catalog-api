@@ -1,5 +1,8 @@
 package com.dozycoffee.catalog.domain.product.model
 
+import com.dozycoffee.catalog.core.ErrorType
+import com.dozycoffee.catalog.core.Money
+import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.domain.category.CategoryId
 import com.dozycoffee.catalog.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.domain.optiongroup.OptionKey
@@ -13,9 +16,6 @@ import com.dozycoffee.catalog.domain.product.exception.NoSelectableOptionExcepti
 import com.dozycoffee.catalog.domain.product.exception.OptionKeyNotFoundException
 import com.dozycoffee.catalog.domain.product.exception.ProductNotDeletableException
 import com.dozycoffee.catalog.domain.product.exception.ProductOptionGroupNotLinkedException
-import com.dozycoffee.catalog.domain.shared.ErrorType
-import com.dozycoffee.catalog.domain.shared.Money
-import com.dozycoffee.catalog.domain.shared.StoreId
 import com.dozycoffee.catalog.fixture.exclude
 import com.dozycoffee.catalog.fixture.link
 import com.dozycoffee.catalog.fixture.newProduct

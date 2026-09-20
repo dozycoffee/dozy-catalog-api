@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.shared
+package com.dozycoffee.catalog.core
 
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test

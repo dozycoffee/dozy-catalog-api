@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.shared
+package com.dozycoffee.catalog.core
 
 import com.dozycoffee.catalog.domain.category.exception.CategoryErrorCode
 import com.dozycoffee.catalog.domain.optiongroup.exception.OptionGroupErrorCode

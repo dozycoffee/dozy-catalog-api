@@ -1,11 +1,11 @@
 package com.dozycoffee.catalog.domain.category
 
+import com.dozycoffee.catalog.core.ErrorType
 import com.dozycoffee.catalog.domain.category.exception.CategoryErrorCode
 import com.dozycoffee.catalog.domain.category.exception.CategoryNotAssignableException
 import com.dozycoffee.catalog.domain.category.exception.CategoryWithChildrenNotDemotableException
 import com.dozycoffee.catalog.domain.category.exception.InvalidParentCategoryException
 import com.dozycoffee.catalog.domain.category.exception.ReferencedCategoryNotPromotableException
-import com.dozycoffee.catalog.domain.shared.ErrorType
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test

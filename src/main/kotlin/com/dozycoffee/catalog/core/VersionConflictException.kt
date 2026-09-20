@@ -1,4 +1,4 @@
-package com.dozycoffee.catalog.domain.shared
+package com.dozycoffee.catalog.core
 
 // 낙관적 잠금 충돌. currentVersion은 지금 저장된 버전이며, 저장 시점에 충돌을 발견해 알 수 없으면 null이다.
 class VersionConflictException(

@@ -1,8 +1,8 @@
 package com.dozycoffee.catalog.domain.optiongroup
 
+import com.dozycoffee.catalog.core.VersionedAggregateRoot
 import com.dozycoffee.catalog.domain.optiongroup.exception.DuplicateOptionKeyException
 import com.dozycoffee.catalog.domain.optiongroup.exception.EmptyOptionGroupException
-import com.dozycoffee.catalog.domain.shared.VersionedAggregateRoot
 
 class OptionGroup internal constructor(
     id: OptionGroupId,
