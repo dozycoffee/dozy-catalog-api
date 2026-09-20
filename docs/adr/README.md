@@ -50,4 +50,5 @@
 | [0003](0003-keep-store-settings-on-discontinue.md) | 단종·재활성화 때 매장 설정을 바꾸지 않는다 | 채택 | 2026-09-18 |
 | [0005](0005-split-display-setting-and-availability.md) | 진열 설정과 판매 가능 여부를 분리하고, 재고는 이벤트 투영으로 둔다 | 채택 | 2026-09-18 |
 | [0006](0006-catalog-pricing-boundary.md) | Catalog는 가격 데이터·유효 옵션 구성·표시용 시작가까지만 제공한다 | 채택 | 2026-09-19 |
+| [0016](0016-system-generated-sku.md) | SKU는 시스템이 전용 시퀀스로 발급하고 의미를 담지 않는다 | 채택 | 2026-09-20 |
 | [0014](0014-scheduled-change-target-and-typed-values.md) | 예약 대상은 상품·옵션 그룹뿐이고, 예약 값은 필드별 타입으로 표현하며, 활성화와 단종은 별도 필드로 예약한다 | 채택 | 2026-09-19 |

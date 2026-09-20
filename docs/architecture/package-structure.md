@@ -94,11 +94,12 @@ com.dozycoffee.catalog
 │   │   └── productgroup/                  # ProductGroup, ProductGroupId, Repository + event/
 │   ├── application/
 │   │   ├── policy/                        # EffectiveOptionResolver, EffectiveOptionConfig, OptionReplacementPolicy
-│   │   ├── category/ tag/ productgroup/   # 애그리거트별 유스케이스 서비스 + command/
-│   │   ├── product/ optiongroup/          # (3단계)
-│   │   └── port/                          # ValidateStoreExistsPort, ProductEventPublisherPort (3단계)
+│   │   ├── product/ category/ tag/ productgroup/  # 애그리거트별 유스케이스 서비스 + command/ (+ SkuGenerator)
+│   │   ├── optiongroup/                   # (3단계)
+│   │   └── port/                          # ProductEventPublisherPort, ValidateStoreExistsPort(3단계)
 │   ├── infrastructure/                    # 애그리거트별 Exposed Table + Repository 구현
 │   │   ├── product/ optiongroup/ category/ tag/ productgroup/
+│   │   ├── eventing/                      # 상품 이벤트 발행 구현 (지금은 로그)
 │   │   └── acl/                           # StoreBcAdapter, StoreBcClient (5단계)
 │   └── presentation/                      # (4단계)
 │
