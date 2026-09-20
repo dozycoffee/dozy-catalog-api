@@ -177,6 +177,7 @@ application 서비스는 필요한 애그리거트를 조회·잠금해 정책�
 | 판매 범위 대상 매장은 실제 존재하는 매장이어야 함 | Store BC | `ValidateStoreExistsPort`로 외부 검증 |
 | 동일 대상·필드의 PENDING 예약은 최대 1건 | 기존 PENDING 예약 | application이 기존 예약을 잠그고(`FOR UPDATE`) 취소 후 새로 등록, DB 부분 UNIQUE 제약으로 이중 보장 |
 | 태그 이름은 유일 (같은 이름이면 재사용) | 기존 태그 | 상품 등록·수정 유스케이스가 `TagRepository.findOrCreateByName`으로 처리 |
+| SKU는 등록 시점에 시스템이 부여 (요구사항 1.2) | 전용 시퀀스 | 상품 등록 유스케이스가 `SkuGenerator`로 발급해 `NewProduct`에 담는다 ([ADR-0016](adr/0016-system-generated-sku.md)) |
 
 ## 시간 처리
 

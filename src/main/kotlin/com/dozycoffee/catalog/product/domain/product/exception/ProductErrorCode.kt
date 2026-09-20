@@ -6,6 +6,7 @@ import com.dozycoffee.catalog.core.ErrorType
 enum class ProductErrorCode(
     override val type: ErrorType,
 ) : ErrorCode {
+    PRODUCT_NOT_FOUND(ErrorType.NOT_FOUND),
     INVALID_PRODUCT_STATUS_TRANSITION(ErrorType.CONFLICT),
     PRODUCT_NOT_DELETABLE(ErrorType.CONFLICT),
     DUPLICATE_OPTION_GROUP_LINK(ErrorType.CONFLICT),

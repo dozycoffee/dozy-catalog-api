@@ -6,6 +6,7 @@ import com.dozycoffee.catalog.core.ErrorType
 enum class OptionGroupErrorCode(
     override val type: ErrorType,
 ) : ErrorCode {
+    OPTION_GROUP_NOT_FOUND(ErrorType.NOT_FOUND),
     DUPLICATE_OPTION_KEY(ErrorType.INVALID_INPUT),
     EMPTY_OPTION_GROUP(ErrorType.BUSINESS_RULE_VIOLATION),
     OPTION_GROUP_STILL_REFERENCED(ErrorType.CONFLICT),

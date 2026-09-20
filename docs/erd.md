@@ -194,7 +194,7 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | 컬럼 | 타입 | 제약 | 설명 |
 |---|---|---|---|
 | id | BIGINT | PK, identity | |
-| sku | VARCHAR | UNIQUE, NULL 허용 | 외부 시스템 연동 키 |
+| sku | VARCHAR | UNIQUE, NULL 허용 | 외부 시스템 연동 키. 등록 시점에 전용 시퀀스(`product_sku_seq`)에서 받아 `DZ-00000123` 형식으로 부여한다([ADR-0016](adr/0016-system-generated-sku.md)). 컬럼은 과거 데이터를 위해 NULL을 허용한다 |
 | name | VARCHAR | NOT NULL | 즉시 반영 |
 | category_id | BIGINT | FK → categories.id, NOT NULL | 소분류만 참조(도메인이 `ChildCategory` 타입으로 강제) |
 | description | TEXT | NULL 허용 | |
