@@ -255,8 +255,10 @@ class Product internal constructor(
         }
     }
 
-    private companion object {
-        fun validateNoDuplicateOptionGroup(optionGroupIds: List<OptionGroupId>) {
+    internal companion object {
+        // 옵션 그룹 연결 예약(optionGroupLinks)을 등록할 때도 같은 규칙으로 값 자체를 확인할 수 있도록
+        // internal로 연다(ScheduledValueValidator). 적용 시점에는 linkOptionGroup()이 다시 지킨다.
+        internal fun validateNoDuplicateOptionGroup(optionGroupIds: List<OptionGroupId>) {
             val duplicateId =
                 optionGroupIds
                     .groupBy { it }

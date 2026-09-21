@@ -139,5 +139,85 @@ class StoreDisplaySettingApplicationServiceTest : ApplicationTest() {
             }
     }
 
+    @Nested
+    @DisplayName("판매 범위 확인 (요구사항 2.2)")
+    inner class StoreScopeCheck {
+        @Test
+        fun `판매 범위 밖 상품의 노출을 바꾸려 하면 거부하고 개별 설정을 만들지 않는다`() =
+            runTest {
+                limitTo(listOf(StoreId(20)))
+
+                assertFailsWith<ProductNotFoundException> {
+                    service.changeVisibility(ChangeVisibilityCommand(gangnam, americano, Visibility.HIDDEN))
+                }
+
+                assertEquals(0, count("SELECT count(*) FROM store_display_settings"))
+            }
+
+        @Test
+        fun `판매 범위 밖 상품의 진열 순서를 바꾸려 하면 거부하고 개별 설정을 만들지 않는다`() =
+            runTest {
+                limitTo(listOf(StoreId(20)))
+
+                assertFailsWith<ProductNotFoundException> {
+                    service.changeDisplayOrder(ChangeDisplayOrderCommand(gangnam, americano, 1))
+                }
+
+                assertEquals(0, count("SELECT count(*) FROM store_display_settings"))
+            }
+
+        @Test
+        fun `대상 매장이 빈 LIMITED 상품이면 거부한다`() =
+            runTest {
+                limitTo(emptyList())
+
+                assertFailsWith<ProductNotFoundException> {
+                    service.changeVisibility(ChangeVisibilityCommand(gangnam, americano, Visibility.HIDDEN))
+                }
+
+                assertEquals(0, count("SELECT count(*) FROM store_display_settings"))
+            }
+
+        @Test
+        fun `LIMITED의 대상 매장이면 바꿀 수 있다`() =
+            runTest {
+                limitTo(listOf(gangnam))
+
+                service.changeVisibility(ChangeVisibilityCommand(gangnam, americano, Visibility.HIDDEN))
+                service.changeDisplayOrder(ChangeDisplayOrderCommand(gangnam, americano, 1))
+
+                val setting = assertNotNull(storedSetting())
+                assertEquals(Visibility.HIDDEN, setting.visibility)
+                assertEquals(1, setting.displayOrder)
+            }
+
+        @Test
+        fun `ALL이면 어느 매장이든 바꿀 수 있다`() =
+            runTest {
+                execute("UPDATE products SET store_scope = 'ALL' WHERE id = ${americano.value}")
+
+                service.changeVisibility(ChangeVisibilityCommand(gangnam, americano, Visibility.HIDDEN))
+
+                assertEquals(Visibility.HIDDEN, storedSetting()?.visibility)
+            }
+
+        @Test
+        fun `상품 상태는 보지 않아 판매 범위에 든 DRAFT 상품도 바꿀 수 있다`() =
+            runTest {
+                execute("UPDATE products SET status = 'DRAFT', store_scope = 'ALL' WHERE id = ${americano.value}")
+
+                service.changeVisibility(ChangeVisibilityCommand(gangnam, americano, Visibility.HIDDEN))
+
+                assertEquals(Visibility.HIDDEN, storedSetting()?.visibility)
+            }
+    }
+
+    private suspend fun limitTo(storeIds: List<StoreId>) {
+        execute("UPDATE products SET store_scope = 'LIMITED' WHERE id = ${americano.value}")
+        storeIds.forEach {
+            execute("INSERT INTO product_target_stores (product_id, store_id) VALUES (${americano.value}, ${it.value})")
+        }
+    }
+
     private suspend fun storedSetting() = tx { displaySettingRepository.findByStoreAndProduct(gangnam, americano) }
 }

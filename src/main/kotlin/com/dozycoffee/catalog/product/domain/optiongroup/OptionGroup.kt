@@ -61,6 +61,7 @@ class OptionGroup internal constructor(
     internal companion object {
         // 옵션 목록 교체를 연결 상품과 함께 판단하는 application 정책(OptionReplacementPolicy)이
         // 상품 검증보다 먼저 목록 자체의 유효성을 확인할 수 있도록 internal로 연다.
+        // 옵션 목록 예약을 등록할 때도 같은 규칙으로 스냅샷을 확인한다(ScheduledValueValidator).
         internal fun validateOptions(options: List<Option>) {
             if (options.isEmpty()) {
                 throw EmptyOptionGroupException()

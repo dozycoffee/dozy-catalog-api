@@ -41,6 +41,7 @@ base package: `com.dozycoffee.catalog`
 - 서비스가 `TransactionRunner.inTransaction { … }`으로 유스케이스의 트랜잭션 경계를 연다. Repository는 그 안에서 호출된다([ADR-0011](../adr/0011-transaction-boundary-with-transaction-runner.md)).
 - 조회가 필요한 규칙(하위 카테고리 존재, 참조 상품 존재 등)은 서비스가 확인해 도메인 메서드에 값으로 넘긴다. 판단 자체가 여러 애그리거트를 보면 `application/policy`의 정책 클래스에 둔다([ADR-0012](../adr/0012-cross-aggregate-judgment-in-application-policy.md)).
 - 대상이 없으면 애그리거트별 `XxxNotFoundException`(`NOT_FOUND`, 404)으로 거부한다.
+- **같은 규칙을 여러 경로(즉시 변경, 예약 등록, 예약 적용)가 확인하면 그 규칙을 가진 모듈에 공용 컴포넌트로 한 번만 둔다.** 예: 상품이 가리키는 카테고리·태그·상품 그룹·옵션 그룹·매장의 존재는 `product`의 `ProductReferenceValidator`가 확인하고, 예약 등록(`ScheduledValueValidator`)도 이를 부른다. 공용 컴포넌트는 트랜잭션을 열지 않고 부르는 유스케이스의 트랜잭션 안에서 쓴다.
 - **여러 애그리거트를 한 트랜잭션에서 바꿀 때는 서비스가 잠금·검증·저장 순서를 정한다.** 잠그고 → 정책에 넘겨 판단하고 → 애그리거트 메서드로 바꾸고 → 저장한다. 이때 **실제로 바뀐 애그리거트만 저장한다.** 바뀐 것 없이 저장하면 낙관적 잠금 대상의 `version`만 올라가 다음 수정이 충돌로 거부된다([ADR-0013](../adr/0013-optimistic-locking-for-product-and-option-group.md)). 예: 옵션 목록 교체는 옵션 그룹과 연결 상품을 함께 잠그지만, 사라진 옵션 키의 예외를 실제로 갖고 있던 상품만 저장한다.
 - **여러 애그리거트를 묶어 보여 주는 조회**는 각 Repository로 불러와 application에서 합치고(`<모듈>/application/<화면 단위>/`의 `XxxQueryService`), 결과는 그 옆의 View 타입에 담는다. 전용 SQL이나 집계가 필요해지면 그때 조회 포트로 옮긴다.
 - **조건 검색과 페이징이 필요한 목록**은 조회 포트가 조건에 맞는 애그리거트 ID의 한 페이지(`common.paging.Page`)만 고르고, application이 그 ID로 Repository에서 애그리거트를 불러와 포트가 정한 순서대로 합친다(예: 상품 목록의 `ProductSearchQueryPort` → `ProductRepository.findAllByIds`). 애그리거트 복원은 Repository 한 곳에만 두고, 검색 조건은 여러 테이블을 볼 수 있게 하기 위해서다. 같은 목록을 호출자별로 다른 범위로 보여 줄 때(본사의 전체 상품, 점주의 판매 상품)는 같은 포트에 범위 조건만 달리 넘긴다.
@@ -112,7 +113,8 @@ com.dozycoffee.catalog
 │   ├── application/
 │   │   ├── policy/                        # EffectiveOptionResolver, EffectiveOptionConfig, OptionReplacementPolicy
 │   │   ├── product/                       # ProductApplicationService, ProductOptionApplicationService,
-│   │   │   │                              #   ProductFieldApplicationService(예약 적용용 필드 단위) + command/ (+ SkuGenerator)
+│   │   │   │                              #   ProductFieldApplicationService(예약 적용용 필드 단위) + command/ (+ SkuGenerator),
+│   │   │   │                              #   ProductReferenceValidator·ProductTagResolver(즉시 변경·예약 등록·적용이 함께 쓰는 참조 확인·태그 이름 해석)
 │   │   │   └── query/                     # 상품 목록 검색: ProductQueryService(본사), SellableProductQueryService(점주) + 검색 조건
 │   │   ├── optiongroup/ category/ tag/ productgroup/  # 애그리거트별 유스케이스 서비스 + command/
 │   │   └── port/                          # ProductEventPublisherPort, ValidateStoreExistsPort, ProductSearchQueryPort(조회)
@@ -138,7 +140,8 @@ com.dozycoffee.catalog
 ├── schedule/                              # 예약 변경 (요구사항 1.4)
 │   ├── domain/                            # ScheduledChange, ScheduledValue, TargetKind, ScheduleStatus, Repository + exception/
 │   ├── application/                       # ScheduledChangeApplicationService(등록·취소·조회), ScheduledChangeApplier,
-│   │                                      #   ScheduledChangeApplicationBatch, 값 타입(ScheduledFieldValue 등) + command/
+│   │                                      #   ScheduledChangeApplicationBatch, ScheduledValueValidator(등록 시점 검증),
+│   │                                      #   값 타입(ScheduledFieldValue 등) + command/
 │   └── infrastructure/                    # ScheduledChangesTable, ExposedScheduledChangeRepository, ScheduledValueJsonbCodec
 │
 └── exposure/                              # 노출 현황 조회 (요구사항 1.10)

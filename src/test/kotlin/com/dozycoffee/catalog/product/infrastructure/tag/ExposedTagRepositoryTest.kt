@@ -2,6 +2,7 @@ package com.dozycoffee.catalog.product.infrastructure.tag
 
 import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.product.domain.tag.TagRepository
+import com.dozycoffee.catalog.product.domain.tag.exception.TagNameDuplicatedException
 import com.dozycoffee.catalog.support.IntegrationTest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 @DisplayName("ExposedTagRepository")
@@ -80,6 +82,18 @@ class ExposedTagRepositoryTest : IntegrationTest() {
             tx.inTransaction { repository.save(tag) }
 
             assertEquals("시즌한정", tx.inTransaction { repository.findById(tag.id) }?.name)
+        }
+
+    @Test
+    fun `다른 태그가 쓰는 이름으로 저장하면 UNIQUE 위반을 이름 중복 예외로 바꾸고 이름은 그대로다`() =
+        runTest {
+            tx.inTransaction { repository.findOrCreateByName("신메뉴") }
+            val tag = tx.inTransaction { repository.findOrCreateByName("베스트") }
+            tag.rename("신메뉴")
+
+            assertFailsWith<TagNameDuplicatedException> { tx.inTransaction { repository.save(tag) } }
+
+            assertEquals("베스트", tx.inTransaction { repository.findById(tag.id) }?.name)
         }
 
     @Test
