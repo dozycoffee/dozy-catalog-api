@@ -3,6 +3,7 @@ package com.dozycoffee.catalog.store.infrastructure.display
 import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.product.domain.product.ProductId
+import com.dozycoffee.catalog.store.domain.display.StoreDisplayOrder
 import com.dozycoffee.catalog.store.domain.display.StoreDisplaySettingRepository
 import com.dozycoffee.catalog.store.domain.display.Visibility
 import com.dozycoffee.catalog.support.IntegrationTest
@@ -99,38 +100,61 @@ class ExposedStoreDisplaySettingRepositoryTest : IntegrationTest() {
     @DisplayName("바뀐 필드만 저장")
     inner class SaveChangedField {
         @Test
-        fun `노출 여부와 진열 순서를 저장하면 조회에 반영된다`() =
+        fun `노출 여부를 저장하면 조회에 반영된다`() =
             runTest {
                 val setting = tx.inTransaction { repository.findOrCreate(store, americano) }
                 setting.hide()
-                setting.changeDisplayOrder(3)
 
-                tx.inTransaction {
-                    repository.saveVisibility(setting)
-                    repository.saveDisplayOrder(setting)
-                }
+                tx.inTransaction { repository.saveVisibility(setting) }
 
                 val found = assertNotNull(tx.inTransaction { repository.findByStoreAndProduct(store, americano) })
                 assertEquals(Visibility.HIDDEN, found.visibility)
-                assertEquals(3, found.displayOrder)
             }
 
         @Test
-        fun `같은 설정을 따로 불러와 서로 다른 필드를 바꿔도 서로 덮어쓰지 않는다`() =
+        fun `진열 순서를 바꾸기 전에 불러온 설정으로 노출 여부를 저장해도 진열 순서를 덮어쓰지 않는다`() =
             runTest {
                 val created = tx.inTransaction { repository.findOrCreate(store, americano) }
-                // 두 요청이 같은 시점의 설정(노출, 진열 순서 없음)을 각각 불러온 상황
+                // 숨김 요청이 진열 순서 없는 설정을 불러온 뒤, 그 사이 진열 순서가 바뀐 상황
                 val hidingRequest = assertNotNull(tx.inTransaction { repository.findById(created.id) })
-                val reorderingRequest = assertNotNull(tx.inTransaction { repository.findById(created.id) })
+                tx.inTransaction { repository.replaceDisplayOrder(StoreDisplayOrder(store, listOf(americano))) }
 
                 hidingRequest.hide()
                 tx.inTransaction { repository.saveVisibility(hidingRequest) }
-                reorderingRequest.changeDisplayOrder(5)
-                tx.inTransaction { repository.saveDisplayOrder(reorderingRequest) }
 
                 val found = assertNotNull(tx.inTransaction { repository.findById(created.id) })
                 assertEquals(Visibility.HIDDEN, found.visibility)
-                assertEquals(5, found.displayOrder)
+                assertEquals(1, found.displayOrder)
+            }
+    }
+
+    @Nested
+    @DisplayName("진열 순서 일괄 변경")
+    inner class ReplaceDisplayOrder {
+        @Test
+        fun `목록의 상품은 번호를 받고 설정이 없으면 만들며 다른 상품의 순서는 비운다`() =
+            runTest {
+                execute("INSERT INTO store_display_settings (store_id, product_id, display_order, visibility) VALUES (10, 1, 1, 'HIDDEN')")
+
+                tx.inTransaction { repository.replaceDisplayOrder(StoreDisplayOrder(store, listOf(latte))) }
+
+                val americanoSetting = assertNotNull(tx.inTransaction { repository.findByStoreAndProduct(store, americano) })
+                assertNull(americanoSetting.displayOrder)
+                assertEquals(Visibility.HIDDEN, americanoSetting.visibility)
+                val latteSetting = assertNotNull(tx.inTransaction { repository.findByStoreAndProduct(store, latte) })
+                assertEquals(1, latteSetting.displayOrder)
+                assertEquals(Visibility.VISIBLE, latteSetting.visibility)
+            }
+
+        @Test
+        fun `다른 매장의 진열 순서는 건드리지 않는다`() =
+            runTest {
+                execute("INSERT INTO store_display_settings (store_id, product_id, display_order) VALUES (20, 1, 1)")
+
+                tx.inTransaction { repository.replaceDisplayOrder(StoreDisplayOrder(store, emptyList())) }
+
+                val otherStoreSetting = assertNotNull(tx.inTransaction { repository.findByStoreAndProduct(otherStore, americano) })
+                assertEquals(1, otherStoreSetting.displayOrder)
             }
     }
 

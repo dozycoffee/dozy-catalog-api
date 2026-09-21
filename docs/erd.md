@@ -381,6 +381,7 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | `scheduled_changes` 상태 전이 저장 | 관리자 취소와 배치 적용·실패가 같은 예약을 동시에 처리 | `UPDATE … SET status = ? WHERE id = ? AND status = 'PENDING'`, 바뀐 행이 0개면 `ScheduleAlreadyProcessedException`(409) |
 | `store_display_settings` Lazy 생성 | 동시 요청 시 중복 row | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE` |
 | `store_display_settings` 노출·진열 순서 변경 | 다른 필드를 바꾸는 요청끼리 옛 값으로 덮어씀 | 바뀐 필드만 UPDATE. 같은 필드는 점주의 최신 의도가 이긴다 |
+| `store_display_settings` 진열 순서 일괄 변경 | 같은 매장의 일괄 변경끼리 한쪽이 순서를 비운 뒤 다른 쪽이 번호를 매겨 두 순서가 섞임 | 트랜잭션 시작 직후 매장 단위 권고 잠금 `pg_advisory_xact_lock(1, storeId)`로 직렬화한다. 첫 키는 용도별 네임스페이스(`AdvisoryLockNamespace`, 진열 순서 = 1), 둘째 키는 storeId의 하위 32비트다(하위 32비트가 같은 매장끼리는 불필요하게 줄을 설 뿐 결과는 같다). 그 뒤 목록 밖 설정의 순서를 한 문장으로 비우고, 목록의 상품은 `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE`로 번호를 넣는다 |
 | `store_product_availabilities` 재고 이벤트 반영 (`INVENTORY`) | 중복 수신·순서 역전으로 오래된 값이 덮어씀 | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE ... WHERE store_product_availabilities.last_event_at IS NULL OR excluded.last_event_at > store_product_availabilities.last_event_at` |
 | `store_product_availabilities` 점주 수동 품절 첫 생성 (`OWNER`) | 동시 요청 시 중복 row | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE` |
 | `options` 최소 1개/0개 검증 | 검증-실행 사이 레이스 | 옵션 그룹 단위 비관적 락 |

@@ -11,8 +11,8 @@ import com.dozycoffee.catalog.product.domain.product.ProductId
 import com.dozycoffee.catalog.store.application.availability.StoreProductAvailabilityApplicationService
 import com.dozycoffee.catalog.store.application.availability.command.ApplyInventoryEventCommand
 import com.dozycoffee.catalog.store.application.display.StoreDisplaySettingApplicationService
-import com.dozycoffee.catalog.store.application.display.command.ChangeDisplayOrderCommand
 import com.dozycoffee.catalog.store.application.display.command.ChangeVisibilityCommand
+import com.dozycoffee.catalog.store.application.display.command.ReplaceDisplayOrderCommand
 import com.dozycoffee.catalog.store.application.policy.StoreVisibility
 import com.dozycoffee.catalog.store.application.storeproduct.StoreProductQueryService
 import com.dozycoffee.catalog.store.domain.availability.StockStatus
@@ -86,7 +86,7 @@ class InventoryStockScenarioTest : ApplicationTest() {
             productService.activate(tumbler)
 
             displaySettingService.changeVisibility(ChangeVisibilityCommand(gangnam, tumbler, Visibility.HIDDEN))
-            displaySettingService.changeDisplayOrder(ChangeDisplayOrderCommand(gangnam, tumbler, 0))
+            displaySettingService.replaceDisplayOrder(ReplaceDisplayOrderCommand(gangnam, listOf(tumbler)))
             assertIs<StoreVisibility.NotVisible>(visibilityOf(tumbler))
 
             // 숨김은 노출 의도일 뿐이라 재고 이벤트는 그대로 반영된다.

@@ -14,14 +14,10 @@ class StoreDisplaySetting internal constructor(
     displayOrder: Int? = null,
     visibility: Visibility = Visibility.VISIBLE,
 ) : AggregateRoot<StoreDisplaySettingId>(id) {
-    var displayOrder: Int? = displayOrder
-        private set
+    // 진열 순서는 매장 전체의 순서를 한 번에 바꾸는 StoreDisplayOrder로만 바뀌므로 설정 하나에는 바꾸는 메서드를 두지 않는다.
+    val displayOrder: Int? = displayOrder
     var visibility: Visibility = visibility
         private set
-
-    fun changeDisplayOrder(newDisplayOrder: Int?) {
-        this.displayOrder = newDisplayOrder
-    }
 
     fun show() {
         this.visibility = Visibility.VISIBLE
