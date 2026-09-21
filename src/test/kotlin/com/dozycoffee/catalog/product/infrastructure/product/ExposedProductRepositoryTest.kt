@@ -388,6 +388,33 @@ class ExposedProductRepositoryTest : IntegrationTest() {
     }
 
     @Nested
+    @DisplayName("여러 상품 조회")
+    inner class FindAllByIds {
+        @Test
+        fun `주어진 ID의 상품을 상품 id 순으로 복원하고 없는 ID는 뺀다`() =
+            runTest {
+                val first = insert(newProduct(name = "첫째", tagIds = setOf(TagId(1)), optionGroupIds = listOf(SIZE))).id
+                insert(newProduct(name = "둘째"))
+                val third = insert(newProduct(name = "셋째", tagIds = setOf(TagId(2)))).id
+
+                val found = tx.inTransaction { repository.findAllByIds(listOf(third, ProductId(99), first)) }
+
+                assertEquals(listOf(first, third), found.map { it.id })
+                assertEquals(setOf(TagId(1)), found[0].tagIds)
+                assertEquals(listOf(SIZE to 0), found[0].linkSummary())
+                assertEquals(setOf(TagId(2)), found[1].tagIds)
+            }
+
+        @Test
+        fun `빈 목록이면 빈 목록이다`() =
+            runTest {
+                insert(newProduct())
+
+                assertEquals(emptyList(), tx.inTransaction { repository.findAllByIds(emptyList()) })
+            }
+    }
+
+    @Nested
     @DisplayName("옵션 그룹을 연결한 상품 잠금 조회")
     inner class FindAllLinkedToForUpdate {
         @Test

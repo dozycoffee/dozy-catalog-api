@@ -16,7 +16,7 @@ base package: `com.dozycoffee.catalog`
 3. **모듈 간 의존은 단방향이다.** `store → product`, `schedule → product`, `exposure → product, store`. `product`은 다른 모듈을 참조하지 않는다. 순환은 만들지 않는다.
 4. **모듈 밖에 두는 것은 두 가지뿐이다.**
    - `core` — 여러 모듈이 쓰는 도메인 타입(`AggregateRoot`, `DomainEvent`, `DomainException`, `ErrorCode`, `Money`, `StoreId` 등). 프레임워크를 모르고, 특정 애그리거트의 개념은 두지 않는다. 계층 없이 평평하다.
-   - `common` — 애그리거트에 속하지 않는 기술 공통(`TransactionRunner`, `BusinessTimeZone`, `event/`, `exposed/`, `time/`, `web/`). 모듈을 참조하지 않는다.
+   - `common` — 애그리거트에 속하지 않는 기술 공통(`TransactionRunner`, `BusinessTimeZone`, `event/`, `exposed/`, `paging/`, `time/`, `web/`). 모듈을 참조하지 않는다.
 5. **서브패키지 규칙**: 폴더 안 파일이 6~7개를 넘거나 역할 종류(event/exception 등)가 3가지 이상 섞이면 역할별 서브패키지로 나눈다. 그 미만이면 평평하게 유지한다. Repository 인터페이스는 애그리거트 패키지 최상위에 둔다(모델과 짝을 이루는 존재라 바로 보이는 게 낫다).
 6. **DTO 정책**: Request/Response DTO는 모듈의 `presentation/dto`에서만 쓴다. `application` 경계에서 Command/Query 객체로 변환한다. Exposed `Table` 객체와 row 매핑은 모듈의 `infrastructure` 안에서만 쓰고 domain 모델과 분리한다.
 
@@ -43,6 +43,8 @@ base package: `com.dozycoffee.catalog`
 - 대상이 없으면 애그리거트별 `XxxNotFoundException`(`NOT_FOUND`, 404)으로 거부한다.
 - **여러 애그리거트를 한 트랜잭션에서 바꿀 때는 서비스가 잠금·검증·저장 순서를 정한다.** 잠그고 → 정책에 넘겨 판단하고 → 애그리거트 메서드로 바꾸고 → 저장한다. 이때 **실제로 바뀐 애그리거트만 저장한다.** 바뀐 것 없이 저장하면 낙관적 잠금 대상의 `version`만 올라가 다음 수정이 충돌로 거부된다([ADR-0013](../adr/0013-optimistic-locking-for-product-and-option-group.md)). 예: 옵션 목록 교체는 옵션 그룹과 연결 상품을 함께 잠그지만, 사라진 옵션 키의 예외를 실제로 갖고 있던 상품만 저장한다.
 - **여러 애그리거트를 묶어 보여 주는 조회**는 각 Repository로 불러와 application에서 합치고(`<모듈>/application/<화면 단위>/`의 `XxxQueryService`), 결과는 그 옆의 View 타입에 담는다. 전용 SQL이나 집계가 필요해지면 그때 조회 포트로 옮긴다.
+- **조건 검색과 페이징이 필요한 목록**은 조회 포트가 조건에 맞는 애그리거트 ID의 한 페이지(`common.paging.Page`)만 고르고, application이 그 ID로 Repository에서 애그리거트를 불러와 포트가 정한 순서대로 합친다(예: 상품 목록의 `ProductSearchQueryPort` → `ProductRepository.findAllByIds`). 애그리거트 복원은 Repository 한 곳에만 두고, 검색 조건은 여러 테이블을 볼 수 있게 하기 위해서다. 같은 목록을 호출자별로 다른 범위로 보여 줄 때(본사의 전체 상품, 점주의 판매 상품)는 같은 포트에 범위 조건만 달리 넘긴다.
+- 페이지 크기·`ids` 개수 상한은 presentation이 요청 오류로 먼저 거르고, application 타입(`PageRequest`, 검색 조건)은 `require`로 한 번 더 막는다([예외 구조](exception.md)).
 - **예약 적용처럼 사람이 보던 화면이 없는 경로는 버전을 요구하지 않는다.** 즉시 반영(PUT)은 화면이 보던 버전을 받아 그 사이의 변경을 거부하지만(낙관적 잠금, [ADR-0013](../adr/0013-optimistic-locking-for-product-and-option-group.md)), 배치는 비교할 화면이 없으므로 대상 행을 잠그고(`findByIdForUpdate`) 최신 상태에 적용한다. 그래서 필드 하나만 바꾸는 유스케이스(`ProductFieldApplicationService`, 버전 없는 `replaceOptions`·`replaceOptionGroupLinks`·`replaceOptionOverrides`)를 즉시 반영과 나란히 둔다. 잠금·검증·이벤트 발행은 그대로 그 모듈의 유스케이스 안에서 일어난다.
 - **배치는 처리 단위마다 트랜잭션을 연다.** 예약 적용 배치는 대상 목록을 짧은 트랜잭션에서 고른 뒤, 예약 한 건마다 그 행을 다시 잠그고(`FOR UPDATE SKIP LOCKED`) 적용한다. 적용과 `APPLIED` 기록은 같은 트랜잭션에서 함께 커밋해 "적용됐는데 대기로 남는" 상태를 만들지 않고, 규칙 위반(`DomainException`)이면 적용 트랜잭션을 통째로 롤백해 대상 값을 되돌린 뒤 **별도 트랜잭션에서** `FAILED`만 기록한다(같은 트랜잭션에서 기록하면 롤백에 함께 쓸려 나간다). 그 밖의 예외는 규칙 위반이 아니므로 실패로 확정하지 않고 대기로 남겨 다음 실행에서 다시 시도한다. 한 번에 처리할 건수에는 상한을 둔다.
 - **도메인 이벤트는 저장 후 `pullDomainEvents()`로 꺼내 같은 트랜잭션에서 동기로 처리한다.** 중간 상태를 만들지 않고, 핸들러가 실패하면 원래 변경도 함께 롤백된다. 발행·구독 방식은 아래를 따른다. 규모가 커지거나 다른 BC로 나가는 전파가 생기면 비동기로 바꾼다(전환 조건은 [미정 사항](README.md#미정-사항)).
@@ -60,7 +62,7 @@ base package: `com.dozycoffee.catalog`
 |---|---|---|---|
 | Repository | `<모듈>.domain.<애그리거트>.<Aggregate>Repository` | `<모듈>.infrastructure.<애그리거트>.Exposed<Aggregate>Repository` | 자기 애그리거트 테이블만 |
 | 외부 시스템 포트 | `<모듈>.application.port` | `<모듈>.infrastructure.acl.…Adapter` | Store BC 등의 Client(번역 포함) |
-| 조회 포트 (여러 애그리거트에 걸친 읽기) | `<모듈>.application.port` | `<모듈>.infrastructure.query.…` | Exposed로 테이블 직접 조회 |
+| 조회 포트 (여러 애그리거트·테이블에 걸친 읽기, 조건 검색) | `<모듈>.application.port` | `<모듈>.infrastructure.query.…` | Exposed로 테이블 직접 조회 |
 
 - Repository는 자기 애그리거트만 다룬다. 자기 테이블에 대한 단순 존재 조회(예: `ProductRepository.existsByCategory`)는 그 애그리거트의 Repository에 둔다.
 - 포트 구현체는 domain Repository를 호출해 조합하지 않는다. 무엇을 불러와 어떻게 합칠지는 오케스트레이션이므로 application에 둔다.
@@ -94,6 +96,7 @@ com.dozycoffee.catalog
 │   ├── BusinessTimeZone.kt
 │   ├── event/                             # DomainEventDispatcher, DomainEventHandler + 구현 (BC 안 동기 전달)
 │   ├── exposed/                           # ExposedConfiguration, ExposedTransactionRunner, AuditColumns, JsonbColumnType
+│   ├── paging/                            # PageRequest, Page (목록 조회의 페이징)
 │   ├── time/                              # TimeConfiguration
 │   └── web/                               # GlobalExceptionHandler, ErrorResponse
 │
@@ -109,11 +112,13 @@ com.dozycoffee.catalog
 │   ├── application/
 │   │   ├── policy/                        # EffectiveOptionResolver, EffectiveOptionConfig, OptionReplacementPolicy
 │   │   ├── product/                       # ProductApplicationService, ProductOptionApplicationService,
-│   │   │                                  #   ProductFieldApplicationService(예약 적용용 필드 단위) + command/ (+ SkuGenerator)
+│   │   │   │                              #   ProductFieldApplicationService(예약 적용용 필드 단위) + command/ (+ SkuGenerator)
+│   │   │   └── query/                     # 상품 목록 검색: ProductQueryService(본사), SellableProductQueryService(점주) + 검색 조건
 │   │   ├── optiongroup/ category/ tag/ productgroup/  # 애그리거트별 유스케이스 서비스 + command/
-│   │   └── port/                          # ProductEventPublisherPort, ValidateStoreExistsPort
+│   │   └── port/                          # ProductEventPublisherPort, ValidateStoreExistsPort, ProductSearchQueryPort(조회)
 │   ├── infrastructure/                    # 애그리거트별 Exposed Table + Repository 구현
 │   │   ├── product/ optiongroup/ category/ tag/ productgroup/
+│   │   ├── query/                         # ExposedProductSearchQuery (조건 검색·페이징으로 상품 ID를 고름)
 │   │   ├── eventing/                      # 상품 이벤트 발행 구현 (지금은 로그)
 │   │   └── acl/                           # AlwaysExistingStoreAdapter (StoreBcAdapter + StoreBcClient는 5단계)
 │   └── presentation/                      # (4단계)

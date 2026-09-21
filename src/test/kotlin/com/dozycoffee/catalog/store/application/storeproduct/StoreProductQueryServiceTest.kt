@@ -131,6 +131,30 @@ class StoreProductQueryServiceTest : ApplicationTest() {
             }
     }
 
+    @Nested
+    @DisplayName("ids로 거르기")
+    inner class Ids {
+        @Test
+        fun `주어진 ID의 상품만 목록과 같은 순서로 돌려준다`() =
+            runTest {
+                changeDisplayOrder(gangnam, tumbler, 0)
+
+                val products = service.listProducts(gangnam, ids = setOf(americano, tumbler))
+
+                assertEquals(listOf(tumbler, americano), products.map { it.product.id })
+            }
+
+        @Test
+        fun `판매할 수 없는 상품과 없는 ID는 오류 없이 빠진다`() =
+            runTest {
+                insertProduct("신메뉴", status = "DRAFT", tracksInventory = false)
+
+                val products = service.listProducts(gangnam, ids = setOf(latte, ProductId(4), ProductId(99)))
+
+                assertEquals(listOf(latte), products.map { it.product.id })
+            }
+    }
+
     private suspend fun insertProduct(
         name: String,
         status: String,

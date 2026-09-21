@@ -45,6 +45,15 @@ class ExposedProductRepository : ProductRepository {
     // 상태 전이와 예약 적용의 검증과 쓰기 사이에 다른 변경이 끼어들지 않도록 루트 행을 잠근다(ERD 동시성 처리).
     override suspend fun findByIdForUpdate(id: ProductId): Product? = findOne(selectRoots { ProductsTable.id eq id.value }.forUpdate())
 
+    override suspend fun findAllByIds(ids: Collection<ProductId>): List<Product> {
+        if (ids.isEmpty()) return emptyList()
+        return toProducts(
+            selectRoots { ProductsTable.id inList ids.map { it.value } }
+                .orderBy(ProductsTable.id to SortOrder.ASC)
+                .toList(),
+        )
+    }
+
     // 여러 상품을 잠글 때 교착을 피하도록 항상 id 순서로 잠근다.
     override suspend fun findAllLinkedToForUpdate(optionGroupId: OptionGroupId): List<Product> {
         val linkedProductIds =
