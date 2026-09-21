@@ -24,10 +24,13 @@ class StoreProductAvailabilityApplicationService(
     private val log = LoggerFactory.getLogger(javaClass)
 
     // 점주의 수동 품절 설정·해제. 재고 추적 상품이면 changeByOwner가 거부하므로 아무것도 저장되지 않는다.
+    // 이 매장이 판매 범위에 들지 않은 상품은 점주에게 없는 상품이므로 404로 거부한다(요구사항 2.2).
+    // 판매 범위에서 빠지면 수동 품절은 지워지므로(요구사항 1.5) 범위 밖에서 새로 만들지 않는다. 상품 상태는 보지 않는다.
     suspend fun changeStockStatusByOwner(command: ChangeStockStatusByOwnerCommand): StoreProductAvailability =
         transactionRunner.inTransaction {
             val product =
                 productRepository.findById(command.productId) ?: throw ProductNotFoundException(command.productId)
+            if (!product.storeScope.covers(command.storeId)) throw ProductNotFoundException(command.productId)
             val id = StoreProductAvailabilityId(command.storeId, command.productId)
             val availability =
                 availabilityRepository.findById(id)

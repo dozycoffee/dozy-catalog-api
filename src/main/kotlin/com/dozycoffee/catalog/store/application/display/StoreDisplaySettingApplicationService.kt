@@ -43,11 +43,15 @@ class StoreDisplaySettingApplicationService(
         }
 
     // 진열 설정 테이블은 상품을 FK로 참조한다. 없는 상품이면 DB 오류 대신 이유를 알 수 있는 404로 거부한다.
+    // 이 매장이 판매 범위에 들지 않은 상품도 점주에게는 없는 상품이므로 같은 404로 거부한다(요구사항 2.2).
+    // 판매 범위에서 빠지면 설정이 지워지므로(요구사항 1.5) 범위 밖에서 설정을 만들면 되살아나는 셈이 된다.
+    // 상품 상태는 보지 않는다 — DRAFT·DISCONTINUED 상품의 설정도 미리 바꿀 수 있다.
     private suspend fun findOrCreate(
         storeId: StoreId,
         productId: ProductId,
     ): StoreDisplaySetting {
-        productRepository.findById(productId) ?: throw ProductNotFoundException(productId)
+        val product = productRepository.findById(productId) ?: throw ProductNotFoundException(productId)
+        if (!product.storeScope.covers(storeId)) throw ProductNotFoundException(productId)
         return displaySettingRepository.findOrCreate(storeId, productId)
     }
 }
