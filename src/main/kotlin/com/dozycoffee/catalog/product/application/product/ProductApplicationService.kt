@@ -3,51 +3,33 @@ package com.dozycoffee.catalog.product.application.product
 import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.common.event.DomainEventDispatcher
 import com.dozycoffee.catalog.product.application.port.ProductEventPublisherPort
-import com.dozycoffee.catalog.product.application.port.ValidateStoreExistsPort
 import com.dozycoffee.catalog.product.application.product.command.ChangeStoreScopeCommand
 import com.dozycoffee.catalog.product.application.product.command.RegisterProductCommand
 import com.dozycoffee.catalog.product.application.product.command.ReplaceProductCommand
-import com.dozycoffee.catalog.product.domain.category.CategoryId
-import com.dozycoffee.catalog.product.domain.category.CategoryRepository
-import com.dozycoffee.catalog.product.domain.category.ChildCategory
-import com.dozycoffee.catalog.product.domain.category.exception.CategoryNotFoundException
-import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroupId
-import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroupRepository
-import com.dozycoffee.catalog.product.domain.optiongroup.exception.OptionGroupNotFoundException
 import com.dozycoffee.catalog.product.domain.product.Product
 import com.dozycoffee.catalog.product.domain.product.ProductId
 import com.dozycoffee.catalog.product.domain.product.ProductRepository
-import com.dozycoffee.catalog.product.domain.product.StoreScope
 import com.dozycoffee.catalog.product.domain.product.exception.ProductNotFoundException
-import com.dozycoffee.catalog.product.domain.product.exception.TargetStoreNotFoundException
-import com.dozycoffee.catalog.product.domain.productgroup.ProductGroupId
-import com.dozycoffee.catalog.product.domain.productgroup.ProductGroupRepository
-import com.dozycoffee.catalog.product.domain.productgroup.exception.ProductGroupNotFoundException
-import com.dozycoffee.catalog.product.domain.tag.TagId
-import com.dozycoffee.catalog.product.domain.tag.TagRepository
 import org.springframework.stereotype.Service
 
 // 상품 등록·수정·상태 전환·삭제(요구사항 1.2, 1.3, 1.4, 1.11 / 시나리오 S1, S3).
 // 상태 전이는 Product가 지키고, 카테고리·태그·그룹·옵션 그룹처럼 다른 애그리거트를 확인해야 하는 규칙은
-// 여기서 조회해 넘긴다(ADR-0012).
+// 여기서 조회해 넘긴다(ADR-0012). 참조 대상의 존재 확인은 예약 등록·적용과 같은 ProductReferenceValidator를 쓴다.
 @Service
 class ProductApplicationService(
     private val productRepository: ProductRepository,
-    private val categoryRepository: CategoryRepository,
-    private val tagRepository: TagRepository,
-    private val productGroupRepository: ProductGroupRepository,
-    private val optionGroupRepository: OptionGroupRepository,
+    private val referenceValidator: ProductReferenceValidator,
+    private val tagResolver: ProductTagResolver,
     private val skuGenerator: SkuGenerator,
     private val eventPublisher: ProductEventPublisherPort,
     private val eventDispatcher: DomainEventDispatcher,
-    private val validateStoreExists: ValidateStoreExistsPort,
     private val transactionRunner: TransactionRunner,
 ) {
     suspend fun register(command: RegisterProductCommand): Product =
         transactionRunner.inTransaction {
-            val category = requireChildCategory(command.categoryId)
-            requireGroupsExist(command.groupIds)
-            requireOptionGroupsExist(command.optionGroupIds)
+            val category = referenceValidator.requireChildCategory(command.categoryId)
+            referenceValidator.requireGroupsExist(command.groupIds)
+            referenceValidator.requireOptionGroupsExist(command.optionGroupIds)
             val newProduct =
                 Product.NewProduct.of(
                     sku = skuGenerator.next(),
@@ -57,7 +39,7 @@ class ProductApplicationService(
                     imageUrl = command.imageUrl,
                     basePrice = command.basePrice,
                     tracksInventory = command.tracksInventory,
-                    tagIds = resolveTags(command.tagNames),
+                    tagIds = tagResolver.resolve(command.tagNames),
                     groupIds = command.groupIds,
                     optionGroupIds = command.optionGroupIds,
                 )
@@ -69,9 +51,9 @@ class ProductApplicationService(
         transactionRunner.inTransaction {
             val product = requireProduct(command.productId)
             product.checkVersion(command.version)
-            val category = requireChildCategory(command.categoryId)
-            requireGroupsExist(command.groupIds)
-            val tagIds = resolveTags(command.tagNames)
+            val category = referenceValidator.requireChildCategory(command.categoryId)
+            referenceValidator.requireGroupsExist(command.groupIds)
+            val tagIds = tagResolver.resolve(command.tagNames)
 
             product.rename(command.name)
             product.changeCategory(category.id)
@@ -92,7 +74,7 @@ class ProductApplicationService(
                 productRepository.findByIdForUpdate(command.productId)
                     ?: throw ProductNotFoundException(command.productId)
             product.checkVersion(command.version)
-            requireTargetStoresExist(command.scope)
+            referenceValidator.requireTargetStoresExist(command.scope)
 
             product.changeStoreScope(command.scope)
             val saved = productRepository.save(product)
@@ -130,33 +112,4 @@ class ProductApplicationService(
 
     private suspend fun requireProduct(productId: ProductId): Product =
         productRepository.findById(productId) ?: throw ProductNotFoundException(productId)
-
-    // 상품에는 소분류만 지정할 수 있다(요구사항 1.6). 대분류면 requireChild()가 거부한다.
-    private suspend fun requireChildCategory(categoryId: CategoryId): ChildCategory =
-        (categoryRepository.findById(categoryId) ?: throw CategoryNotFoundException(categoryId)).requireChild()
-
-    // 같은 이름의 태그가 있으면 재사용하고 없으면 만든다(요구사항 1.7).
-    private suspend fun resolveTags(tagNames: List<String>): Set<TagId> = tagNames.map { tagRepository.findOrCreateByName(it).id }.toSet()
-
-    // 대상 매장을 비운 Limited도 허용하므로(요구사항 1.5) 확인할 매장이 없으면 그대로 통과한다.
-    private suspend fun requireTargetStoresExist(scope: StoreScope) {
-        val targetStoreIds = (scope as? StoreScope.Limited)?.targetStoreIds.orEmpty()
-        if (targetStoreIds.isEmpty()) return
-        val missing = validateStoreExists.findMissing(targetStoreIds)
-        if (missing.isNotEmpty()) {
-            throw TargetStoreNotFoundException(missing)
-        }
-    }
-
-    private suspend fun requireGroupsExist(groupIds: Set<ProductGroupId>) {
-        groupIds.forEach { groupId ->
-            productGroupRepository.findById(groupId) ?: throw ProductGroupNotFoundException(groupId)
-        }
-    }
-
-    private suspend fun requireOptionGroupsExist(optionGroupIds: List<OptionGroupId>) {
-        optionGroupIds.forEach { optionGroupId ->
-            optionGroupRepository.findById(optionGroupId) ?: throw OptionGroupNotFoundException(optionGroupId)
-        }
-    }
 }

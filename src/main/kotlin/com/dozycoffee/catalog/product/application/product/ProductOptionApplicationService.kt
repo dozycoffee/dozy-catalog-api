@@ -30,13 +30,14 @@ import org.springframework.stereotype.Service
 class ProductOptionApplicationService(
     private val productRepository: ProductRepository,
     private val optionGroupRepository: OptionGroupRepository,
+    private val referenceValidator: ProductReferenceValidator,
     private val transactionRunner: TransactionRunner,
 ) {
     // 새 연결은 기존 연결들 뒤에 붙인다. 연결을 해제해 순서에 빈 자리가 생겼을 수 있으므로
     // 연결 수가 아니라 마지막 순서 다음 값을 쓴다.
     suspend fun linkOptionGroup(command: LinkOptionGroupCommand): Product =
         change(command.productId, command.version) { product ->
-            requireOptionGroup(command.optionGroupId)
+            referenceValidator.requireOptionGroupsExist(listOf(command.optionGroupId))
             val nextOrder = (product.optionGroupLinks.maxOfOrNull { it.displayOrder } ?: -1) + 1
             product.linkOptionGroup(command.optionGroupId, nextOrder)
         }
@@ -82,7 +83,7 @@ class ProductOptionApplicationService(
         optionGroupIds: List<OptionGroupId>,
     ): Product =
         changeLocked(productId) { product ->
-            optionGroupIds.forEach { requireOptionGroup(it) }
+            referenceValidator.requireOptionGroupsExist(optionGroupIds)
             val linkedIds = product.optionGroupLinks.map { it.id }
             (linkedIds - optionGroupIds.toSet()).forEach { product.unlinkOptionGroup(it) }
             var nextOrder = (product.optionGroupLinks.maxOfOrNull { it.displayOrder } ?: -1) + 1
