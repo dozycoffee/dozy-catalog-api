@@ -13,6 +13,10 @@ interface ProductRepository {
     // SELECT ... FOR UPDATE로 구현한다.
     suspend fun findByIdForUpdate(id: ProductId): Product?
 
+    // 여러 상품을 한 번에 가져온다. 없는 ID는 빠지고, 순서는 상품 id 순이다. 잠그지 않는 읽기다.
+    // 목록 조회가 조회 포트로 고른 ID 페이지를 애그리거트로 바꿀 때 쓴다.
+    suspend fun findAllByIds(ids: Collection<ProductId>): List<Product>
+
     // 이 옵션 그룹을 연결한 상품 전체를 상태와 상관없이 잠그고 가져온다. 옵션 목록을 교체할 때
     // OptionReplacementPolicy.check에 넘기고, 사라진 옵션 키의 예외를 정리해 저장한다.
     suspend fun findAllLinkedToForUpdate(optionGroupId: OptionGroupId): List<Product>

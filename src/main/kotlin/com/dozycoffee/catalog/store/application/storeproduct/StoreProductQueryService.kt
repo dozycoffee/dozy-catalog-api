@@ -3,6 +3,7 @@ package com.dozycoffee.catalog.store.application.storeproduct
 import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.product.domain.product.Product
+import com.dozycoffee.catalog.product.domain.product.ProductId
 import com.dozycoffee.catalog.product.domain.product.ProductRepository
 import com.dozycoffee.catalog.store.application.policy.ProductVisibilityPolicy
 import com.dozycoffee.catalog.store.application.policy.StoreVisibility
@@ -23,9 +24,17 @@ class StoreProductQueryService(
     // 대상은 Active이고 이 매장이 판매 범위에 든 상품이다. 점주가 숨긴 상품도 다시 노출로 되돌릴 수 있어야 하므로
     // 목록에서 빼지 않고 노출 상태(NotVisible)로 표시한다.
     // 진열 설정이나 판매 가능 여부가 없는 상품은 기본값으로 본다 — 각 Map에서 찾지 못한 null을 그대로 정책에 넘긴다.
-    suspend fun listProducts(storeId: StoreId): List<StoreProductView> =
+    // ids를 주면 그 상품만 남긴다(docs/api/README.md 목록 조회). 대상이 아니거나 없는 ID는 오류 없이 빠진다.
+    suspend fun listProducts(
+        storeId: StoreId,
+        ids: Set<ProductId>? = null,
+    ): List<StoreProductView> =
         transactionRunner.inTransaction {
-            val products = productRepository.findAllSellableAt(storeId)
+            // 매장 상품 목록은 페이징하지 않아 판매 가능한 상품 전체를 불러오므로, ids도 불러온 뒤 거른다.
+            val products =
+                productRepository
+                    .findAllSellableAt(storeId)
+                    .filter { ids == null || it.id in ids }
             val displaySettings = displaySettingRepository.findAllByStore(storeId).associateBy { it.productId }
             val availabilities = availabilityRepository.findAllByStore(storeId).associateBy { it.id.productId }
 
