@@ -4,8 +4,8 @@
 
 가맹점주가 쓰는 API다. 경로 앞에 `/api/v1`이 붙는다. 점주는 가격을 바꿀 수 없다(전 매장 동일가, 요구사항 2.1).
 
-- **매장 상품**(`/stores/{storeId}/…`): 한 매장에서 각 상품의 상태(진열 순서, 숨김, 품절)다. 상품 자체의 정보는 담지 않는다.
-- **판매 상품 조회**(`/products`, `/categories`, `/tags`): 점주가 판매하는 상품의 정보다. 클라이언트가 매장 상품의 `productId`로 이 API를 불러 합친다.
+- **매장 상품**(`/stores/{storeId}/…`): 한 매장에서 각 상품의 상태(진열 순서, 숨김, 품절)다. 상품은 알아볼 최소 정보(SKU, 이름)만 함께 담는다.
+- **판매 상품 조회**(`/products`, `/categories`, `/tags`): 점주가 판매하는 상품의 정보다. 이미지·가격·카테고리 등이 필요하면 클라이언트가 매장 상품의 `productId`로 이 API를 불러 합친다.
 
 ## 엔드포인트 목록
 
@@ -36,6 +36,8 @@
 ```json
 {
   "productId": 12,
+  "sku": "DZ-00000012",
+  "name": "아이스 아메리카노",
   "displayOrder": 1,
   "visibility": "VISIBLE",
   "stockStatus": "ON_SALE"
@@ -44,6 +46,7 @@
 
 | 필드 | 설명 |
 |---|---|
+| `sku`, `name` | 대상 상품을 알아보기 위한 정보([설계 원칙](README.md#설계-원칙)). 매장 상품 목록의 상품은 모두 `ACTIVE`라 상태는 담지 않는다 |
 | `displayOrder` | 점주가 정한 진열 순서(1부터). 정하지 않았으면 `null` |
 | `visibility` | `VISIBLE` / `HIDDEN`. 개별 설정이 없으면 `VISIBLE` |
 | `stockStatus` | `ON_SALE` / `SOLD_OUT`. 재고 미추적 상품은 점주의 수동 품절(없으면 `ON_SALE`), 재고 추적 상품은 매장 재고(받은 적 없으면 `SOLD_OUT`). `HIDDEN`이면 `null` |
