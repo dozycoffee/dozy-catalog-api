@@ -176,7 +176,9 @@ application 서비스는 필요한 애그리거트를 조회·잠금해 정책�
 | 판매 가능 여부의 출처는 상품의 재고 추적 여부를 따른다 | `Product.tracksInventory` | application이 처음 생성할 때 `AvailabilitySource.of(tracksInventory)`로 출처를 정한다 (재고 추적 여부는 바뀌지 않으므로 이후 불변) |
 | 판매 범위 대상 매장은 실제 존재하는 매장이어야 함 | Store BC | `ValidateStoreExistsPort`로 외부 검증 |
 | 동일 대상·필드의 PENDING 예약은 최대 1건 | 기존 PENDING 예약 | application이 기존 예약을 잠그고(`FOR UPDATE`) 취소 후 새로 등록, DB 부분 UNIQUE 제약으로 이중 보장 |
-| 태그 이름은 유일 (같은 이름이면 재사용) | 기존 태그 | 상품 등록·수정 유스케이스가 `TagRepository.findOrCreateByName`으로 처리 |
+| 태그 이름은 유일 (같은 이름이면 재사용) | 기존 태그 | 상품 등록·수정 유스케이스가 `TagRepository.findOrCreateByName`으로 처리. 이름 변경이 다른 태그와 겹치면 거부 (`TagNameDuplicatedException`) |
+| 예약 값은 등록 시점에 값 자체와 참조 대상의 존재를 검증 (요구사항 1.4) | 참조 대상(카테고리, 상품 그룹, 옵션 그룹, 매장) | 예약 등록 유스케이스가 즉시 변경과 같은 `product` 모듈의 검증을 호출. 대상 상태에 달린 규칙은 적용 시점에만 검증 |
+| 점주는 자기 매장이 판매 범위에 든 상품의 설정만 바꿀 수 있다 (요구사항 2.2) | `Product.storeScope` | 점주 유스케이스가 상품을 불러 `StoreScope.covers(storeId)`로 확인, 아니면 `ProductNotFoundException` |
 | SKU는 등록 시점에 시스템이 부여 (요구사항 1.2) | 전용 시퀀스 | 상품 등록 유스케이스가 `SkuGenerator`로 발급해 `NewProduct`에 담는다 ([ADR-0016](adr/0016-system-generated-sku.md)) |
 
 ## 시간 처리

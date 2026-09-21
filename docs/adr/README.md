@@ -36,6 +36,7 @@
 | [0011](0011-transaction-boundary-with-transaction-runner.md) | 트랜잭션 경계는 application의 `TransactionRunner`로 연다 | 채택 | 2026-09-19 |
 | [0012](0012-cross-aggregate-judgment-in-application-policy.md) | 여러 애그리거트를 보는 판단은 application 정책에 두고, domain은 다른 애그리거트를 ID로만 참조한다 | 채택 | 2026-09-19 |
 | [0015](0015-domain-modules-as-top-level-packages.md) | 최상위 패키지를 도메인 모듈로 두고, 그 안에서 레이어를 나눈다 | 채택 | 2026-09-20 |
+| [0017](0017-resource-oriented-api-split-by-caller.md) | API는 리소스 단위로 설계하고, 호출자별로 경로를 나눈다 | 채택 | 2026-09-21 |
 
 ### 영속성
 | ADR | 제목 | 상태 | 날짜 |

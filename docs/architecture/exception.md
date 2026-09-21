@@ -39,7 +39,7 @@ enum class ProductErrorCode(override val type: ErrorType) : ErrorCode {
 | 상황 | 쓰는 것 | 결과 |
 |---|---|---|
 | 사용자 요청으로 생길 수 있는 규칙 위반 (예: 참조 중인 카테고리 삭제, 이미 Active인 상품 활성화) | `DomainException` 서브클래스 | `ErrorType`에 따라 4xx와 `ErrorResponse`로 응답한다. 클라이언트가 이유를 알 수 있어야 한다 |
-| 사용자가 일으킬 수 없고 호출하는 코드가 잘못됐을 때만 생기는 상황 (예: application 정책에 다른 상품의 데이터가 섞여 들어옴) | Kotlin 표준 함수 `require`(인자 검증, `IllegalArgumentException`) / `check`(상태 검증, `IllegalStateException`) | `GlobalExceptionHandler`가 잡지 않아 500으로 나가고 error 로그로 남는다. 클라이언트 잘못처럼 4xx로 보고하지 않고 서버 버그로 드러나게 한다 |
+| 사용자가 일으킬 수 없고 호출하는 코드가 잘못됐을 때만 생기는 상황 (예: application 정책에 다른 상품의 데이터가 섞여 들어옴) | Kotlin 표준 함수 `require`(인자 검증, `IllegalArgumentException`) / `check`(상태 검증, `IllegalStateException`) | 도메인 예외로 처리하지 않고 500 `INTERNAL_ERROR`로 응답하며 error 로그로 남긴다([API 명세](../api/README.md#오류-응답)). 클라이언트 잘못처럼 4xx로 보고하지 않고 서버 버그로 드러나게 한다 |
 
 - 사용자 요청으로 생길 수 있는지 애매하면 `DomainException`을 쓴다.
 - HTTP가 아닌 경로(이벤트 핸들러, 예약 배치)에서는 어느 쪽이든 500으로 바뀌지 않고 호출자에게 그대로 올라간다. 이 경로의 예외 격리 방식은 [미정 사항](README.md#미정-사항)을 따른다.
