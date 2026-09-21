@@ -1,5 +1,7 @@
 package com.dozycoffee.catalog.exposure.application.port
 
+import com.dozycoffee.catalog.common.paging.Page
+import com.dozycoffee.catalog.common.paging.PageRequest
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.exposure.application.ProductExposureFilter
 import com.dozycoffee.catalog.product.domain.product.ProductId
@@ -13,7 +15,11 @@ import com.dozycoffee.catalog.store.domain.display.Visibility
 // 애그리거트를 통째로 불러오지 않으므로 Repository를 조합하지 않고 infrastructure가 테이블을 직접 조회한다(ADR-0012).
 // 전체 매장 수는 Catalog가 모르는 Store BC의 값이라 여기 담기지 않는다(StoreDirectoryPort).
 interface ProductExposureQueryPort {
-    suspend fun findAll(filter: ProductExposureFilter): List<ProductExposureRecord>
+    // 조건에 맞는 상품을 id 오름차순(등록 순)으로 페이지에 담는다. 매장 설정은 페이지에 든 상품 것만 읽는다.
+    suspend fun findPage(
+        filter: ProductExposureFilter,
+        pageRequest: PageRequest,
+    ): Page<ProductExposureRecord>
 
     suspend fun find(productId: ProductId): ProductExposureRecord?
 }
