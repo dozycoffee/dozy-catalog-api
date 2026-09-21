@@ -2,6 +2,7 @@ package com.dozycoffee.catalog.product.application.tag
 
 import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.product.application.tag.command.RenameTagCommand
+import com.dozycoffee.catalog.product.application.tag.query.TagFilter
 import com.dozycoffee.catalog.product.domain.tag.Tag
 import com.dozycoffee.catalog.product.domain.tag.TagId
 import com.dozycoffee.catalog.product.domain.tag.TagRepository
@@ -15,6 +16,12 @@ class TagApplicationService(
     private val tagRepository: TagRepository,
     private val transactionRunner: TransactionRunner,
 ) {
+    // 이름 순으로 돌려준다.
+    suspend fun list(filter: TagFilter = TagFilter()): List<Tag> =
+        transactionRunner.inTransaction {
+            tagRepository.findAll(filter.ids, filter.keyword)
+        }
+
     suspend fun rename(command: RenameTagCommand): Tag =
         transactionRunner.inTransaction {
             val tag = tagRepository.findById(command.tagId) ?: throw TagNotFoundException(command.tagId)

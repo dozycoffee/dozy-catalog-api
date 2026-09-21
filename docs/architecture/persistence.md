@@ -44,6 +44,7 @@
 - 시각 컬럼은 `timestampWithTimeZone`(`OffsetDateTime`)으로 읽고 매퍼에서 `Instant`로 바꾼다. 금액은 `long`으로 읽어 `Money`로 감싼다.
 - 감사 컬럼 `updated_at`은 UPDATE 문에서 `DbNow`(DB 시계)로 채운다.
 - 상태값 컬럼은 `enumerationByName("status", 20)`처럼 도메인 enum으로 읽는다(`VARCHAR` 길이는 마이그레이션과 맞춘다).
+- 목록 조회의 검색어는 `containsIgnoringCase`(대소문자 무시 부분 일치, `%`·`_`는 글자로 찾음)로, 이름 순 정렬은 `koreanOrder()`(`COLLATE "ko-x-icu"`)로 쓴다(`common.exposed`). DB 기본 정렬 규칙(`en_US.utf8`)은 한글을 가나다순으로 정렬하지 않기 때문이다.
 
 ### JSONB 컬럼
 

@@ -5,8 +5,12 @@ import com.dozycoffee.catalog.product.domain.productgroup.ProductGroup
 import com.dozycoffee.catalog.product.domain.productgroup.ProductGroupId
 import com.dozycoffee.catalog.product.domain.productgroup.ProductGroupRepository
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
+import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.r2dbc.deleteWhere
 import org.jetbrains.exposed.v1.r2dbc.insert
 import org.jetbrains.exposed.v1.r2dbc.selectAll
@@ -21,6 +25,19 @@ class ExposedProductGroupRepository : ProductGroupRepository {
             .where { ProductGroupsTable.id eq id.value }
             .firstOrNull()
             ?.toProductGroup()
+
+    override suspend fun findAll(ids: Set<ProductGroupId>?): List<ProductGroup> =
+        ProductGroupsTable
+            .selectAll()
+            .where {
+                when {
+                    ids == null -> Op.TRUE
+                    ids.isEmpty() -> Op.FALSE
+                    else -> ProductGroupsTable.id inList ids.map { it.value }
+                }
+            }.orderBy(ProductGroupsTable.id)
+            .map { it.toProductGroup() }
+            .toList()
 
     override suspend fun insert(name: String): ProductGroup {
         val id = ProductGroupsTable.insert { it[ProductGroupsTable.name] = name }[ProductGroupsTable.id]

@@ -7,9 +7,13 @@ import com.dozycoffee.catalog.product.domain.category.CategoryRepository
 import com.dozycoffee.catalog.product.domain.category.ChildCategory
 import com.dozycoffee.catalog.product.domain.category.TopLevelCategory
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
+import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.r2dbc.deleteWhere
 import org.jetbrains.exposed.v1.r2dbc.insert
@@ -36,6 +40,23 @@ class ExposedCategoryRepository : CategoryRepository {
             .forUpdate()
             .firstOrNull()
             ?.toCategory() as? TopLevelCategory
+
+    override suspend fun findAll(
+        ids: Set<CategoryId>?,
+        parentId: CategoryId?,
+        topLevelOnly: Boolean,
+    ): List<Category> {
+        val conditions = mutableListOf<Op<Boolean>>()
+        ids?.let { ids -> conditions += if (ids.isEmpty()) Op.FALSE else CategoriesTable.id inList ids.map { it.value } }
+        parentId?.let { parent -> conditions += CategoriesTable.parentCategoryId eq parent.value }
+        if (topLevelOnly) conditions += CategoriesTable.parentCategoryId.isNull()
+        return CategoriesTable
+            .selectAll()
+            .where { conditions.fold(Op.TRUE as Op<Boolean>) { acc, condition -> acc and condition } }
+            .orderBy(CategoriesTable.id)
+            .map { it.toCategory() }
+            .toList()
+    }
 
     override suspend fun hasChildren(id: CategoryId): Boolean =
         CategoriesTable

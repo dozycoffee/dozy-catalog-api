@@ -4,6 +4,7 @@ import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.product.application.optiongroup.command.ChangeOptionGroupDefinitionCommand
 import com.dozycoffee.catalog.product.application.optiongroup.command.RegisterOptionGroupCommand
 import com.dozycoffee.catalog.product.application.optiongroup.command.ReplaceOptionsCommand
+import com.dozycoffee.catalog.product.application.optiongroup.query.OptionGroupFilter
 import com.dozycoffee.catalog.product.application.policy.OptionReplacementPolicy
 import com.dozycoffee.catalog.product.domain.optiongroup.Option
 import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroup
@@ -25,6 +26,12 @@ class OptionGroupApplicationService(
     private val productRepository: ProductRepository,
     private val transactionRunner: TransactionRunner,
 ) {
+    // 등록 순으로 돌려준다. 옵션은 옵션 그룹의 노출 순서대로 담긴다.
+    suspend fun list(filter: OptionGroupFilter = OptionGroupFilter()): List<OptionGroup> =
+        transactionRunner.inTransaction {
+            optionGroupRepository.findAll(filter.ids, filter.keyword)
+        }
+
     suspend fun register(command: RegisterOptionGroupCommand): OptionGroup =
         transactionRunner.inTransaction {
             optionGroupRepository.insert(

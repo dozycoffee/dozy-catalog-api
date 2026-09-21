@@ -9,6 +9,14 @@ interface CategoryRepository {
     // 레이스를 막기 위해 SELECT ... FOR UPDATE로 구현한다.
     suspend fun findTopLevelByIdForUpdate(id: CategoryId): TopLevelCategory?
 
+    // 목록 조회(요구사항 1.6). 지정한 조건만 AND로 걸고 등록 순(id)으로 돌려준다. ids가 비어 있으면 빈 목록이고, 없는 ID는 빠진다.
+    // parentId는 그 대분류의 소분류만, topLevelOnly는 대분류만 남긴다.
+    suspend fun findAll(
+        ids: Set<CategoryId>? = null,
+        parentId: CategoryId? = null,
+        topLevelOnly: Boolean = false,
+    ): List<Category>
+
     suspend fun hasChildren(id: CategoryId): Boolean
 
     suspend fun insertTopLevel(name: String): TopLevelCategory

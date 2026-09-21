@@ -1,14 +1,23 @@
 package com.dozycoffee.catalog.product.infrastructure.tag
 
 import com.dozycoffee.catalog.common.exposed.DbNow
+import com.dozycoffee.catalog.common.exposed.containsIgnoringCase
+import com.dozycoffee.catalog.common.exposed.koreanOrder
+import com.dozycoffee.catalog.common.exposed.toSearchKeyword
 import com.dozycoffee.catalog.product.domain.tag.Tag
 import com.dozycoffee.catalog.product.domain.tag.TagId
 import com.dozycoffee.catalog.product.domain.tag.TagRepository
 import com.dozycoffee.catalog.product.domain.tag.exception.TagNameDuplicatedException
 import io.r2dbc.spi.R2dbcException
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
+import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.r2dbc.ExposedR2dbcException
 import org.jetbrains.exposed.v1.r2dbc.deleteWhere
 import org.jetbrains.exposed.v1.r2dbc.insertIgnore
@@ -24,6 +33,21 @@ class ExposedTagRepository : TagRepository {
             .where { TagsTable.id eq id.value }
             .firstOrNull()
             ?.toTag()
+
+    override suspend fun findAll(
+        ids: Set<TagId>?,
+        keyword: String?,
+    ): List<Tag> {
+        val conditions = mutableListOf<Op<Boolean>>()
+        ids?.let { ids -> conditions += if (ids.isEmpty()) Op.FALSE else TagsTable.id inList ids.map { it.value } }
+        keyword.toSearchKeyword()?.let { keyword -> conditions += TagsTable.name.containsIgnoringCase(keyword) }
+        return TagsTable
+            .selectAll()
+            .where { conditions.fold(Op.TRUE as Op<Boolean>) { acc, condition -> acc and condition } }
+            .orderBy(TagsTable.name.koreanOrder() to SortOrder.ASC, TagsTable.id to SortOrder.ASC)
+            .map { it.toTag() }
+            .toList()
+    }
 
     override suspend fun findByName(name: String): Tag? =
         TagsTable

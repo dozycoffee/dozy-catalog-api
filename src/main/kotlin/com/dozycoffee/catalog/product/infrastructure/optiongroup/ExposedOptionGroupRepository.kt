@@ -1,6 +1,8 @@
 package com.dozycoffee.catalog.product.infrastructure.optiongroup
 
 import com.dozycoffee.catalog.common.exposed.DbNow
+import com.dozycoffee.catalog.common.exposed.containsIgnoringCase
+import com.dozycoffee.catalog.common.exposed.toSearchKeyword
 import com.dozycoffee.catalog.core.Money
 import com.dozycoffee.catalog.core.VersionConflictException
 import com.dozycoffee.catalog.product.domain.optiongroup.Option
@@ -12,9 +14,12 @@ import com.dozycoffee.catalog.product.domain.optiongroup.SelectionType
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
+import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.r2dbc.Query
 import org.jetbrains.exposed.v1.r2dbc.batchInsert
@@ -27,6 +32,31 @@ import org.springframework.stereotype.Repository
 @Repository
 class ExposedOptionGroupRepository : OptionGroupRepository {
     override suspend fun findById(id: OptionGroupId): OptionGroup? = selectRoot(id).firstOrNull()?.toOptionGroup()
+
+    // 옵션은 그룹마다 조회하지 않고 한 번(option_group_id IN (…))에 불러와 묶는다(docs/architecture/persistence.md).
+    override suspend fun findAll(
+        ids: Set<OptionGroupId>?,
+        keyword: String?,
+    ): List<OptionGroup> {
+        val conditions = mutableListOf<Op<Boolean>>()
+        ids?.let { ids -> conditions += if (ids.isEmpty()) Op.FALSE else OptionGroupsTable.id inList ids.map { it.value } }
+        keyword.toSearchKeyword()?.let { keyword -> conditions += OptionGroupsTable.name.containsIgnoringCase(keyword) }
+        val roots =
+            OptionGroupsTable
+                .selectAll()
+                .where { conditions.fold(Op.TRUE as Op<Boolean>) { acc, condition -> acc and condition } }
+                .orderBy(OptionGroupsTable.id)
+                .toList()
+        if (roots.isEmpty()) return emptyList()
+        val optionsByGroup =
+            OptionsTable
+                .selectAll()
+                .where { OptionsTable.optionGroupId inList roots.map { it[OptionGroupsTable.id] } }
+                .orderBy(OptionsTable.optionGroupId to SortOrder.ASC, OptionsTable.displayOrder to SortOrder.ASC)
+                .toList()
+                .groupBy({ it[OptionsTable.optionGroupId] }, { it.toOption() })
+        return roots.map { it.toOptionGroup(optionsByGroup[it[OptionGroupsTable.id]].orEmpty()) }
+    }
 
     // 옵션 목록 교체의 검증과 쓰기 사이에 다른 변경이 끼어들지 않도록 루트 행을 잠근다(ERD 동시성 처리).
     override suspend fun findByIdForUpdate(id: OptionGroupId): OptionGroup? = selectRoot(id).forUpdate().firstOrNull()?.toOptionGroup()
@@ -102,17 +132,17 @@ class ExposedOptionGroupRepository : OptionGroupRepository {
             .map { it.toOption() }
             .toList()
 
-    private suspend fun ResultRow.toOptionGroup(): OptionGroup {
-        val id = this[OptionGroupsTable.id]
-        return OptionGroup(
-            id = OptionGroupId(id),
+    private suspend fun ResultRow.toOptionGroup(): OptionGroup = toOptionGroup(findOptions(this[OptionGroupsTable.id]))
+
+    private fun ResultRow.toOptionGroup(options: List<Option>) =
+        OptionGroup(
+            id = OptionGroupId(this[OptionGroupsTable.id]),
             name = this[OptionGroupsTable.name],
             selectionType = SelectionType.valueOf(this[OptionGroupsTable.selectionType]),
             required = this[OptionGroupsTable.required],
-            options = findOptions(id),
+            options = options,
             version = this[OptionGroupsTable.version],
         )
-    }
 
     private fun ResultRow.toOption() =
         Option(

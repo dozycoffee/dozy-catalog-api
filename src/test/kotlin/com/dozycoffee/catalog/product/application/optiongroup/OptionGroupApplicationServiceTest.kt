@@ -7,6 +7,7 @@ import com.dozycoffee.catalog.fixture.option
 import com.dozycoffee.catalog.product.application.optiongroup.command.ChangeOptionGroupDefinitionCommand
 import com.dozycoffee.catalog.product.application.optiongroup.command.RegisterOptionGroupCommand
 import com.dozycoffee.catalog.product.application.optiongroup.command.ReplaceOptionsCommand
+import com.dozycoffee.catalog.product.application.optiongroup.query.OptionGroupFilter
 import com.dozycoffee.catalog.product.domain.optiongroup.Option
 import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.product.domain.optiongroup.OptionKey
@@ -351,6 +352,95 @@ class OptionGroupApplicationServiceTest : ApplicationTest() {
             runTest {
                 assertFailsWith<OptionGroupNotFoundException> { service.delete(OptionGroupId(999)) }
             }
+    }
+
+    @Nested
+    @DisplayName("목록 조회")
+    inner class Listing {
+        // 1 사이즈, 2 Extra Shot, 3 시럽 100%, 4 시럽 1000, 5 ice_level, 6 iceXlevel
+        @BeforeEach
+        fun setUpOptionGroups() =
+            runTest {
+                execute(
+                    "INSERT INTO option_groups (name, selection_type, required) VALUES " +
+                        "('사이즈', 'SINGLE', true), ('Extra Shot', 'MULTI', false), ('시럽 100%', 'SINGLE', false), " +
+                        "('시럽 1000', 'SINGLE', false), ('ice_level', 'SINGLE', true), ('iceXlevel', 'SINGLE', true)",
+                )
+                // 옵션 행을 그룹이 섞이고 노출 순서와 다르게 넣어, 그룹별로 노출 순서대로 묶이는지 본다.
+                execute(
+                    "INSERT INTO options (option_group_id, option_key, name, price, display_order) VALUES " +
+                        "(2, 'DOUBLE', '투샷', 1000, 1), (1, 'GRANDE', '그란데', 500, 1), (2, 'SINGLE', '원샷', 500, 0), " +
+                        "(1, 'TALL', '톨', 0, 0), (1, 'VENTI', '벤티', 1000, 2), (3, 'VANILLA', '바닐라', 0, 0), " +
+                        "(4, 'HAZELNUT', '헤이즐넛', 0, 0), (5, 'LESS', '적게', 0, 0), (6, 'MORE', '많이', 0, 0)",
+                )
+            }
+
+        @Test
+        fun `조건이 없으면 모든 옵션 그룹을 등록 순으로 돌려준다`() =
+            runTest {
+                assertEquals(listOf(1L, 2L, 3L, 4L, 5L, 6L), ids(OptionGroupFilter()))
+            }
+
+        @Test
+        fun `여러 옵션 그룹의 옵션을 각 그룹의 노출 순서대로 담는다`() =
+            runTest {
+                val groups = service.list(OptionGroupFilter(ids = setOf(OptionGroupId(1), OptionGroupId(2))))
+
+                val size = groups[0]
+                assertEquals("사이즈", size.name)
+                assertEquals(SelectionType.SINGLE, size.selectionType)
+                assertTrue(size.required)
+                assertEquals(listOf(OptionKey("TALL"), OptionKey("GRANDE"), OptionKey("VENTI")), size.options.map { it.optionKey })
+                assertEquals(listOf(Money(0), Money(500), Money(1000)), size.options.map { it.price })
+                val shot = groups[1]
+                assertEquals(SelectionType.MULTI, shot.selectionType)
+                assertEquals(listOf("원샷", "투샷"), shot.options.map { it.name })
+            }
+
+        @Test
+        fun `검색어는 대소문자를 가리지 않고 이름의 일부와 맞춘다`() =
+            runTest {
+                assertEquals(listOf(2L), ids(OptionGroupFilter(keyword = "extra")))
+                assertEquals(listOf(3L, 4L), ids(OptionGroupFilter(keyword = "시럽")))
+            }
+
+        @Test
+        fun `검색어의 퍼센트와 밑줄은 와일드카드가 아니라 글자로 찾는다`() =
+            runTest {
+                assertEquals(listOf(3L), ids(OptionGroupFilter(keyword = "100%")))
+                assertEquals(listOf(5L), ids(OptionGroupFilter(keyword = "ice_")))
+            }
+
+        @Test
+        fun `ids를 주면 그 옵션 그룹만 등록 순으로 돌려주고 없는 ID는 빠진다`() =
+            runTest {
+                val filter = OptionGroupFilter(ids = setOf(OptionGroupId(4), OptionGroupId(2), OptionGroupId(999)))
+
+                assertEquals(listOf(2L, 4L), ids(filter))
+            }
+
+        @Test
+        fun `빈 ids는 아무것도 돌려주지 않는다`() =
+            runTest {
+                assertEquals(emptyList(), ids(OptionGroupFilter(ids = emptySet())))
+            }
+
+        @Test
+        fun `ids와 검색어를 함께 주면 모두 만족하는 것만 남는다`() =
+            runTest {
+                val filter = OptionGroupFilter(ids = setOf(OptionGroupId(1), OptionGroupId(4)), keyword = "시럽")
+
+                assertEquals(listOf(4L), ids(filter))
+            }
+
+        @Test
+        fun `100개를 넘는 ids는 호출 코드 오류로 거부한다`() {
+            assertFailsWith<IllegalArgumentException> {
+                OptionGroupFilter(ids = (1L..101L).map(::OptionGroupId).toSet())
+            }
+        }
+
+        private suspend fun ids(filter: OptionGroupFilter) = service.list(filter).map { it.id.value }
     }
 
     private fun registerCommand(

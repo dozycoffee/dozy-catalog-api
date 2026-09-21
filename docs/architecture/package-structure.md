@@ -96,8 +96,9 @@ com.dozycoffee.catalog
 │   ├── TransactionRunner.kt               # 유스케이스의 트랜잭션 경계 (ADR-0011)
 │   ├── BusinessTimeZone.kt
 │   ├── event/                             # DomainEventDispatcher, DomainEventHandler + 구현 (BC 안 동기 전달)
-│   ├── exposed/                           # ExposedConfiguration, ExposedTransactionRunner, AuditColumns, JsonbColumnType
-│   ├── paging/                            # PageRequest, Page (목록 조회의 페이징)
+│   ├── exposed/                           # ExposedConfiguration, ExposedTransactionRunner, AuditColumns, JsonbColumnType,
+│   │                                      #   ListQueryExpressions(목록 조회의 검색어·이름 순 정렬)
+│   ├── paging/                            # PageRequest, Page (목록 조회의 페이징), requireIdsWithinLimit(ids 개수 상한)
 │   ├── time/                              # TimeConfiguration
 │   └── web/                               # GlobalExceptionHandler, ErrorResponse
 │
