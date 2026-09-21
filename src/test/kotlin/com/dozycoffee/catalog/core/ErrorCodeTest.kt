@@ -7,6 +7,7 @@ import com.dozycoffee.catalog.product.domain.productgroup.exception.ProductGroup
 import com.dozycoffee.catalog.product.domain.tag.exception.TagErrorCode
 import com.dozycoffee.catalog.schedule.domain.exception.ScheduledChangeErrorCode
 import com.dozycoffee.catalog.store.domain.availability.exception.StoreProductAvailabilityErrorCode
+import com.dozycoffee.catalog.store.domain.display.exception.StoreDisplaySettingErrorCode
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertTrue
@@ -22,7 +23,8 @@ class ErrorCodeTest {
             ProductGroupErrorCode.entries +
             TagErrorCode.entries +
             ScheduledChangeErrorCode.entries +
-            StoreProductAvailabilityErrorCode.entries
+            StoreProductAvailabilityErrorCode.entries +
+            StoreDisplaySettingErrorCode.entries
 
     @Test
     fun `모든 애그리거트에 걸쳐 code 문자열은 유일하다`() {

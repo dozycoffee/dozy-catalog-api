@@ -29,13 +29,4 @@ class StoreDisplaySettingTest {
         setting.show()
         assertEquals(Visibility.VISIBLE, setting.visibility)
     }
-
-    @Test
-    fun `진열 순서를 조정한다`() {
-        val setting = displaySetting()
-
-        setting.changeDisplayOrder(3)
-
-        assertEquals(3, setting.displayOrder)
-    }
 }

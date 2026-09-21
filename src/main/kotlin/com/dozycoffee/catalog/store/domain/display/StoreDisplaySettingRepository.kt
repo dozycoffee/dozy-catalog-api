@@ -33,7 +33,13 @@ interface StoreDisplaySettingRepository {
     // 진열 순서 변경이 동시에 들어올 때 한쪽이 다른 쪽을 옛 값으로 되돌리므로, 바꾼 필드만 저장한다.
     suspend fun saveVisibility(setting: StoreDisplaySetting)
 
-    suspend fun saveDisplayOrder(setting: StoreDisplaySetting)
+    // 이 매장의 진열 순서 일괄 변경을 트랜잭션이 끝날 때까지 한 번에 하나만 하도록 매장 단위로 잠근다.
+    // 같은 매장의 두 일괄 변경이 섞이지 않게 하려는 것이라 진열 순서를 바꾸기 전에 먼저 부른다.
+    suspend fun lockStoreDisplayOrder(storeId: StoreId)
+
+    // 매장의 진열 순서를 order로 통째로 바꾼다. 목록의 상품은 번호를 저장하고(설정이 없으면 만든다),
+    // 이 매장의 다른 설정은 진열 순서를 비운다. 노출 여부는 바꾸지 않는다.
+    suspend fun replaceDisplayOrder(order: StoreDisplayOrder)
 
     // 판매 범위에서 제외된 매장의 진열 설정을 삭제한다(요구사항 1.5) — 해당 매장이 다시
     // 대상에 포함되어도 복원하지 않고 기본값으로 새로 시작한다.
