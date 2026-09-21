@@ -2,7 +2,7 @@
 
 > 공통 규약은 [API 명세](README.md)를 따른다. 경로 앞에 `/api/v1/admin`이 붙고, 모두 본사관리자 전용이다. 규칙은 [요구사항](../requirements.md) 1.10과 3장에 있다.
 
-상품별로 판매 가능 매장 수와 노출 중인 매장 수를 계산한 결과다. 매장마다 노출 판단(3장)을 돌려 세는 업무 계산이라 백엔드가 제공한다. 상품 정보(이름, SKU, 상태)는 담지 않는다. 클라이언트가 `GET /admin/products?ids=…`로 받아 합친다. 매출·판매량은 다루지 않는다.
+상품별로 판매 가능 매장 수와 노출 중인 매장 수를 계산한 결과다. 매장마다 노출 판단(3장)을 돌려 세는 업무 계산이라 백엔드가 제공한다. 상품을 알아볼 최소 정보(SKU, 이름, 상태)만 함께 담고, 그 밖의 상품 정보는 `GET /admin/products?ids=…`로 받는다([설계 원칙](README.md#설계-원칙)). 매출·판매량은 다루지 않는다.
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
@@ -14,6 +14,9 @@
 ```json
 {
   "productId": 12,
+  "sku": "DZ-00000012",
+  "name": "아이스 아메리카노",
+  "status": "ACTIVE",
   "sellableStoreCount": 120,
   "exposedStoreCount": 97
 }
@@ -21,6 +24,7 @@
 
 | 필드 | 설명 |
 |---|---|
+| `sku`, `name`, `status` | 대상 상품을 알아보기 위한 정보. `sku`는 과거 데이터면 `null`일 수 있다 |
 | `sellableStoreCount` | 판매 범위만으로 정한 매장 수. `ALL`이면 전체 매장, `LIMITED`면 대상 매장 수. 상품 상태와 무관 |
 | `exposedStoreCount` | 노출 판단(3장)을 통과한 매장 수. 품절이어도 숨기지 않았으면 센다. `ACTIVE`가 아니면 0 |
 
@@ -43,6 +47,9 @@
 ```json
 {
   "productId": 12,
+  "sku": "DZ-00000012",
+  "name": "아이스 아메리카노",
+  "status": "ACTIVE",
   "sellableStoreCount": 2,
   "exposedStoreCount": 1,
   "stores": [
