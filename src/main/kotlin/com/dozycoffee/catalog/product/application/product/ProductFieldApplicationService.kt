@@ -3,22 +3,14 @@ package com.dozycoffee.catalog.product.application.product
 import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.common.event.DomainEventDispatcher
 import com.dozycoffee.catalog.core.Money
-import com.dozycoffee.catalog.product.application.port.ValidateStoreExistsPort
 import com.dozycoffee.catalog.product.domain.category.CategoryId
-import com.dozycoffee.catalog.product.domain.category.CategoryRepository
-import com.dozycoffee.catalog.product.domain.category.exception.CategoryNotFoundException
 import com.dozycoffee.catalog.product.domain.product.Product
 import com.dozycoffee.catalog.product.domain.product.ProductId
 import com.dozycoffee.catalog.product.domain.product.ProductRepository
 import com.dozycoffee.catalog.product.domain.product.StoreScope
 import com.dozycoffee.catalog.product.domain.product.exception.ProductNotFoundException
-import com.dozycoffee.catalog.product.domain.product.exception.TargetStoreNotFoundException
 import com.dozycoffee.catalog.product.domain.productgroup.ProductGroupId
-import com.dozycoffee.catalog.product.domain.productgroup.ProductGroupRepository
-import com.dozycoffee.catalog.product.domain.productgroup.exception.ProductGroupNotFoundException
 import com.dozycoffee.catalog.product.domain.tag.TagId
-import com.dozycoffee.catalog.product.domain.tag.TagRepository
-import com.dozycoffee.catalog.product.domain.tag.exception.TagNotFoundException
 import org.springframework.stereotype.Service
 
 // 상품의 필드 하나만 바꾸는 유스케이스(요구사항 1.4의 예약 적용 경로).
@@ -29,14 +21,12 @@ import org.springframework.stereotype.Service
 // 최신 상태에 적용한다 — 예약은 "그 날 00시의 현재 값에 이 필드를 반영한다"는 뜻이기 때문이다.
 //
 // 다른 애그리거트를 확인해야 하는 규칙(소분류인지, 태그·그룹이 있는지, 대상 매장이 존재하는지)은
-// 등록 시점이 아니라 적용 시점에 다시 확인한다. 그 사이 대상이 바뀌었으면 예약은 실패로 기록된다(요구사항 1.4).
+// 예약 등록 때 확인했더라도 적용 시점에 같은 ProductReferenceValidator로 다시 확인한다.
+// 그 사이 대상이 삭제되거나 바뀌었으면 예약은 실패로 기록된다(요구사항 1.4).
 @Service
 class ProductFieldApplicationService(
     private val productRepository: ProductRepository,
-    private val categoryRepository: CategoryRepository,
-    private val tagRepository: TagRepository,
-    private val productGroupRepository: ProductGroupRepository,
-    private val validateStoreExists: ValidateStoreExistsPort,
+    private val referenceValidator: ProductReferenceValidator,
     private val eventDispatcher: DomainEventDispatcher,
     private val transactionRunner: TransactionRunner,
 ) {
@@ -51,7 +41,7 @@ class ProductFieldApplicationService(
         categoryId: CategoryId,
     ): Product =
         change(productId) { product ->
-            val category = (categoryRepository.findById(categoryId) ?: throw CategoryNotFoundException(categoryId)).requireChild()
+            val category = referenceValidator.requireChildCategory(categoryId)
             product.changeCategory(category.id)
         }
 
@@ -77,7 +67,7 @@ class ProductFieldApplicationService(
         tagIds: Set<TagId>,
     ): Product =
         change(productId) { product ->
-            tagIds.forEach { tagId -> tagRepository.findById(tagId) ?: throw TagNotFoundException(tagId) }
+            referenceValidator.requireTagsExist(tagIds)
             product.changeTags(tagIds)
         }
 
@@ -86,7 +76,7 @@ class ProductFieldApplicationService(
         groupIds: Set<ProductGroupId>,
     ): Product =
         change(productId) { product ->
-            groupIds.forEach { groupId -> productGroupRepository.findById(groupId) ?: throw ProductGroupNotFoundException(groupId) }
+            referenceValidator.requireGroupsExist(groupIds)
             product.changeGroups(groupIds)
         }
 
@@ -97,7 +87,7 @@ class ProductFieldApplicationService(
         scope: StoreScope,
     ): Product =
         change(productId) { product ->
-            requireTargetStoresExist(scope)
+            referenceValidator.requireTargetStoresExist(scope)
             product.changeStoreScope(scope)
         }
 
@@ -112,14 +102,4 @@ class ProductFieldApplicationService(
             eventDispatcher.dispatch(saved.pullDomainEvents())
             saved
         }
-
-    // 대상 매장을 비운 Limited도 허용하므로(요구사항 1.5) 확인할 매장이 없으면 그대로 통과한다.
-    private suspend fun requireTargetStoresExist(scope: StoreScope) {
-        val targetStoreIds = (scope as? StoreScope.Limited)?.targetStoreIds.orEmpty()
-        if (targetStoreIds.isEmpty()) return
-        val missing = validateStoreExists.findMissing(targetStoreIds)
-        if (missing.isNotEmpty()) {
-            throw TargetStoreNotFoundException(missing)
-        }
-    }
 }
