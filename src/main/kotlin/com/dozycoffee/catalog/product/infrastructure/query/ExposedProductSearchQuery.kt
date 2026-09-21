@@ -1,5 +1,7 @@
 package com.dozycoffee.catalog.product.infrastructure.query
 
+import com.dozycoffee.catalog.common.exposed.containsIgnoringCase
+import com.dozycoffee.catalog.common.exposed.toSearchKeyword
 import com.dozycoffee.catalog.common.paging.Page
 import com.dozycoffee.catalog.common.paging.PageRequest
 import com.dozycoffee.catalog.product.application.port.ProductSearchCondition
@@ -13,15 +15,12 @@ import com.dozycoffee.catalog.product.infrastructure.product.ProductTargetStores
 import com.dozycoffee.catalog.product.infrastructure.product.ProductsTable
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
-import org.jetbrains.exposed.v1.core.LikePattern
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.inSubQuery
-import org.jetbrains.exposed.v1.core.like
-import org.jetbrains.exposed.v1.core.lowerCase
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.r2dbc.select
 import org.springframework.stereotype.Component
@@ -59,11 +58,8 @@ class ExposedProductSearchQuery : ProductSearchQueryPort {
         ids?.let { ids ->
             conditions += if (ids.isEmpty()) Op.FALSE else ProductsTable.id inList ids.map { it.value }
         }
-        keyword?.trim()?.takeIf { it.isNotEmpty() }?.let { keyword ->
-            // 상품명의 %, _ 는 와일드카드가 아니라 글자로 찾는다.
-            val literal = LikePattern.ofLiteral(keyword.lowercase())
-            val namePattern = LikePattern("%${literal.pattern}%", literal.escapeChar)
-            conditions += (ProductsTable.name.lowerCase() like namePattern) or (ProductsTable.sku eq keyword)
+        keyword.toSearchKeyword()?.let { keyword ->
+            conditions += ProductsTable.name.containsIgnoringCase(keyword) or (ProductsTable.sku eq keyword)
         }
         // 상품은 소분류만 참조하므로, 대분류를 받으면 그 아래 소분류를 참조하는 상품까지 포함한다(노출 현황 필터와 같은 규칙).
         categoryId?.let { category ->

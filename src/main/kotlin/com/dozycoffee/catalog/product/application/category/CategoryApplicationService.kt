@@ -4,6 +4,7 @@ import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.product.application.category.command.ChangeCategoryParentCommand
 import com.dozycoffee.catalog.product.application.category.command.RegisterChildCategoryCommand
 import com.dozycoffee.catalog.product.application.category.command.RenameCategoryCommand
+import com.dozycoffee.catalog.product.application.category.query.CategoryFilter
 import com.dozycoffee.catalog.product.domain.category.Category
 import com.dozycoffee.catalog.product.domain.category.CategoryId
 import com.dozycoffee.catalog.product.domain.category.CategoryRepository
@@ -24,6 +25,12 @@ class CategoryApplicationService(
     private val productRepository: ProductRepository,
     private val transactionRunner: TransactionRunner,
 ) {
+    // 대분류·소분류를 평평한 목록으로 등록 순으로 돌려준다. 계층은 클라이언트가 부모 ID로 구성한다.
+    suspend fun list(filter: CategoryFilter = CategoryFilter()): List<Category> =
+        transactionRunner.inTransaction {
+            categoryRepository.findAll(filter.ids, filter.parentId, filter.topLevelOnly)
+        }
+
     suspend fun registerTopLevel(name: String): TopLevelCategory =
         transactionRunner.inTransaction {
             categoryRepository.insertTopLevel(name)

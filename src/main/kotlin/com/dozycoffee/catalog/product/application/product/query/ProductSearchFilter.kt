@@ -1,5 +1,6 @@
 package com.dozycoffee.catalog.product.application.product.query
 
+import com.dozycoffee.catalog.common.paging.requireIdsWithinLimit
 import com.dozycoffee.catalog.product.domain.category.CategoryId
 import com.dozycoffee.catalog.product.domain.product.ProductId
 import com.dozycoffee.catalog.product.domain.product.ProductStatus
@@ -31,12 +32,4 @@ data class SellableProductFilter(
     init {
         requireIdsWithinLimit(ids)
     }
-}
-
-// ids는 최대 100개다(docs/api/README.md 목록 조회). 넘는 요청은 presentation이 요청 오류로 먼저 거르므로
-// 여기까지 오면 호출 코드의 잘못이다(docs/architecture/exception.md).
-private const val MAX_IDS = 100
-
-private fun requireIdsWithinLimit(ids: Set<ProductId>?) {
-    require(ids == null || ids.size <= MAX_IDS) { "ids는 최대 ${MAX_IDS}개입니다: ${ids?.size}" }
 }

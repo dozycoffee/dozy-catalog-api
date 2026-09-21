@@ -3,6 +3,7 @@ package com.dozycoffee.catalog.product.application.category
 import com.dozycoffee.catalog.product.application.category.command.ChangeCategoryParentCommand
 import com.dozycoffee.catalog.product.application.category.command.RegisterChildCategoryCommand
 import com.dozycoffee.catalog.product.application.category.command.RenameCategoryCommand
+import com.dozycoffee.catalog.product.application.category.query.CategoryFilter
 import com.dozycoffee.catalog.product.domain.category.CategoryId
 import com.dozycoffee.catalog.product.domain.category.CategoryRepository
 import com.dozycoffee.catalog.product.domain.category.ChildCategory
@@ -15,6 +16,7 @@ import com.dozycoffee.catalog.product.domain.category.exception.ReferencedCatego
 import com.dozycoffee.catalog.product.domain.category.exception.TopLevelCategoryNotFoundException
 import com.dozycoffee.catalog.support.ApplicationTest
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -189,6 +191,77 @@ class CategoryApplicationServiceTest : ApplicationTest() {
             runTest {
                 assertFailsWith<CategoryNotFoundException> { service.delete(CategoryId(999)) }
             }
+    }
+
+    @Nested
+    @DisplayName("목록 조회")
+    inner class Listing {
+        // 1 음료, 2 푸드는 대분류이고 3 커피, 5 차는 음료의, 4 빵은 푸드의 소분류다.
+        @BeforeEach
+        fun setUpCategories() =
+            runTest {
+                execute("INSERT INTO categories (name) VALUES ('음료'), ('푸드')")
+                execute("INSERT INTO categories (name, parent_category_id) VALUES ('커피', 1), ('빵', 2), ('차', 1)")
+            }
+
+        @Test
+        fun `조건이 없으면 대분류와 소분류를 평평한 목록으로 등록 순으로 돌려준다`() =
+            runTest {
+                val categories = service.list(CategoryFilter())
+
+                assertEquals(listOf(1L, 2L, 3L, 4L, 5L), categories.map { it.id.value })
+                assertEquals("음료", assertIs<TopLevelCategory>(categories[0]).name)
+                val coffee = assertIs<ChildCategory>(categories[2])
+                assertEquals("커피", coffee.name)
+                assertEquals(CategoryId(1), coffee.parentId)
+            }
+
+        @Test
+        fun `parentId를 주면 그 대분류의 소분류만 돌려준다`() =
+            runTest {
+                assertEquals(listOf(3L, 5L), ids(CategoryFilter(parentId = CategoryId(1))))
+            }
+
+        @Test
+        fun `topLevel이면 대분류만 돌려준다`() =
+            runTest {
+                assertEquals(listOf(1L, 2L), ids(CategoryFilter(topLevelOnly = true)))
+            }
+
+        @Test
+        fun `ids를 주면 그 카테고리만 등록 순으로 돌려주고 없는 ID는 빠진다`() =
+            runTest {
+                val filter = CategoryFilter(ids = setOf(CategoryId(5), CategoryId(1), CategoryId(999)))
+
+                assertEquals(listOf(1L, 5L), ids(filter))
+            }
+
+        @Test
+        fun `빈 ids는 아무것도 돌려주지 않는다`() =
+            runTest {
+                assertEquals(emptyList(), ids(CategoryFilter(ids = emptySet())))
+            }
+
+        @Test
+        fun `여러 조건을 함께 주면 모두 만족하는 것만 남는다`() =
+            runTest {
+                val idsAndParent = CategoryFilter(ids = setOf(CategoryId(3), CategoryId(4)), parentId = CategoryId(1))
+                val idsAndTopLevel = CategoryFilter(ids = setOf(CategoryId(2), CategoryId(4)), topLevelOnly = true)
+                val parentAndTopLevel = CategoryFilter(parentId = CategoryId(1), topLevelOnly = true)
+
+                assertEquals(listOf(3L), ids(idsAndParent))
+                assertEquals(listOf(2L), ids(idsAndTopLevel))
+                assertEquals(emptyList(), ids(parentAndTopLevel))
+            }
+
+        @Test
+        fun `100개를 넘는 ids는 호출 코드 오류로 거부한다`() {
+            assertFailsWith<IllegalArgumentException> {
+                CategoryFilter(ids = (1L..101L).map(::CategoryId).toSet())
+            }
+        }
+
+        private suspend fun ids(filter: CategoryFilter) = service.list(filter).map { it.id.value }
     }
 
     private suspend fun find(id: CategoryId) = tx { categoryRepository.findById(id) }

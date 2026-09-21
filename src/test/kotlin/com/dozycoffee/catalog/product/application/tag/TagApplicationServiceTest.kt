@@ -1,6 +1,7 @@
 package com.dozycoffee.catalog.product.application.tag
 
 import com.dozycoffee.catalog.product.application.tag.command.RenameTagCommand
+import com.dozycoffee.catalog.product.application.tag.query.TagFilter
 import com.dozycoffee.catalog.product.domain.tag.TagId
 import com.dozycoffee.catalog.product.domain.tag.TagRepository
 import com.dozycoffee.catalog.product.domain.tag.exception.TagNameDuplicatedException
@@ -11,6 +12,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -107,6 +109,86 @@ class TagApplicationServiceTest : ApplicationTest() {
         runTest {
             assertFailsWith<TagNotFoundException> { service.delete(TagId(999)) }
         }
+
+    @Nested
+    @DisplayName("목록 조회")
+    inner class Listing {
+        // 등록 순과 이름 순이 다르도록 넣는다: 1 신메뉴, 2 Best, 3 베스트, 4 50%할인, 5 5000원할인, 6 new_menu, 7 newXmenu, 8 가을한정
+        @BeforeEach
+        fun setUpTags() =
+            runTest {
+                execute(
+                    "INSERT INTO tags (name) VALUES " +
+                        "('신메뉴'), ('Best'), ('베스트'), ('50%할인'), ('5000원할인'), ('new_menu'), ('newXmenu'), ('가을한정')",
+                )
+            }
+
+        @Test
+        fun `조건이 없으면 모든 태그를 돌려준다`() =
+            runTest {
+                assertEquals(8, names(TagFilter()).size)
+            }
+
+        @Test
+        fun `등록 순이 아니라 한글은 가나다순으로 먼저, 영문은 대소문자를 가리지 않고 그 뒤에 돌려준다`() =
+            runTest {
+                execute("INSERT INTO tags (name) VALUES ('apple')")
+                val filter = TagFilter(ids = setOf(TagId(1), TagId(2), TagId(3), TagId(8), TagId(9)))
+
+                assertEquals(listOf("가을한정", "베스트", "신메뉴", "apple", "Best"), names(filter))
+            }
+
+        @Test
+        fun `검색어는 대소문자를 가리지 않고 이름의 일부와 맞춘다`() =
+            runTest {
+                assertEquals(listOf("Best"), names(TagFilter(keyword = "bE")))
+                assertEquals(listOf("베스트"), names(TagFilter(keyword = "스트")))
+            }
+
+        @Test
+        fun `검색어의 퍼센트와 밑줄은 와일드카드가 아니라 글자로 찾는다`() =
+            runTest {
+                assertEquals(listOf("50%할인"), names(TagFilter(keyword = "50%")))
+                assertEquals(listOf("new_menu"), names(TagFilter(keyword = "new_")))
+            }
+
+        @Test
+        fun `공백뿐인 검색어는 거르지 않는다`() =
+            runTest {
+                assertEquals(8, names(TagFilter(keyword = "  ")).size)
+            }
+
+        @Test
+        fun `ids를 주면 그 태그만 돌려주고 없는 ID는 빠진다`() =
+            runTest {
+                val filter = TagFilter(ids = setOf(TagId(1), TagId(3), TagId(999)))
+
+                assertEquals(listOf(TagId(3), TagId(1)), service.list(filter).map { it.id })
+            }
+
+        @Test
+        fun `빈 ids는 아무것도 돌려주지 않는다`() =
+            runTest {
+                assertEquals(emptyList(), names(TagFilter(ids = emptySet())))
+            }
+
+        @Test
+        fun `ids와 검색어를 함께 주면 모두 만족하는 것만 남는다`() =
+            runTest {
+                val filter = TagFilter(ids = setOf(TagId(2), TagId(3)), keyword = "베스")
+
+                assertEquals(listOf("베스트"), names(filter))
+            }
+
+        @Test
+        fun `100개를 넘는 ids는 호출 코드 오류로 거부한다`() {
+            assertFailsWith<IllegalArgumentException> {
+                TagFilter(ids = (1L..101L).map(::TagId).toSet())
+            }
+        }
+
+        private suspend fun names(filter: TagFilter) = service.list(filter).map { it.name }
+    }
 
     private suspend fun createTag(name: String) = tx { tagRepository.findOrCreateByName(name) }
 
