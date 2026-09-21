@@ -1,5 +1,6 @@
 package com.dozycoffee.catalog.exposure.application
 
+import com.dozycoffee.catalog.common.paging.PageRequest
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.product.domain.category.CategoryId
 import com.dozycoffee.catalog.product.domain.product.ProductId
@@ -156,7 +157,7 @@ class ProductExposureQueryServiceTest : ApplicationTest() {
         @Test
         fun `상품 정보와 함께 상품 id 순으로 나온다`() =
             runTest {
-                val summaries = service.summarize()
+                val summaries = service.summarize().content
 
                 assertEquals(listOf(americano, tumbler, seasonal), summaries.map { it.productId })
                 assertEquals("아메리카노", summaries.first().name)
@@ -169,7 +170,7 @@ class ProductExposureQueryServiceTest : ApplicationTest() {
         @Test
         fun `소분류로 거르면 그 소분류의 상품만 나온다`() =
             runTest {
-                val summaries = service.summarize(ProductExposureFilter(categoryId = coffee))
+                val summaries = service.summarize(ProductExposureFilter(categoryId = coffee)).content
 
                 assertEquals(listOf(americano, seasonal), summaries.map { it.productId })
             }
@@ -179,18 +180,18 @@ class ProductExposureQueryServiceTest : ApplicationTest() {
             runTest {
                 assertEquals(
                     listOf(americano, seasonal),
-                    service.summarize(ProductExposureFilter(categoryId = beverage)).map { it.productId },
+                    service.summarize(ProductExposureFilter(categoryId = beverage)).content.map { it.productId },
                 )
                 assertEquals(
                     listOf(tumbler),
-                    service.summarize(ProductExposureFilter(categoryId = md)).map { it.productId },
+                    service.summarize(ProductExposureFilter(categoryId = md)).content.map { it.productId },
                 )
             }
 
         @Test
         fun `태그로 거른다`() =
             runTest {
-                val summaries = service.summarize(ProductExposureFilter(tagId = newMenuTag))
+                val summaries = service.summarize(ProductExposureFilter(tagId = newMenuTag)).content
 
                 assertEquals(listOf(americano, seasonal), summaries.map { it.productId })
             }
@@ -198,10 +199,43 @@ class ProductExposureQueryServiceTest : ApplicationTest() {
         @Test
         fun `그룹으로 거른다`() =
             runTest {
-                val summaries = service.summarize(ProductExposureFilter(groupId = seasonGroup))
+                val summaries = service.summarize(ProductExposureFilter(groupId = seasonGroup)).content
 
                 assertEquals(listOf(seasonal), summaries.map { it.productId })
             }
+
+        @Test
+        fun `상품 ID로 거른다`() =
+            runTest {
+                val summaries = service.summarize(ProductExposureFilter(ids = setOf(seasonal, americano, ProductId(999))))
+
+                assertEquals(listOf(americano, seasonal), summaries.content.map { it.productId })
+                assertEquals(2, summaries.totalElements)
+            }
+
+        @Test
+        fun `상품 ID를 다른 조건과 함께 주면 모두 만족하는 상품만 남는다`() =
+            runTest {
+                val filter = ProductExposureFilter(ids = setOf(americano, tumbler, seasonal), tagId = newMenuTag, groupId = seasonGroup)
+
+                assertEquals(listOf(seasonal), service.summarize(filter).content.map { it.productId })
+            }
+
+        @Test
+        fun `상품 ID가 빈 집합이면 빈 페이지다`() =
+            runTest {
+                val page = service.summarize(ProductExposureFilter(ids = emptySet()))
+
+                assertEquals(emptyList(), page.content)
+                assertEquals(0, page.totalElements)
+            }
+
+        @Test
+        fun `상품 ID는 100개를 넘을 수 없다`() {
+            assertFailsWith<IllegalArgumentException> {
+                ProductExposureFilter(ids = (1L..101L).map(::ProductId).toSet())
+            }
+        }
 
         @Test
         fun `여러 조건을 함께 주면 모두 만족하는 상품만 남는다`() =
@@ -209,8 +243,62 @@ class ProductExposureQueryServiceTest : ApplicationTest() {
                 val matched = ProductExposureFilter(categoryId = coffee, tagId = newMenuTag, groupId = seasonGroup)
                 val unmatched = ProductExposureFilter(categoryId = md, tagId = newMenuTag)
 
-                assertEquals(listOf(seasonal), service.summarize(matched).map { it.productId })
-                assertEquals(emptyList(), service.summarize(unmatched).map { it.productId })
+                assertEquals(listOf(seasonal), service.summarize(matched).content.map { it.productId })
+                assertEquals(emptyList(), service.summarize(unmatched).content.map { it.productId })
+            }
+    }
+
+    @Nested
+    @DisplayName("페이징")
+    inner class Paging {
+        @Test
+        fun `상품 등록 순으로 페이지를 자르고 전체 건수를 함께 준다`() =
+            runTest {
+                val first = service.summarize(pageRequest = PageRequest(page = 0, size = 2))
+                val last = service.summarize(pageRequest = PageRequest(page = 1, size = 2))
+
+                assertEquals(listOf(americano, tumbler), first.content.map { it.productId })
+                assertEquals(listOf(seasonal), last.content.map { it.productId })
+                listOf(first, last).forEach { page ->
+                    assertEquals(3, page.totalElements)
+                    assertEquals(2, page.totalPages)
+                    assertEquals(2, page.size)
+                }
+                assertEquals(0, first.page)
+                assertEquals(1, last.page)
+            }
+
+        @Test
+        fun `마지막 페이지를 지나면 내용은 비고 전체 건수는 그대로다`() =
+            runTest {
+                val page = service.summarize(pageRequest = PageRequest(page = 2, size = 2))
+
+                assertEquals(emptyList(), page.content)
+                assertEquals(3, page.totalElements)
+                assertEquals(2, page.page)
+            }
+
+        @Test
+        fun `필터를 준 전체 건수는 조건에 맞는 상품 수다`() =
+            runTest {
+                val page = service.summarize(ProductExposureFilter(categoryId = coffee), PageRequest(page = 0, size = 1))
+
+                assertEquals(listOf(americano), page.content.map { it.productId })
+                assertEquals(2, page.totalElements)
+                assertEquals(2, page.totalPages)
+            }
+
+        @Test
+        fun `페이지 수치는 다른 페이지 상품의 설정과 무관하다`() =
+            runTest {
+                hide(gangnam, americano)
+                hide(hongdae, seasonal)
+
+                val last = service.summarize(pageRequest = PageRequest(page = 1, size = 2)).content.single()
+
+                assertEquals(seasonal, last.productId)
+                assertEquals(2, last.sellableStoreCount)
+                assertEquals(1, last.exposedStoreCount)
             }
     }
 
@@ -296,6 +384,39 @@ class ProductExposureQueryServiceTest : ApplicationTest() {
                 }
             }
 
+        // 요약은 페이지 단위로 상품과 매장 설정을 읽는다. 페이지를 어떻게 잘라도 각 상품의 수치가 상세 조회와 같아야 한다.
+        @Test
+        fun `페이지마다 요약 수치가 상세 조회와 같다`() =
+            runTest {
+                insertProduct("신메뉴 후보", categoryId = 2, status = "DRAFT", tracksInventory = false)
+                insertProduct("단종된 상품", categoryId = 2, status = "DISCONTINUED", tracksInventory = false)
+                hide(gangnam, americano)
+                markSoldOutByOwner(hongdae, americano)
+                markStockByInventory(gangnam, tumbler, StockStatus.ON_SALE)
+                hide(busan, tumbler)
+                hide(hongdae, seasonal)
+                hide(gangnam, ProductId(5))
+
+                listOf(1, 2, 3).forEach { size ->
+                    var page = 0
+                    val seen = mutableListOf<ProductId>()
+                    do {
+                        val summaries = service.summarize(pageRequest = PageRequest(page = page, size = size))
+                        summaries.content.forEach { summary ->
+                            assertEquals(
+                                service.findDetail(summary.productId).summary,
+                                summary,
+                                "size $size / 상품 ${summary.productId.value}",
+                            )
+                        }
+                        seen += summaries.content.map { it.productId }
+                        page++
+                    } while (page < summaries.totalPages)
+                    assertEquals((1L..5L).map(::ProductId), seen, "size $size")
+                    assertEquals(seen.size.toLong(), service.summarize().totalElements)
+                }
+            }
+
         private suspend fun policyVisibility(
             productId: ProductId,
             storeId: StoreId,
@@ -318,7 +439,10 @@ class ProductExposureQueryServiceTest : ApplicationTest() {
             runTest {
                 execute("DELETE FROM products")
 
-                assertEquals(emptyList(), service.summarize())
+                val page = service.summarize()
+
+                assertEquals(emptyList(), page.content)
+                assertEquals(0, page.totalElements)
             }
 
         @Test
@@ -333,7 +457,8 @@ class ProductExposureQueryServiceTest : ApplicationTest() {
             }
     }
 
-    private suspend fun summaryOf(productId: ProductId): ProductExposureSummary = service.summarize().single { it.productId == productId }
+    private suspend fun summaryOf(productId: ProductId): ProductExposureSummary =
+        service.summarize(ProductExposureFilter(ids = setOf(productId))).content.single()
 
     private suspend fun insertProduct(
         name: String,
