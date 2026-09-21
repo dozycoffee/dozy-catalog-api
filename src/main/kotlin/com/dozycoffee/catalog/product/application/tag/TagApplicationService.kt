@@ -5,6 +5,7 @@ import com.dozycoffee.catalog.product.application.tag.command.RenameTagCommand
 import com.dozycoffee.catalog.product.domain.tag.Tag
 import com.dozycoffee.catalog.product.domain.tag.TagId
 import com.dozycoffee.catalog.product.domain.tag.TagRepository
+import com.dozycoffee.catalog.product.domain.tag.exception.TagNameDuplicatedException
 import com.dozycoffee.catalog.product.domain.tag.exception.TagNotFoundException
 import org.springframework.stereotype.Service
 
@@ -17,6 +18,10 @@ class TagApplicationService(
     suspend fun rename(command: RenameTagCommand): Tag =
         transactionRunner.inTransaction {
             val tag = tagRepository.findById(command.tagId) ?: throw TagNotFoundException(command.tagId)
+            // 태그 이름은 유일하다(요구사항 1.7). 자기 이름 그대로는 허용한다.
+            // 확인과 저장 사이에 다른 요청이 같은 이름을 쓰면 Repository가 UNIQUE 위반을 같은 예외로 바꾼다.
+            val sameName = tagRepository.findByName(command.name)
+            if (sameName != null && sameName.id != tag.id) throw TagNameDuplicatedException(command.name)
             tag.rename(command.name)
             tagRepository.save(tag)
         }

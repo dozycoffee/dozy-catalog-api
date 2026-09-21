@@ -388,6 +388,7 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | `products`, `option_groups` 전체 교체·예외 지정 | 오래된 화면으로 저장해 다른 변경을 덮어씀 | 낙관적 잠금: `UPDATE … WHERE id = ? AND version = ?`, 바뀐 행이 0개면 충돌(409). 저장할 때마다 `version` + 1 ([ADR-0013](adr/0013-optimistic-locking-for-product-and-option-group.md)) |
 | `categories` 부모 변경·소분류 추가 | 부모 후보가 동시에 소분류로 바뀌어 3단계가 됨 | 부모 후보 행 `SELECT … FOR UPDATE` |
 | `tags` 같은 이름 동시 등록 | 중복 태그 | `INSERT … ON CONFLICT (name) DO NOTHING` 뒤 조회 |
+| `tags` 이름 변경 | 확인과 저장 사이에 다른 요청이 같은 이름을 씀 | `tags_name_key` UNIQUE 위반(23505)을 `TagNameDuplicatedException`(409)으로 바꿈 |
  
 ---
 
