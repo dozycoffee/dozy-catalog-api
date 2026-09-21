@@ -65,7 +65,7 @@ flowchart LR
 | Tag | 본사 | 마케팅 라벨. 이름으로 재사용 | — |
 | ProductGroup | 본사 | 내부 관리용 단일 레벨 분류 | — |
 | ScheduledChange | 본사 (적용은 예약 배치) | 필드 단위 예약의 수명(대기 → 적용완료/실패/취소) | `ScheduledValue`(예약 값, 구현은 application) |
-| StoreDisplaySetting | 점주 | 매장별 노출·숨김, 진열 순서. 점주가 처음 바꿀 때 생성(Lazy) | — |
+| StoreDisplaySetting | 점주 | 매장별 노출·숨김, 진열 순서. 점주가 처음 바꿀 때 생성(Lazy) | `StoreDisplayOrder`(VO, 매장 전체의 진열 순서) |
 | StoreProductAvailability | 출처별: 재고 추적 상품은 재고관리 서비스, 재고 미추적 상품은 점주 | 매장별 판매 가능 여부(판매중/품절). 처음 변경될 때 생성 | `AvailabilitySource`(INVENTORY/OWNER) |
 
 매장별 노출 판단(요구사항 3장)은 Product, StoreDisplaySetting, StoreProductAvailability를 함께 봐야 하므로 어느 한 애그리거트에 두지 않고 application 정책 `ProductVisibilityPolicy`에 둔다.
@@ -111,6 +111,7 @@ domain의 애그리거트끼리는 ID로만 참조하고, 여러 애그리거트
 ### 모델링 메커니즘
 
 - **Lazy 생성**: StoreDisplaySetting은 점주가 노출·진열 순서를 처음 바꿀 때, StoreProductAvailability는 점주의 첫 수동 품절이나 첫 재고 이벤트 때 생긴다. row가 없으면 기본값으로 판단한다(진열: 노출, 판매 가능 여부: 출처별 기본값).
+- **진열 순서 일괄 변경**: 진열 순서는 상품 하나씩 바꾸지 않고 점주가 완성한 매장 전체의 순서(`StoreDisplayOrder`)로 한 번에 바꾼다(요구사항 2.3). 목록의 상품은 1부터 번호를 받고(설정이 없으면 Lazy 생성), 목록에 없는 이 매장의 설정은 순서를 비운다. 노출 여부는 바꾸지 않는다. 같은 매장의 일괄 변경끼리는 매장 단위로 직렬화한다([ERD 동시성 처리](erd.md#동시성-처리)).
 - **판매 가능 여부와 출처**: 품절 여부는 진열 설정이 아니라 StoreProductAvailability에 둔다. 출처는 상품의 재고 추적 여부로 정해진다.
   - `INVENTORY`(재고 추적 상품): 재고관리 서비스 이벤트로만 바뀐다. 기본값은 품절(처음 재고 0)이다. 상품 상태·판매 범위와 무관하게 항상 반영하고, 판매 범위에서 빠져도 지우지 않는다.
   - `OWNER`(재고 미추적 상품): 점주가 수동으로만 바꾼다. 기본값은 판매중이다. 판매 범위에서 빠지면 진열 설정과 함께 초기화한다.
@@ -143,6 +144,7 @@ domain의 애그리거트끼리는 ID로만 참조하고, 여러 애그리거트
 | ScheduledChange | 적용일은 업무 시간대 기준 내일 이후만 허용 (등록 경로 `NewScheduledChange.of`) | `InvalidEffectiveDateException` |
 | ScheduledChange | `PENDING` 상태에서만 취소/적용/실패 처리 가능 | `NoPendingScheduleException` / `InvalidScheduleStatusTransitionException` |
 | ScheduledChange | 상태 전이는 저장 시점에도 여전히 `PENDING`일 때만 반영된다 (관리자 취소와 배치 적용이 겹친 경우, Repository가 상태 조건 UPDATE로 확인) | `ScheduleAlreadyProcessedException` |
+| StoreDisplayOrder | 진열 순서 목록에 같은 상품은 한 번만 들어간다 | `DuplicateDisplayOrderProductException` |
 | StoreProductAvailability | `INVENTORY` 출처(재고 추적 상품)의 품절 상태는 점주가 바꿀 수 없다 | `StockStatusNotManuallyEditableException` |
 | StoreProductAvailability | `OWNER` 출처(재고 미추적 상품)에는 재고 이벤트를 반영할 수 없다 | `InventoryEventNotApplicableException` |
 | StoreProductAvailability | 이미 반영한 것보다 오래되었거나 같은 시각의 재고 이벤트는 무시한다 | — (반영 여부를 반환) |
@@ -178,7 +180,7 @@ application 서비스는 필요한 애그리거트를 조회·잠금해 정책�
 | 동일 대상·필드의 PENDING 예약은 최대 1건 | 기존 PENDING 예약 | application이 기존 예약을 잠그고(`FOR UPDATE`) 취소 후 새로 등록, DB 부분 UNIQUE 제약으로 이중 보장 |
 | 태그 이름은 유일 (같은 이름이면 재사용) | 기존 태그 | 상품 등록·수정 유스케이스가 `TagRepository.findOrCreateByName`으로 처리. 이름 변경이 다른 태그와 겹치면 거부 (`TagNameDuplicatedException`) |
 | 예약 값은 등록 시점에 값 자체와 참조 대상의 존재를 검증 (요구사항 1.4) | 예약 대상, 참조 대상(카테고리, 태그, 상품 그룹, 옵션 그룹, 매장) | 예약 등록 유스케이스가 `ScheduledValueValidator`를 부른다. 값 타입을 `else` 없는 `when`으로 나눠, 참조 대상은 즉시 변경·예약 적용과 같은 `ProductReferenceValidator`로, 값 자체는 `OptionGroup`(옵션 1개 이상, 키 유일)·`Product`(옵션 그룹 중복 연결 불가)의 검증으로 확인한다. 태그는 이름으로 받아 같은 트랜잭션에서 `ProductTagResolver`로 ID로 바꾼다. 대상 상태에 달린 규칙은 적용 시점에만 검증 |
-| 점주는 자기 매장이 판매 범위에 든 상품의 설정만 바꿀 수 있다 (요구사항 2.2) | `Product.storeScope` | 점주 유스케이스가 상품을 불러 `StoreScope.covers(storeId)`로 확인, 아니면 `ProductNotFoundException` |
+| 점주는 자기 매장이 판매 범위에 든 상품의 설정만 바꿀 수 있다 (요구사항 2.2) | `Product.storeScope` | 점주 유스케이스가 상품을 불러 `StoreScope.covers(storeId)`로 확인, 아니면 `ProductNotFoundException`. 진열 순서 일괄 변경은 목록의 상품을 모두 확인해 하나라도 어긋나면 전체를 거부한다 |
 | SKU는 등록 시점에 시스템이 부여 (요구사항 1.2) | 전용 시퀀스 | 상품 등록 유스케이스가 `SkuGenerator`로 발급해 `NewProduct`에 담는다 ([ADR-0016](adr/0016-system-generated-sku.md)) |
 
 ## 시간 처리
@@ -231,6 +233,7 @@ stateDiagram-v2
 ### StoreDisplaySetting
 
 - `visibility`(VISIBLE ⇄ HIDDEN): 점주가 자유롭게 전환.
+- `displayOrder`(1부터 또는 없음): 매장 전체의 진열 순서 일괄 변경으로만 바뀐다. 목록에서 빠지면 없음이 된다.
 
 ### StoreProductAvailability
 
@@ -316,5 +319,5 @@ stateDiagram-v2
 | 판매 가능 여부 출처 (재고 / 점주) | `AvailabilitySource.INVENTORY` / `OWNER` | 품절을 누가 바꾸는가. 상품의 재고 추적 여부로 정해짐 |
 | 노출 / 숨김 | `Visibility.VISIBLE` / `HIDDEN` | 점주의 노출 의도 |
 | 판매중 / 품절 | `StockStatus.ON_SALE` / `SOLD_OUT` | 매장별 구매 가능 여부 (노출 여부와 독립) |
-| 진열 순서 | `displayOrder` | 매장별 상품 표시 순서 |
+| 진열 순서 | `displayOrder`, `StoreDisplayOrder` | 매장별 상품 표시 순서. 점주가 매장 전체의 순서로 한 번에 정한다 |
 | 노출 판단 | `ProductVisibilityPolicy` | 요구사항 3장의 4단계 판단 로직 |

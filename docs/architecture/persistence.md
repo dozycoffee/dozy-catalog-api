@@ -75,6 +75,7 @@
 - 블록이 예외로 끝나면 블록 안의 변경이 모두 롤백된다. 안쪽에서 다시 호출하면 바깥 트랜잭션을 이어 쓴다.
 - Spring `@Transactional`과 섞지 않는다.
 - 잠금 조회는 Exposed `Query.forUpdate()`를 쓴다. 여러 워커가 나눠 처리하는 배치 조회는 `forUpdate(ForUpdateOption.PostgreSQL.ForUpdate(MODE.SKIP_LOCKED))`로 다른 트랜잭션이 잠근 행을 건너뛴다(예: `findDueForApplication`, [ERD 동시성 처리](../erd.md#동시성-처리)).
+- 잠글 행이 정해져 있지 않은 범위(예: 한 매장의 진열 순서 전체)를 직렬화할 때는 트랜잭션 단위 권고 잠금 `common.exposed.lockForTransaction`(`pg_advisory_xact_lock`)을 쓴다. 키는 두 정수 형태 (용도, 대상 ID)이고, 용도 번호는 `AdvisoryLockNamespace`에 모아 겹치지 않게 한다. 잠금은 트랜잭션이 끝날 때 풀린다.
 
 ## 시간
 
