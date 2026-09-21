@@ -1,6 +1,8 @@
 package com.dozycoffee.catalog.exposure.application
 
 import com.dozycoffee.catalog.common.TransactionRunner
+import com.dozycoffee.catalog.common.paging.Page
+import com.dozycoffee.catalog.common.paging.PageRequest
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.exposure.application.port.ProductExposureQueryPort
 import com.dozycoffee.catalog.exposure.application.port.ProductExposureRecord
@@ -23,12 +25,16 @@ class ProductExposureQueryService(
     private val storeDirectory: StoreDirectoryPort,
     private val transactionRunner: TransactionRunner,
 ) {
-    // 상품별 판매 가능 매장 수 대비 노출 중인 매장 수.
-    suspend fun summarize(filter: ProductExposureFilter = ProductExposureFilter()): List<ProductExposureSummary> {
+    // 상품별 판매 가능 매장 수 대비 노출 중인 매장 수. 상품 등록 순(id 오름차순)으로 페이지를 자르고,
+    // 그 페이지에 든 상품만 노출 판단을 계산한다.
+    suspend fun summarize(
+        filter: ProductExposureFilter = ProductExposureFilter(),
+        pageRequest: PageRequest = PageRequest(),
+    ): Page<ProductExposureSummary> {
         // 외부 호출(Store BC)은 DB 트랜잭션 밖에서 먼저 끝낸다.
         val allStoreIds = storeDirectory.findAllIds()
-        val records = transactionRunner.inTransaction { exposureQuery.findAll(filter) }
-        return records.map { record -> record.summary(exposures(record, allStoreIds)) }
+        val records = transactionRunner.inTransaction { exposureQuery.findPage(filter, pageRequest) }
+        return records.withContent(records.content.map { record -> record.summary(exposures(record, allStoreIds)) })
     }
 
     // 특정 상품의 매장별 노출 상태. 요약과 같은 재료·같은 판단을 쓰므로 두 결과는 항상 맞아떨어진다.

@@ -1,5 +1,7 @@
 package com.dozycoffee.catalog.exposure.infrastructure.query
 
+import com.dozycoffee.catalog.common.paging.Page
+import com.dozycoffee.catalog.common.paging.PageRequest
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.exposure.application.ProductExposureFilter
 import com.dozycoffee.catalog.exposure.application.port.ProductExposureQueryPort
@@ -33,14 +35,28 @@ import org.springframework.stereotype.Component
 // 트랜잭션은 열지 않는다 — application의 TransactionRunner 안에서 호출된다.
 @Component
 class ExposedProductExposureQuery : ProductExposureQueryPort {
-    override suspend fun findAll(filter: ProductExposureFilter): List<ProductExposureRecord> =
-        toRecords(
+    // 상품을 먼저 페이지로 자른 뒤 그 상품들의 대상 매장·매장 설정만 읽는다. 페이지 밖 상품의 설정은 읽지 않는다.
+    override suspend fun findPage(
+        filter: ProductExposureFilter,
+        pageRequest: PageRequest,
+    ): Page<ProductExposureRecord> {
+        val total =
+            ProductsTable
+                .select(ProductsTable.id)
+                .where { filter.toCondition() }
+                .count()
+        // 마지막 페이지를 지난 요청은 내용 없이 전체 건수만 돌려준다.
+        if (pageRequest.offset >= total) return Page.of(emptyList(), pageRequest, total)
+        val roots =
             ProductsTable
                 .selectAll()
                 .where { filter.toCondition() }
                 .orderBy(ProductsTable.id to SortOrder.ASC)
-                .toList(),
-        )
+                .limit(pageRequest.size)
+                .offset(pageRequest.offset)
+                .toList()
+        return Page.of(toRecords(roots), pageRequest, total)
+    }
 
     override suspend fun find(productId: ProductId): ProductExposureRecord? =
         toRecords(
@@ -54,6 +70,9 @@ class ExposedProductExposureQuery : ProductExposureQueryPort {
     // (상품은 소분류만 참조하므로 대분류로 거르면 아무것도 나오지 않게 되기 때문이다).
     private fun ProductExposureFilter.toCondition(): Op<Boolean> {
         val conditions = mutableListOf<Op<Boolean>>()
+        ids?.let { ids ->
+            conditions += if (ids.isEmpty()) Op.FALSE else ProductsTable.id inList ids.map { it.value }
+        }
         categoryId?.let { category ->
             val childCategoryIds =
                 CategoriesTable
