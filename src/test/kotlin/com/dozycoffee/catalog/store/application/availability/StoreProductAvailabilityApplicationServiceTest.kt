@@ -125,6 +125,71 @@ class StoreProductAvailabilityApplicationServiceTest : ApplicationTest() {
     }
 
     @Nested
+    @DisplayName("점주의 수동 품절 - 판매 범위 확인 (요구사항 2.2)")
+    inner class ByOwnerStoreScope {
+        @Test
+        fun `판매 범위 밖 상품을 품절 처리하려 하면 거부하고 아무 행도 만들지 않는다`() =
+            runTest {
+                limitAmericanoTo(listOf(StoreId(20)))
+
+                assertFailsWith<ProductNotFoundException> {
+                    service.changeStockStatusByOwner(
+                        ChangeStockStatusByOwnerCommand(gangnam, americano, StockStatus.SOLD_OUT),
+                    )
+                }
+
+                assertEquals(0, count("SELECT count(*) FROM store_product_availabilities"))
+            }
+
+        @Test
+        fun `대상 매장이 빈 LIMITED 상품이면 거부한다`() =
+            runTest {
+                limitAmericanoTo(emptyList())
+
+                assertFailsWith<ProductNotFoundException> {
+                    service.changeStockStatusByOwner(
+                        ChangeStockStatusByOwnerCommand(gangnam, americano, StockStatus.SOLD_OUT),
+                    )
+                }
+
+                assertEquals(0, count("SELECT count(*) FROM store_product_availabilities"))
+            }
+
+        @Test
+        fun `LIMITED의 대상 매장이면 품절 처리할 수 있다`() =
+            runTest {
+                limitAmericanoTo(listOf(gangnam))
+
+                service.changeStockStatusByOwner(
+                    ChangeStockStatusByOwnerCommand(gangnam, americano, StockStatus.SOLD_OUT),
+                )
+
+                assertEquals(StockStatus.SOLD_OUT, stored(americano)?.stockStatus)
+            }
+
+        @Test
+        fun `ALL이면 품절 처리할 수 있다`() =
+            runTest {
+                execute("UPDATE products SET store_scope = 'ALL' WHERE id = ${americano.value}")
+
+                service.changeStockStatusByOwner(
+                    ChangeStockStatusByOwnerCommand(gangnam, americano, StockStatus.SOLD_OUT),
+                )
+
+                assertEquals(StockStatus.SOLD_OUT, stored(americano)?.stockStatus)
+            }
+
+        private suspend fun limitAmericanoTo(storeIds: List<StoreId>) {
+            execute("UPDATE products SET store_scope = 'LIMITED' WHERE id = ${americano.value}")
+            storeIds.forEach {
+                execute(
+                    "INSERT INTO product_target_stores (product_id, store_id) VALUES (${americano.value}, ${it.value})",
+                )
+            }
+        }
+    }
+
+    @Nested
     @DisplayName("재고 이벤트 반영 (S7)")
     inner class InventoryEvent {
         @Test
