@@ -7,6 +7,7 @@ enum class TagErrorCode(
     override val type: ErrorType,
 ) : ErrorCode {
     TAG_NOT_FOUND(ErrorType.NOT_FOUND),
+    TAG_NAME_DUPLICATED(ErrorType.CONFLICT),
     ;
 
     override val code: String get() = name
