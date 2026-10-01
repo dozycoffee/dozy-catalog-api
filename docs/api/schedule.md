@@ -39,7 +39,9 @@
 | 상품 | `option-overrides/{optionGroupId}` | `[{"optionKey": "LARGE", "type": "PRICE", "price": 700}, {"optionKey": "XLARGE", "type": "EXCLUDE"}]` | 그 옵션 그룹에 대한 이 상품의 예외 전체 |
 | 옵션 그룹 | `options` | `[{"optionKey": "REGULAR", "name": "레귤러", "price": 0}, ...]` (순서 = 노출 순서) | 옵션 목록 전체 스냅샷 |
 
-재고 관리 여부, 옵션 그룹의 이름·선택 방식·필수 여부, 카테고리·태그·상품 그룹 이름은 예약할 수 없다. 목록에 없는 `{field}`는 `404`(`UNKNOWN_SCHEDULE_FIELD`)다.
+재고 관리 여부, 옵션 그룹의 이름·선택 방식·필수 여부, 카테고리·태그·상품 그룹 이름은 예약할 수 없다. 목록에 없는 `{field}`는 `404`(`UNKNOWN_SCHEDULE_FIELD`)다. `option-overrides/{optionGroupId}`의 ID가 숫자가 아니면 다른 경로 변수와 같이 `400`(`INVALID_REQUEST`)이다.
+
+`value`가 필드의 형식과 맞지 않으면(타입이 다름, 필수 키 없음, 허용되지 않는 `kind`·`type`) `400`(`INVALID_REQUEST`)이고, `detail`에 문제가 된 위치(`value[1].type` 등)를 담는다. `activation`·`discontinuation`은 `value`를 빼거나 `null`로 보낸다. `storeScope`가 `ALL`이면 `targetStoreIds`는 비우고, `EXCLUDE` 예외에는 `price`를 보내지 않는다([상품 API](product.md)와 같다).
 
 ## 예약 (`ScheduledChange`)
 
@@ -54,6 +56,7 @@
 
 - `status`는 `PENDING` / `APPLIED` / `CANCELLED` / `FAILED`다. 등록 응답과 목록은 항상 `PENDING`이다.
 - `value`의 형식은 위 표와 같다. 단 `tags`는 등록할 때 태그 ID로 바뀌어 저장되므로 응답에서는 태그 ID 배열이다.
+- 응답의 `value`는 [상품 API](product.md)와 같은 모양으로 빠짐없이 준다. `storeScope`가 `ALL`이면 `targetStoreIds`는 `[]`, `EXCLUDE` 예외의 `price`는 `null`이다. 태그·상품 그룹·대상 매장 ID는 오름차순이고, `optionGroupLinks`와 `options`는 요청한 순서다.
 
 ## GET `…/scheduled-changes` — 대기 예약 목록 (요구사항 1.4)
 
@@ -65,6 +68,7 @@
 ]
 ```
 
+- 등록한 순서로 준다. 대기 예약이 없으면 `[]`다.
 - 오류: `PRODUCT_NOT_FOUND` / `OPTION_GROUP_NOT_FOUND`(404)
 
 ## PUT `…/scheduled-changes/{field}` — 예약 등록 (요구사항 1.3, 1.4)
@@ -114,5 +118,6 @@
 
 | 코드 | 상태 | 상황 |
 |---|---|---|
-| `NO_PENDING_SCHEDULE` | 404 | 이 필드에 대기 예약이 없음. 취소하는 사이 배치가 먼저 적용·실패 처리한 경우도 같다 |
+| `UNKNOWN_SCHEDULE_FIELD` | 404 | 예약할 수 없는 필드 |
+| `NO_PENDING_SCHEDULE` | 404 | 이 필드에 대기 예약이 없음. 대상이 없는 경우, 취소하는 사이 배치가 먼저 적용·실패 처리한 경우도 같다 |
 | `SCHEDULE_ALREADY_PROCESSED` | 409 | 읽은 직후 배치가 먼저 처리함(드묾) |

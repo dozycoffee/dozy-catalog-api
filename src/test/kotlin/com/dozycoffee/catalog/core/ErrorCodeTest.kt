@@ -6,6 +6,7 @@ import com.dozycoffee.catalog.product.domain.product.exception.ProductErrorCode
 import com.dozycoffee.catalog.product.domain.productgroup.exception.ProductGroupErrorCode
 import com.dozycoffee.catalog.product.domain.tag.exception.TagErrorCode
 import com.dozycoffee.catalog.schedule.domain.exception.ScheduledChangeErrorCode
+import com.dozycoffee.catalog.schedule.presentation.ScheduleApiErrorCode
 import com.dozycoffee.catalog.store.domain.availability.exception.StoreProductAvailabilityErrorCode
 import com.dozycoffee.catalog.store.domain.display.exception.StoreDisplaySettingErrorCode
 import org.junit.jupiter.api.DisplayName
@@ -23,6 +24,7 @@ class ErrorCodeTest {
             ProductGroupErrorCode.entries +
             TagErrorCode.entries +
             ScheduledChangeErrorCode.entries +
+            ScheduleApiErrorCode.entries +
             StoreProductAvailabilityErrorCode.entries +
             StoreDisplaySettingErrorCode.entries
 
