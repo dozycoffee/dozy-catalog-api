@@ -36,6 +36,11 @@ extra["kotlin-coroutines.version"] =
     libs.versions.kotlinx.coroutines
         .get()
 
+// Spring Boot BOM이 관리하는 r2dbc-postgresql 버전을 행 누락 버그가 고쳐진 버전으로 올린다(libs.versions.toml 참고).
+extra["r2dbc-postgresql.version"] =
+    libs.versions.r2dbc.postgresql
+        .get()
+
 configurations {
     // Spring Boot Gradle 플러그인 기본값은 developmentOnly를 testRuntimeClasspath까지 전파한다.
     // 테스트는 spring-boot-docker-compose 대신 Testcontainers(@ServiceConnection)로 DB를 붙이므로 제외.

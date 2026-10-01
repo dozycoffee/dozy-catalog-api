@@ -77,6 +77,7 @@
 - Spring `@Transactional`과 섞지 않는다.
 - **Exposed의 자동 재시도는 끈다**(`R2dbcDatabaseConfig.defaultMaxAttempts = 1`). Exposed는 기본으로 DB 예외(`R2dbcException`)가 나면 교착 상태뿐 아니라 제약 위반·연결 오류에도 트랜잭션 블록 전체를 최대 3번 다시 실행한다. 재시도는 동시성 버그를 가리고, 블록 안의 외부 호출(이벤트 발행, 외부 BC 호출)을 중복시킨다. 다시 시도해야 하는 경우는 호출하는 쪽이 이유를 알고 명시적으로 처리한다.
 - **커넥션 풀**: `r2dbc-pool`이 클래스패스에 있으면 Spring Boot가 `ConnectionFactory`를 `ConnectionPool`로 감싼다. Spring Boot 4의 R2DBC 스타터는 풀을 함께 가져오지 않으므로 의존성을 따로 둔다. 크기는 `spring.r2dbc.pool.*`로 정한다. Exposed 트랜잭션과 테스트의 `DatabaseClient`는 같은 풀을 쓴다.
+- **Exposed 연결 메타데이터는 시작할 때 읽는다**(`common.exposed.connectExposedDatabase`). Exposed는 식별자 규칙·DB 버전 같은 메타데이터를 처음 쓸 때 `runBlocking`으로 DB에 묻는다. 첫 사용이 트랜잭션 연결의 Netty 이벤트 루프 스레드에서 일어나면 그 스레드가 자기 응답을 기다리며 멈추고, 트랜잭션·연결·잠금이 반환되지 않는다. `R2dbcDatabase`를 만들 때 이벤트 루프 밖에서 미리 읽어 둔다.
 - 잠금 조회는 Exposed `Query.forUpdate()`를 쓴다. 여러 워커가 나눠 처리하는 배치 조회는 `forUpdate(ForUpdateOption.PostgreSQL.ForUpdate(MODE.SKIP_LOCKED))`로 다른 트랜잭션이 잠근 행을 건너뛴다(예: `findDueForApplication`, [ERD 동시성 처리](../erd.md#동시성-처리)).
 - 잠글 행이 정해져 있지 않은 범위(예: 한 매장의 진열 순서 전체)를 직렬화할 때는 트랜잭션 단위 권고 잠금 `common.exposed.lockForTransaction`(`pg_advisory_xact_lock`)을 쓴다. 키는 두 정수 형태 (용도, 대상 ID)이고, 용도 번호는 `AdvisoryLockNamespace`에 모아 겹치지 않게 한다. 잠금은 트랜잭션이 끝날 때 풀린다.
 
