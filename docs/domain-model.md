@@ -131,7 +131,7 @@ domain의 애그리거트끼리는 ID로만 참조하고, 여러 애그리거트
 | Product | `ACTIVE`가 아닌 상품은 단종할 수 없다 (`DRAFT → DISCONTINUED` 불가) | `InvalidProductStatusTransitionException` |
 | Product | `DRAFT`가 아닌 상품은 삭제할 수 없다 | `ProductNotDeletableException` |
 | Product | 같은 옵션 그룹을 두 번 연결할 수 없다 (등록 시점 포함) | `DuplicateOptionGroupLinkException` |
-| Product | 연결되지 않은 옵션 그룹에는 예외(가격/제외)를 지정할 수 없다 | `ProductOptionGroupNotLinkedException` |
+| Product | 연결되지 않은 옵션 그룹에는 예외(가격/제외)를 지정하거나 연결을 해제할 수 없다 | `ProductOptionGroupNotLinkedException` |
 | Product | 예외(가격/제외)는 옵션 그룹에 존재하는 옵션 키에만 지정할 수 있다 (application이 옵션 그룹의 옵션 키 목록을 넘기고, Product는 검증만 하고 보관하지 않음) | `OptionKeyNotFoundException` |
 | Product | 제외로 그 상품의 선택 가능한 옵션이 0개가 되면 거부 (넘겨받은 옵션 키 목록에서 제외한 키를 빼서 계산) | `NoSelectableOptionException` |
 | Product | 옵션 그룹 순서 변경 요청은 연결된 옵션 그룹 전체를 정확히 한 번씩 담아야 한다 (일부만 담으면 빠진 연결과 예외 설정이 사라지므로 거부) | `InvalidOptionGroupOrderException`, 연결되지 않은 그룹이 있으면 `ProductOptionGroupNotLinkedException` |

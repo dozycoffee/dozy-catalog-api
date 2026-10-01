@@ -2,6 +2,8 @@ package com.dozycoffee.catalog.schedule.application
 
 import com.dozycoffee.catalog.common.BusinessTimeZone
 import com.dozycoffee.catalog.common.TransactionRunner
+import com.dozycoffee.catalog.product.application.optiongroup.OptionGroupApplicationService
+import com.dozycoffee.catalog.product.application.product.ProductApplicationService
 import com.dozycoffee.catalog.product.application.product.ProductTagResolver
 import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroupId
 import com.dozycoffee.catalog.product.domain.product.ProductId
@@ -23,6 +25,8 @@ class ScheduledChangeApplicationService(
     private val scheduledChangeRepository: ScheduledChangeRepository,
     private val valueValidator: ScheduledValueValidator,
     private val tagResolver: ProductTagResolver,
+    private val productService: ProductApplicationService,
+    private val optionGroupService: OptionGroupApplicationService,
     private val clock: Clock,
     private val businessTimeZone: BusinessTimeZone,
     private val transactionRunner: TransactionRunner,
@@ -73,16 +77,19 @@ class ScheduledChangeApplicationService(
         }
 
     // 상품·옵션 그룹 조회 화면이 필드별 현재 값 옆에 예약 값과 적용 날짜를 함께 보여 주기 위한 조회다(요구사항 1.4).
-    // 현재 값과 합치는 일은 presentation이 한다.
-    suspend fun findPendingForProduct(productId: ProductId): List<ScheduledChange> = findPending(productId.value, TargetKind.PRODUCT)
+    // 현재 값과 합치는 일은 presentation이 한다. 대상이 없으면 빈 목록이 아니라 대상 없음으로 거부한다
+    // (ProductNotFoundException / OptionGroupNotFoundException).
+    suspend fun findPendingForProduct(productId: ProductId): List<ScheduledChange> =
+        transactionRunner.inTransaction {
+            productService.get(productId)
+            scheduledChangeRepository.findAllPendingByTarget(productId.value, TargetKind.PRODUCT)
+        }
 
     suspend fun findPendingForOptionGroup(optionGroupId: OptionGroupId): List<ScheduledChange> =
-        findPending(optionGroupId.value, TargetKind.OPTION_GROUP)
-
-    private suspend fun findPending(
-        targetId: Long,
-        targetKind: TargetKind,
-    ): List<ScheduledChange> = transactionRunner.inTransaction { scheduledChangeRepository.findAllPendingByTarget(targetId, targetKind) }
+        transactionRunner.inTransaction {
+            optionGroupService.get(optionGroupId)
+            scheduledChangeRepository.findAllPendingByTarget(optionGroupId.value, TargetKind.OPTION_GROUP)
+        }
 
     private suspend fun resolve(input: RegisterScheduledChangeCommand.Input): ScheduledFieldValue =
         when (input) {
