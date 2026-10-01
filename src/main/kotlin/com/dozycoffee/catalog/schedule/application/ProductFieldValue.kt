@@ -10,56 +10,89 @@ import com.dozycoffee.catalog.product.domain.tag.TagId
 import com.dozycoffee.catalog.schedule.domain.TargetKind
 
 // 상품을 대상으로 하는 예약 값. 상품-옵션 그룹 연결의 예약도 상품을 대상으로 한다(docs/adr/0014).
+// 필드 이름의 원본은 이 타입들이다. 값 없이 필드 이름만 필요한 곳(예약 취소, API 경로)은 FIELD_NAME을 쓴다.
 sealed interface ProductFieldValue : ScheduledFieldValue {
     override val targetKind: TargetKind get() = TargetKind.PRODUCT
 
     data class Name(
         val name: String,
     ) : ProductFieldValue {
-        override val fieldName: String get() = "name"
+        override val fieldName: String get() = FIELD_NAME
+
+        companion object {
+            const val FIELD_NAME = "name"
+        }
     }
 
     // 소분류인지는 적용 시점에 application이 다시 확인한다(카테고리가 그 사이 대분류가 될 수 있다).
     data class Category(
         val categoryId: CategoryId,
     ) : ProductFieldValue {
-        override val fieldName: String get() = "category"
+        override val fieldName: String get() = FIELD_NAME
+
+        companion object {
+            const val FIELD_NAME = "category"
+        }
     }
 
     data class Description(
         val description: String?,
     ) : ProductFieldValue {
-        override val fieldName: String get() = "description"
+        override val fieldName: String get() = FIELD_NAME
+
+        companion object {
+            const val FIELD_NAME = "description"
+        }
     }
 
     data class Image(
         val imageUrl: String?,
     ) : ProductFieldValue {
-        override val fieldName: String get() = "image"
+        override val fieldName: String get() = FIELD_NAME
+
+        companion object {
+            const val FIELD_NAME = "image"
+        }
     }
 
     data class BasePrice(
         val basePrice: Money,
     ) : ProductFieldValue {
-        override val fieldName: String get() = "basePrice"
+        override val fieldName: String get() = FIELD_NAME
+
+        companion object {
+            const val FIELD_NAME = "basePrice"
+        }
     }
 
     data class Tags(
         val tagIds: Set<TagId>,
     ) : ProductFieldValue {
-        override val fieldName: String get() = "tags"
+        override val fieldName: String get() = FIELD_NAME
+
+        companion object {
+            const val FIELD_NAME = "tags"
+        }
     }
 
     data class Groups(
         val groupIds: Set<ProductGroupId>,
     ) : ProductFieldValue {
-        override val fieldName: String get() = "groups"
+        override val fieldName: String get() = FIELD_NAME
+
+        companion object {
+            const val FIELD_NAME = "groups"
+        }
     }
 
     data class Scope(
         val storeScope: StoreScope,
     ) : ProductFieldValue {
-        override val fieldName: String get() = "storeScope"
+        override val fieldName: String get() = FIELD_NAME
+
+        companion object {
+            const val FIELD_NAME = "storeScope"
+        }
     }
 
     // 활성화와 단종은 서로 다른 필드라 함께 대기할 수 있다(예: 10/1 활성화 + 10/31 단종).
@@ -76,7 +109,11 @@ sealed interface ProductFieldValue : ScheduledFieldValue {
     data class OptionGroupLinks(
         val optionGroupIds: List<OptionGroupId>,
     ) : ProductFieldValue {
-        override val fieldName: String get() = "optionGroupLinks"
+        override val fieldName: String get() = FIELD_NAME
+
+        companion object {
+            const val FIELD_NAME = "optionGroupLinks"
+        }
     }
 
     // 옵션 그룹 하나에 대한 이 상품의 예외 전체(등록 시점 스냅샷). 옵션 그룹마다 다른 필드라

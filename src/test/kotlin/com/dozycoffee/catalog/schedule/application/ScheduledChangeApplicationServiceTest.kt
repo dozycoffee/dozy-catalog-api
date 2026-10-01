@@ -458,6 +458,13 @@ class ScheduledChangeApplicationServiceTest : ApplicationTest() {
                 )
                 assertEquals(ScheduleStatus.CANCELLED, tx { scheduledChangeRepository.findById(cancelled.id) }?.status)
             }
+
+        @Test
+        fun `대상이 없으면 빈 목록이 아니라 대상 없음으로 거부한다`() =
+            runTest {
+                assertFailsWith<ProductNotFoundException> { service.findPendingForProduct(ProductId(999)) }
+                assertFailsWith<OptionGroupNotFoundException> { service.findPendingForOptionGroup(OptionGroupId(999)) }
+            }
     }
 
     private fun command(
