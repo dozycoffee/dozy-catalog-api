@@ -156,6 +156,16 @@ class ProductTest {
         }
 
         @Test
+        fun `연결되지 않은 그룹을 해제하면 연결되지 않은 옵션 그룹 예외로 거부한다`() {
+            val product = product(link(1, 0))
+
+            assertFailsWith<ProductOptionGroupNotLinkedException> {
+                product.unlinkOptionGroup(OptionGroupId(2))
+            }
+            assertEquals(listOf(OptionGroupId(1)), product.optionGroupLinks.map { it.id })
+        }
+
+        @Test
         fun `연결된 그룹 전체를 다시 정렬하면 표시 순서가 바뀐다`() {
             val product = product(link(1, 0), link(2, 1))
 
