@@ -104,4 +104,4 @@
 
 ### GET `/admin/stores/{storeId}/products`
 
-본사관리자(`catalog:menu_viewer` 이상)가 한 매장의 상품 상태를 조회한다. 파라미터와 응답은 [매장 상품 목록](#get-internalstoresstoreidproducts--매장-상품-목록-시나리오-s6)과 같다. 상품별로 여러 매장을 보려면 [노출 현황 API](exposure.md)를 쓴다.
+본사관리자(`catalog:admin`)가 한 매장의 상품 상태를 조회한다. 파라미터와 응답은 [매장 상품 목록](#get-internalstoresstoreidproducts--매장-상품-목록-시나리오-s6)과 같다. 상품별로 여러 매장을 보려면 [노출 현황 API](exposure.md)를 쓴다.

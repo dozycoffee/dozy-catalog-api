@@ -20,8 +20,9 @@ ADR-0017은 호출자를 본사관리자와 가맹점주로 보고 경로를 `/a
 
 - **가맹점주의 요청은 Store 서비스가 받는다.** Store 서비스가 점주 토큰을 검증하고 `store_member`로 매장 소유를 확인한 뒤, system token으로 Catalog를 호출한다.
 - **Catalog의 호출자는 본사 직원과 Store 서비스뿐이다.** 경로를 둘로 나눈다.
-  - `/api/v1/admin/**` — 본사 직원(realm `internal`, 역할 `catalog:menu_editor` / `catalog:menu_viewer`)
+  - `/api/v1/admin/**` — 본사 직원(realm `internal`, 역할 `catalog:admin`)
   - `/api/v1/internal/**` — Store 서비스(system token, 역할 `catalog:store_agent`)
+- **역할은 둘로 나눈다.** 본사 직원은 `catalog:admin`, Store 서비스는 `catalog:store_agent`다. Store 서비스에 본사 역할을 주지 않아, Store 쪽이 노출돼도 본사 API까지 열리지 않게 한다.
 - **Catalog는 경로의 `storeId`를 신뢰한다.** 매장 소유 확인은 Store 서비스의 책임이다. Catalog는 그 매장이 그 상품을 취급할 수 있는지(판매 범위, 요구사항 2.2)만 확인한다.
 - **내부 API 응답에는 본사 내부 정보를 담지 않는다.** 상품 그룹(요구사항 1.8), 판매 범위, 낙관적 잠금 버전이다. 점주와 손님에게 그대로 전달될 수 있다.
 - **매장 상품 목록은 상품 기준 정보(SKU, 이름, 카테고리 ID, 이미지, 기준가, 재고 추적 여부)를 함께 담는다.** Store 서비스가 상품 조회를 한 번 더 부르지 않게 하기 위해서다. 점주용 상품 조회 경로는 두지 않는다.

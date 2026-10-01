@@ -2,7 +2,7 @@
 
 > 공통 규약(경로, 인가, 형식, 목록 조회, 낙관적 잠금, 오류 응답)은 [API 명세](README.md)를 따른다.
 
-경로 앞에 `/api/v1/admin`이 붙고, 모두 본사 직원이 호출한다. 변경은 `catalog:menu_editor`, 조회는 `catalog:menu_viewer` 이상이 필요하다([경로와 인가](README.md#경로와-인가)).
+경로 앞에 `/api/v1/admin`이 붙고, 모두 본사 직원(`catalog:admin`)이 호출한다([경로와 인가](README.md#경로와-인가)).
 
 가맹점주의 요청은 Store 서비스가 받아 [매장 API](store.md)의 내부 경로로 들어온다. 그 매장에서 판매하는 상품의 조회도 거기에 있다.
 
