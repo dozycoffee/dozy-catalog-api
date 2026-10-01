@@ -11,6 +11,10 @@ sealed interface OptionGroupFieldValue : ScheduledFieldValue {
     data class Options(
         val options: List<Option>,
     ) : OptionGroupFieldValue {
-        override val fieldName: String get() = "options"
+        override val fieldName: String get() = FIELD_NAME
+
+        companion object {
+            const val FIELD_NAME = "options"
+        }
     }
 }
