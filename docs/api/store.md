@@ -47,7 +47,7 @@
 | `visibility` | `VISIBLE` / `HIDDEN`. 개별 설정이 없으면 `VISIBLE` |
 | `stockStatus` | `ON_SALE` / `SOLD_OUT`. 재고 미추적 상품은 점주의 수동 품절(없으면 `ON_SALE`), 재고 추적 상품은 매장 재고(받은 적 없으면 `SOLD_OUT`). `HIDDEN`이면 `null` |
 
-상품 그룹, 판매 범위, 상태(`status`), 버전은 담지 않는다. 목록의 상품은 모두 `ACTIVE`다.
+상품 그룹, 판매 범위, 상태(`status`), 버전은 담지 않는다. 목록의 상품은 모두 `ACTIVE`다. 숨김·수동 품절 변경의 응답은 `ACTIVE`가 아닌 상품일 수도 있다(각 엔드포인트 참고).
 
 ## GET `/internal/stores/{storeId}/products` — 매장 상품 목록 (시나리오 S6)
 
@@ -81,8 +81,9 @@
 ```
 
 - 이 매장·상품의 개별 설정이 없으면 기본값으로 만든 뒤 바꾼다.
-- 응답: `StoreProduct`
-- 오류: `PRODUCT_NOT_FOUND`(404)
+- 판매 범위에 든 상품이면 상태와 무관하게 바꿀 수 있다(`DRAFT`·`DISCONTINUED`도 미리 바꿔 두면 활성화 후 그대로 쓰인다, 요구사항 2.2, 1.3).
+- 응답: 바꾼 결과의 `StoreProduct`. 목록과 달리 상품 상태를 보지 않고 점주의 설정을 담는다. `visibility`는 숨김 여부, `stockStatus`는 숨겼으면 `null`이고 아니면 판매 가능 여부(없으면 출처별 기본값)다.
+- 오류: `PRODUCT_NOT_FOUND`(404, 없거나 판매 범위 밖인 상품). 거부되면 아무것도 바뀌지 않는다
 
 ## PUT `/internal/stores/{storeId}/products/{productId}/stock-status` — 수동 품절 (요구사항 2.5)
 
@@ -90,8 +91,8 @@
 { "stockStatus": "SOLD_OUT" }
 ```
 
-- 응답: `StoreProduct`
-- 오류: `PRODUCT_NOT_FOUND`(404), `STOCK_STATUS_NOT_MANUALLY_EDITABLE`(422, 재고 추적 상품)
+- 숨김·노출 전환과 같이 판매 범위에 든 상품이면 상태와 무관하게 바꿀 수 있고, 응답은 점주의 설정을 담은 `StoreProduct`다.
+- 오류: `PRODUCT_NOT_FOUND`(404, 없거나 판매 범위 밖인 상품), `STOCK_STATUS_NOT_MANUALLY_EDITABLE`(422, 재고 추적 상품)
 
 ## GET `/internal/stores/{storeId}/products/{productId}/effective-options` — 유효 옵션 구성 (요구사항 1.9)
 

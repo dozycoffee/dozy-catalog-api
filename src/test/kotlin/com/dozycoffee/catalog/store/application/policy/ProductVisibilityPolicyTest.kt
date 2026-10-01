@@ -249,6 +249,46 @@ class ProductVisibilityPolicyTest {
         }
     }
 
+    @Nested
+    @DisplayName("점주 설정만으로 본 노출 상태 (3·4단계)")
+    inner class ByOwnerSetting {
+        @Test
+        fun `설정이 없으면 기본값으로 재고 미추적 상품은 판매중, 재고 추적 상품은 품절이다`() {
+            assertEquals(
+                StoreVisibility.Visible(StockStatus.ON_SALE),
+                ProductVisibilityPolicy.resolveByOwnerSetting(tracksInventory = false, visibility = null, stockStatus = null),
+            )
+            assertEquals(
+                StoreVisibility.Visible(StockStatus.SOLD_OUT),
+                ProductVisibilityPolicy.resolveByOwnerSetting(tracksInventory = true, visibility = null, stockStatus = null),
+            )
+        }
+
+        @Test
+        fun `숨겼으면 판매 가능 여부와 무관하게 비노출이다`() {
+            val result =
+                ProductVisibilityPolicy.resolveByOwnerSetting(
+                    tracksInventory = false,
+                    visibility = Visibility.HIDDEN,
+                    stockStatus = StockStatus.ON_SALE,
+                )
+
+            assertEquals(StoreVisibility.NotVisible, result)
+        }
+
+        @Test
+        fun `숨기지 않았으면 저장된 판매 가능 여부를 따른다`() {
+            val result =
+                ProductVisibilityPolicy.resolveByOwnerSetting(
+                    tracksInventory = false,
+                    visibility = Visibility.VISIBLE,
+                    stockStatus = StockStatus.SOLD_OUT,
+                )
+
+            assertEquals(StoreVisibility.Visible(StockStatus.SOLD_OUT), result)
+        }
+    }
+
     private fun resolve(
         product: Product,
         display: StoreDisplaySetting? = null,

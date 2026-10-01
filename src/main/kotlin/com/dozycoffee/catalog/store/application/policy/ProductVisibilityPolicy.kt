@@ -50,6 +50,18 @@ object ProductVisibilityPolicy {
         if (!storeScope.covers(storeId)) {
             return StoreVisibility.NotVisible
         }
+        return resolveByOwnerSetting(tracksInventory, visibility, stockStatus)
+    }
+
+    // 3·4단계만 본다. 상품 상태와 판매 범위는 보지 않고 이 매장의 설정(진열 설정, 판매 가능 여부)만으로 정한 노출 상태다.
+    // 점주가 설정을 바꾼 결과를 보여 줄 때 쓴다. 점주는 Active가 아닌 상품의 설정도 미리 바꿀 수 있어(요구사항 2.2)
+    // 1단계를 적용하면 바꾼 설정과 무관하게 언제나 비노출로 나오기 때문이다.
+    // 이 결과의 비노출은 곧 점주가 숨긴 것이다.
+    fun resolveByOwnerSetting(
+        tracksInventory: Boolean,
+        visibility: Visibility?,
+        stockStatus: StockStatus?,
+    ): StoreVisibility {
         if (visibility == Visibility.HIDDEN) {
             return StoreVisibility.NotVisible
         }
