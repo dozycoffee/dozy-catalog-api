@@ -15,6 +15,13 @@ class ExposedConfiguration {
     fun r2dbcDatabase(connectionFactory: ConnectionFactory): R2dbcDatabase =
         R2dbcDatabase.connect(
             connectionFactory = connectionFactory,
-            databaseConfig = R2dbcDatabaseConfig { explicitDialect = PostgreSQLDialect() },
+            databaseConfig =
+                R2dbcDatabaseConfig {
+                    explicitDialect = PostgreSQLDialect()
+                    // Exposed는 기본으로 DB 예외(R2dbcException)가 나면 트랜잭션 블록 전체를 최대 3번 다시 실행한다.
+                    // 교착 상태만이 아니라 제약 위반·연결 오류에도 그렇다. 재시도는 오류를 가리고(동시성 버그가 테스트에 드러나지 않음),
+                    // 블록 안의 외부 호출을 중복시킬 수 있으므로 끈다. 다시 시도할지는 호출하는 쪽이 정한다(docs/architecture/persistence.md).
+                    defaultMaxAttempts = 1
+                },
         )
 }

@@ -29,6 +29,7 @@
 | DB | PostgreSQL | 부분 UNIQUE 인덱스, CHECK, JSONB, `FOR UPDATE SKIP LOCKED`를 설계에 활용 ([ERD](../erd.md)) |
 | ORM | JetBrains Exposed (R2DBC) | DSL 기반. Spring Data R2DBC 리포지토리 추상화는 쓰지 않는다 |
 | 전송 계층 | `spring-boot-starter-r2dbc` | Boot가 `spring.r2dbc.*`로 `ConnectionFactory`를 자동 구성하는 용도로만 쓴다. Exposed의 `R2dbcDatabase`가 이를 감싼다 |
+| 커넥션 풀 | `r2dbc-pool` | Boot 4의 R2DBC 스타터에 포함되지 않아 따로 둔다. 없으면 트랜잭션마다 연결을 새로 연다 |
 | 드라이버 | `org.postgresql:r2dbc-postgresql` | 구 groupId `io.r2dbc`에서 이관됨 |
 | 로컬 DB | Docker Compose (`compose.yaml`) | `spring-boot-docker-compose`가 `bootRun` 시 자동 기동·연결 |
 | 마이그레이션 | Flyway (`spring-boot-flyway` 모듈, JDBC) | 순수 SQL로 PostgreSQL 기능을 그대로 쓴다. R2DBC를 지원하지 않아 앱 시작 시 JDBC로 한 번 실행한다 ([ADR-0009](../adr/0009-flyway-with-exposed-schema-check.md)) |

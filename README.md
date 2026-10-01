@@ -73,6 +73,7 @@ Docker 없이 도메인·정책 테스트만 빠르게 돌리려면 다음을 �
 - **Flyway는 스타터가 아니라 `spring-boot-flyway` 모듈만 씁니다.** `spring-boot-starter-flyway`는 `spring-boot-starter-jdbc`와 HikariCP를 함께 가져와, Flyway가 끝난 뒤에도 쓰지 않는 JDBC 연결 풀이 남습니다. `SchemaMigrationTest`가 `DataSource` 빈이 없는지 확인합니다.
 - **kotlinx-coroutines 버전을 Spring Boot 관리 버전보다 올려 둡니다.** Exposed 1.4는 1.11.0을 요구하지만 Spring Boot 4.1의 BOM은 1.10.2로 낮춥니다. 그러면 트랜잭션 실행 중에 `NoSuchMethodError`(`runBlockingK`)가 납니다. `build.gradle.kts`에서 `kotlin-coroutines.version`을 `libs.versions.toml`의 값으로 덮어씁니다. Spring Boot나 Exposed를 올릴 때 함께 확인하세요.
 - **dozy-auth 라이브러리의 POM에는 Spring Boot 의존성 버전이 없습니다.** 스타터가 서비스의 Spring 버전을 바꾸지 않으려고 BOM을 싣지 않기 때문입니다. 이 프로젝트의 Spring Boot BOM이 버전을 채우므로 동작에는 문제가 없지만, 의존성을 해석할 때 `'dependencies.dependency.version' ... is missing` 경고가 보일 수 있습니다.
+- **`r2dbc-pool`을 따로 추가합니다.** Spring Boot 4의 `spring-boot-starter-r2dbc`는 커넥션 풀을 가져오지 않아, 없으면 트랜잭션마다 PostgreSQL 연결을 새로 엽니다. `ExposedTransactionRunnerTest`가 `ConnectionFactory`가 `ConnectionPool`인지 확인합니다. 테스트 컨테이너는 컨텍스트마다 풀이 생기므로 `max_connections`를 늘려 띄웁니다.
 - **테스트 JVM 시간대는 UTC로 고정됩니다.** 코드가 시스템 기본 시간대에 의존하지 않도록, 개발 PC(KST)와 CI의 결과를 같게 맞춥니다.
 
 ## 코드 스타일 검사
@@ -108,4 +109,4 @@ com.dozycoffee.catalog
 
 ## CI
 
-`main` 브랜치로의 push와 PR에서 `.github/workflows/ci.yml`이 `./gradlew build`를 실행합니다. dozy-auth 라이브러리는 워크플로의 `GITHUB_TOKEN`(`packages: read`)으로 받습니다.
+`main` 브랜치로의 push와 PR에서 `.github/workflows/ci.yml`이 `./gradlew build`를 실행합니다. dozy-auth 라이브러리는 워크플로의 `GITHUB_TOKEN`(`packages: read`)으로 받습니다. 테스트가 실패하면 테스트 결과와 리포트를 `test-results` 아티팩트로 14일간 남깁니다.

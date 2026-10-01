@@ -2,6 +2,8 @@ package com.dozycoffee.catalog.common.exposed
 
 import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.support.IntegrationTest
+import io.r2dbc.pool.ConnectionPool
+import io.r2dbc.spi.ConnectionFactory
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.r2dbc.insert
@@ -10,12 +12,17 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 
 @DisplayName("ExposedTransactionRunner")
 class ExposedTransactionRunnerTest : IntegrationTest() {
     @Autowired
     private lateinit var transactionRunner: TransactionRunner
+
+    @Autowired
+    private lateinit var connectionFactory: ConnectionFactory
 
     // 트랜잭션 동작만 확인하려고 V1의 tags 테이블을 최소 컬럼으로 매핑한다.
     private object TagsForTest : Table("tags") {
@@ -56,6 +63,28 @@ class ExposedTransactionRunnerTest : IntegrationTest() {
 
             assertEquals(0, countTags())
         }
+
+    @Test
+    fun `DB 예외가 나도 블록을 다시 실행하지 않는다`() =
+        runTest {
+            var attempts = 0
+
+            assertFails {
+                transactionRunner.inTransaction {
+                    attempts++
+                    TagsForTest.insert { it[name] = "신메뉴" }
+                    TagsForTest.insert { it[name] = "신메뉴" }
+                }
+            }
+
+            assertEquals(1, attempts)
+            assertEquals(0, countTags())
+        }
+
+    @Test
+    fun `커넥션 풀을 쓴다`() {
+        assertIs<ConnectionPool>(connectionFactory)
+    }
 
     private suspend fun countTags(): Long = transactionRunner.inTransaction { TagsForTest.selectAll().count() }
 }

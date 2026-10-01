@@ -57,6 +57,7 @@ dependencies {
 
     // infrastructure/persistence — R2DBC ConnectionFactory(Spring Boot 자동구성) + Exposed DSL
     implementation(libs.spring.boot.starter.r2dbc)
+    implementation(libs.r2dbc.pool)
     implementation(libs.exposed.core)
     implementation(libs.exposed.r2dbc)
     implementation(libs.exposed.java.time)

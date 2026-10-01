@@ -29,6 +29,9 @@ kotlin-logging-jvm = { module = "io.github.oshai:kotlin-logging-jvm", version.re
 
 # infrastructure/persistence — R2DBC ConnectionFactory(Spring Boot 자동구성) + Exposed DSL
 spring-boot-starter-r2dbc = { module = "org.springframework.boot:spring-boot-starter-r2dbc" }
+# 커넥션 풀. Spring Boot 4의 R2DBC 스타터는 풀을 함께 가져오지 않는다. 없으면 트랜잭션마다 연결을 새로 연다.
+# 클래스패스에 있으면 Boot가 ConnectionFactory를 ConnectionPool로 감싼다(spring.r2dbc.pool.*). 버전은 Boot BOM이 관리한다.
+r2dbc-pool = { module = "io.r2dbc:r2dbc-pool" }
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
 exposed-r2dbc = { module = "org.jetbrains.exposed:exposed-r2dbc", version.ref = "exposed" }
 postgresql = { module = "org.postgresql:postgresql" }

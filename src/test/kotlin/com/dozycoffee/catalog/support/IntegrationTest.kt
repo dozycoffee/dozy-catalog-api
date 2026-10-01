@@ -57,8 +57,13 @@ abstract class IntegrationTest {
             .awaitSingleOrNull() ?: 0
 
     companion object {
+        // 테스트 JVM에는 설정이 다른 Spring 컨텍스트가 여러 개 캐시되고, 컨텍스트마다 커넥션 풀을 가진다.
+        // 기본 max_connections(100)로는 모자랄 수 있어 늘린다.
         @JvmStatic
         @ServiceConnection
-        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:18").apply { start() }
+        val postgres: PostgreSQLContainer<*> =
+            PostgreSQLContainer("postgres:18")
+                .withCommand("postgres", "-c", "max_connections=300")
+                .apply { start() }
     }
 }

@@ -4,6 +4,13 @@
 spring:
   application:
     name: dozy-catalog-api
+  r2dbc:
+    # 커넥션 풀(r2dbc-pool). Exposed 트랜잭션 하나가 연결 하나를 빌려 쓰고 끝나면 돌려준다.
+    # 운영 규모가 정해지면 max-size를 다시 정한다. PostgreSQL max_connections를 인스턴스 수 × max-size보다 크게 둔다.
+    pool:
+      initial-size: 2
+      max-size: 10
+      max-idle-time: 10m
 
 management:
   endpoints:
