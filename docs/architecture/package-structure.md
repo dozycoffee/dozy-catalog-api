@@ -27,7 +27,7 @@ base package: `com.dozycoffee.catalog`
 | `domain` | ID 타입만 (`ProductId`, `OptionGroupId`, `OptionKey`, `CategoryId` 등) |
 | `application` | 다른 모듈의 도메인 모델 전체. 단 **읽기만** 한다 |
 | `infrastructure` | 모듈 의존 방향과 같은 방향이면 허용 (JSONB 직렬화, FK 선언 등 기술적인 이유) |
-| `presentation` | 자기 모듈만 |
+| `presentation` | 자기 모듈, 그리고 자기 모듈의 Command·조회 결과가 쓰는 다른 모듈의 ID·값 타입(`ProductId`, `Money`, `StoreScope`, `Option` 등). 요청을 Command로 바꾸려면 그 타입을 만들어야 하기 때문이다. 다른 모듈의 유스케이스나 Repository는 부르지 않는다 |
 
 - **다른 모듈의 애그리거트는 읽기만 한다.** 바꿔야 하면 그 모듈의 유스케이스를 호출하거나 이벤트를 발행한다. 예약 적용 배치는 `Product`를 직접 조작하지 않고 `product` 모듈의 유스케이스를 호출하고, 판매 범위 변경으로 매장 설정을 지우는 일은 `product`이 이벤트를 발행하고 `store`가 구독한다. 그래야 잠금·검증·이벤트 발행이 한곳에 남고 의존 방향이 유지된다.
 - **모듈 안에서도 애그리거트끼리는 ID로만 참조한다.** 여러 애그리거트를 함께 보는 판단은 그 모듈의 `application/policy`에 I/O 없는 순수 클래스로 둔다([ADR-0012](../adr/0012-cross-aggregate-judgment-in-application-policy.md)).
@@ -45,7 +45,8 @@ base package: `com.dozycoffee.catalog`
 - **여러 애그리거트를 한 트랜잭션에서 바꿀 때는 서비스가 잠금·검증·저장 순서를 정한다.** 잠그고 → 정책에 넘겨 판단하고 → 애그리거트 메서드로 바꾸고 → 저장한다. 이때 **실제로 바뀐 애그리거트만 저장한다.** 바뀐 것 없이 저장하면 낙관적 잠금 대상의 `version`만 올라가 다음 수정이 충돌로 거부된다([ADR-0013](../adr/0013-optimistic-locking-for-product-and-option-group.md)). 예: 옵션 목록 교체는 옵션 그룹과 연결 상품을 함께 잠그지만, 사라진 옵션 키의 예외를 실제로 갖고 있던 상품만 저장한다.
 - **여러 애그리거트를 묶어 보여 주는 조회**는 각 Repository로 불러와 application에서 합치고(`<모듈>/application/<화면 단위>/`의 `XxxQueryService`), 결과는 그 옆의 View 타입에 담는다. 전용 SQL이나 집계가 필요해지면 그때 조회 포트로 옮긴다.
 - **조건 검색과 페이징이 필요한 목록**은 조회 포트가 조건에 맞는 애그리거트 ID의 한 페이지(`common.paging.Page`)만 고르고, application이 그 ID로 Repository에서 애그리거트를 불러와 포트가 정한 순서대로 합친다(예: 상품 목록의 `ProductSearchQueryPort` → `ProductRepository.findAllByIds`). 애그리거트 복원은 Repository 한 곳에만 두고, 검색 조건은 여러 테이블을 볼 수 있게 하기 위해서다. 같은 목록을 호출자별로 다른 범위로 보여 줄 때(본사의 전체 상품, 점주의 판매 상품)는 같은 포트에 범위 조건만 달리 넘긴다.
-- 페이지 크기·`ids` 개수 상한은 presentation이 요청 오류로 먼저 거르고, application 타입(`PageRequest`, 검색 조건)은 `require`로 한 번 더 막는다([예외 구조](exception.md)).
+- 페이지 크기·`ids` 개수 상한은 presentation이 요청 오류로 먼저 거르고(`common.web.ListParams`), application 타입(`PageRequest`, 검색 조건)은 `require`로 한 번 더 막는다([예외 구조](exception.md)).
+- **컨트롤러**는 모듈의 `presentation/`에 두고, 요청 DTO는 `presentation/dto`에서 Command로 바꾼다. 버전이 필요한 요청은 `@RequestHeader(HttpHeaders.IF_MATCH, required = false)`로 받아 `VersionHeaders.requireIfMatch`로 읽고, 단건 응답은 `VersionHeaders.okWithVersion`으로 `ETag`를 붙인다. 목록은 `ListParams`로 파라미터를 읽고 `Page.toResponse`로 페이지 응답을 만든다.
 - **예약 적용처럼 사람이 보던 화면이 없는 경로는 버전을 요구하지 않는다.** 즉시 반영(PUT)은 화면이 보던 버전을 받아 그 사이의 변경을 거부하지만(낙관적 잠금, [ADR-0013](../adr/0013-optimistic-locking-for-product-and-option-group.md)), 배치는 비교할 화면이 없으므로 대상 행을 잠그고(`findByIdForUpdate`) 최신 상태에 적용한다. 그래서 필드 하나만 바꾸는 유스케이스(`ProductFieldApplicationService`, 버전 없는 `replaceOptions`·`replaceOptionGroupLinks`·`replaceOptionOverrides`)를 즉시 반영과 나란히 둔다. 잠금·검증·이벤트 발행은 그대로 그 모듈의 유스케이스 안에서 일어난다.
 - **배치는 처리 단위마다 트랜잭션을 연다.** 예약 적용 배치는 대상 목록을 짧은 트랜잭션에서 고른 뒤, 예약 한 건마다 그 행을 다시 잠그고(`FOR UPDATE SKIP LOCKED`) 적용한다. 적용과 `APPLIED` 기록은 같은 트랜잭션에서 함께 커밋해 "적용됐는데 대기로 남는" 상태를 만들지 않고, 규칙 위반(`DomainException`)이면 적용 트랜잭션을 통째로 롤백해 대상 값을 되돌린 뒤 **별도 트랜잭션에서** `FAILED`만 기록한다(같은 트랜잭션에서 기록하면 롤백에 함께 쓸려 나간다). 그 밖의 예외는 규칙 위반이 아니므로 실패로 확정하지 않고 대기로 남겨 다음 실행에서 다시 시도한다. 한 번에 처리할 건수에는 상한을 둔다.
 - **도메인 이벤트는 저장 후 `pullDomainEvents()`로 꺼내 같은 트랜잭션에서 동기로 처리한다.** 중간 상태를 만들지 않고, 핸들러가 실패하면 원래 변경도 함께 롤백된다. 발행·구독 방식은 아래를 따른다. 규모가 커지거나 다른 BC로 나가는 전파가 생기면 비동기로 바꾼다(전환 조건은 [미정 사항](README.md#미정-사항)).
@@ -101,7 +102,9 @@ com.dozycoffee.catalog
 │   ├── paging/                            # PageRequest, Page (목록 조회의 페이징), requireIdsWithinLimit(ids 개수 상한)
 │   ├── security/                          # SecurityConfiguration(호출자별 경로 인가), CatalogRoles
 │   ├── time/                              # TimeConfiguration
-│   └── web/                               # GlobalExceptionHandler, ProblemResponses·TraceIds (RFC 9457 오류 응답)
+│   └── web/                               # GlobalExceptionHandler, ProblemResponses·TraceIds (RFC 9457 오류 응답),
+│                                          #   VersionHeaders(If-Match·ETag), ListParams·PageResponse(목록 파라미터·페이지 응답),
+│                                          #   InvalidRequestException·VersionRequiredException(요청 오류)
 │
 ├── product/                               # 본사가 정의하는 상품 (요구사항 1장)
 │   ├── domain/
