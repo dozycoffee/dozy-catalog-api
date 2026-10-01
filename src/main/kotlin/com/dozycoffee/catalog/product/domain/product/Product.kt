@@ -128,7 +128,9 @@ class Product internal constructor(
         optionGroupLinks = optionGroupLinks + ProductOptionGroupLink(optionGroupId, displayOrder)
     }
 
+    // 연결되지 않은 옵션 그룹은 해제할 수 없다. 조용히 넘어가면 바뀐 것 없이 버전만 올라간다.
     fun unlinkOptionGroup(optionGroupId: OptionGroupId) {
+        linkOf(optionGroupId)
         optionGroupLinks = optionGroupLinks.filterNot { it.id == optionGroupId }
     }
 
