@@ -319,7 +319,7 @@
 }
 ```
 
-- 응답: `201 Created`, `OptionGroup`
+- 응답: `201 Created`, `OptionGroup`, 헤더 `ETag`
 - 오류: `EMPTY_OPTION_GROUP`(422, 옵션 0개), `DUPLICATE_OPTION_KEY`(400), `INVALID_MONEY_AMOUNT`(400)
 
 ### GET `/option-groups` — 목록
@@ -426,6 +426,7 @@
 | 소분류 | `null` | 승격(대분류가 됨) |
 | 대분류 | `null` | 변화 없음 |
 
+- `parentId`는 승격일 때도 `null`로 보내야 한다. 필드를 빠뜨리면 승격으로 읽지 않고 `INVALID_REQUEST`(400)로 거부한다.
 - 응답: `Category`
 - 오류
 
