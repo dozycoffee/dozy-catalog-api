@@ -7,7 +7,7 @@
 - **언어/런타임**: Kotlin 2.3.21, JVM 21 (Gradle toolchain)
 - **프레임워크**: Spring Boot 4.1.0, Spring WebFlux(리액티브), Kotlin Coroutines + Project Reactor
 - **영속성**: PostgreSQL 18, R2DBC + [Exposed](https://github.com/JetBrains/Exposed)(DSL 기반, Spring Data R2DBC 리포지토리는 사용하지 않음)
-- **보안**: Spring Security
+- **보안**: [dozy-auth](https://github.com/dozycoffee/dozy-auth)의 `auth-spring-boot-starter`(Spring Security 기반 토큰 검증·인가)
 - **모니터링**: Spring Boot Actuator (`/actuator/health`, `/actuator/info`만 노출)
 - **직렬화**: Jackson (Jackson 3.x, `tools.jackson` groupId)
 - **테스트**: JUnit 5, Testcontainers(`@ServiceConnection`로 R2DBC 연결 자동 구성)
@@ -18,6 +18,15 @@
 
 - JDK 21
 - Docker (로컬 PostgreSQL 실행 및 통합 테스트용 Testcontainers에 필요)
+- GitHub 토큰 (`read:packages` 권한). 인증 라이브러리(dozy-auth)를 GitHub Packages에서 받는데, 공개 패키지도 인증이 필요합니다. 다음 중 하나로 넣습니다.
+
+  ```properties
+  # ~/.gradle/gradle.properties
+  gpr.user=GitHub 사용자 이름
+  gpr.key=read:packages 권한이 있는 토큰
+  ```
+
+  또는 환경 변수 `GITHUB_ACTOR`, `GITHUB_TOKEN`. `gh` CLI를 쓰면 `GITHUB_TOKEN=$(gh auth token)`으로도 됩니다(토큰에 `read:packages` 권한이 있어야 합니다).
 
 ## 시작하기
 
@@ -34,6 +43,8 @@ cp .env.example .env
 ```
 
 프로파일을 지정하지 않으면(local/default) `spring-boot-docker-compose`가 `compose.yaml`의 PostgreSQL 컨테이너를 자동으로 기동하고 연결까지 구성하므로, 별도로 DB 접속 정보를 설정할 필요가 없습니다.
+
+`/actuator/health`를 뺀 모든 API는 dozy-auth가 발급한 토큰이 필요합니다. 기본 Auth 주소는 `http://localhost:8080`(dozy-auth 로컬 실행 주소)이고, 바꾸려면 `DOZY_AUTH_ISSUER_BASE_URI`를 지정합니다. Auth의 JWKS는 첫 요청 때 받으므로 Auth를 띄우지 않아도 앱은 기동합니다. 운영(`prod`)은 이 값을 반드시 지정해야 합니다.
 
 ## 테스트
 
@@ -61,6 +72,7 @@ Docker 없이 도메인·정책 테스트만 빠르게 돌리려면 다음을 �
 - **`spring-boot-docker-compose`는 테스트 클래스패스에서 제외합니다.** Spring Boot Gradle 플러그인은 기본적으로 `developmentOnly`를 `testRuntimeClasspath`까지 전파합니다. 그러면 테스트 중에도 `compose.yaml` 컨테이너를 띄우려고 해서 Testcontainers와 역할이 겹치고, CI에서는 `.env`가 없어 `POSTGRES_PASSWORD` 누락으로 실패합니다. `build.gradle.kts`의 `configurations { testRuntimeOnly { exclude(...) } }`로 제외합니다.
 - **Flyway는 스타터가 아니라 `spring-boot-flyway` 모듈만 씁니다.** `spring-boot-starter-flyway`는 `spring-boot-starter-jdbc`와 HikariCP를 함께 가져와, Flyway가 끝난 뒤에도 쓰지 않는 JDBC 연결 풀이 남습니다. `SchemaMigrationTest`가 `DataSource` 빈이 없는지 확인합니다.
 - **kotlinx-coroutines 버전을 Spring Boot 관리 버전보다 올려 둡니다.** Exposed 1.4는 1.11.0을 요구하지만 Spring Boot 4.1의 BOM은 1.10.2로 낮춥니다. 그러면 트랜잭션 실행 중에 `NoSuchMethodError`(`runBlockingK`)가 납니다. `build.gradle.kts`에서 `kotlin-coroutines.version`을 `libs.versions.toml`의 값으로 덮어씁니다. Spring Boot나 Exposed를 올릴 때 함께 확인하세요.
+- **dozy-auth 라이브러리의 POM에는 Spring Boot 의존성 버전이 없습니다.** 스타터가 서비스의 Spring 버전을 바꾸지 않으려고 BOM을 싣지 않기 때문입니다. 이 프로젝트의 Spring Boot BOM이 버전을 채우므로 동작에는 문제가 없지만, 의존성을 해석할 때 `'dependencies.dependency.version' ... is missing` 경고가 보일 수 있습니다.
 - **테스트 JVM 시간대는 UTC로 고정됩니다.** 코드가 시스템 기본 시간대에 의존하지 않도록, 개발 PC(KST)와 CI의 결과를 같게 맞춥니다.
 
 ## 코드 스타일 검사
@@ -96,4 +108,4 @@ com.dozycoffee.catalog
 
 ## CI
 
-`main` 브랜치로의 push와 PR에서 `.github/workflows/ci.yml`이 `./gradlew build`를 실행합니다.
+`main` 브랜치로의 push와 PR에서 `.github/workflows/ci.yml`이 `./gradlew build`를 실행합니다. dozy-auth 라이브러리는 워크플로의 `GITHUB_TOKEN`(`packages: read`)으로 받습니다.

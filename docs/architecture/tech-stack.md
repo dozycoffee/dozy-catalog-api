@@ -49,7 +49,7 @@
 |---|---|---|
 | 프레임워크 | JUnit 5 + `kotlin.test` | 도메인 객체가 외부 협력자 없는 순수 객체라 Kotest·MockK 없이 충분하다 |
 | 리액티브 | `spring-boot-starter-webflux-test`, `kotlinx-coroutines-test` | |
-| 시큐리티 | `spring-boot-starter-security-test` | |
+| 시큐리티 | `dozy-auth`의 `auth-test` | `@WithDozyPrincipal`로 인증된 사용자를 만들고, `DozyTestTokens`로 실제 검증 체인을 거치는 토큰을 만든다. `spring-boot-starter-security-test`를 함께 가져온다 |
 | 영속성 통합 | Testcontainers (`spring-boot-testcontainers`의 `@ServiceConnection`) | 로컬 개발의 docker-compose 자동 연결과 같은 방식으로 테스트에서도 R2DBC 연결을 자동 구성한다. 접속 정보를 `application.yaml`에 두지 않는 방침과 맞는다 |
 
 ## 개발 편의

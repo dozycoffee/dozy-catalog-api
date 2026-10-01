@@ -19,6 +19,16 @@ java {
 
 repositories {
     mavenCentral()
+    // dozy-auth 라이브러리. GitHub Packages는 공개 패키지도 인증이 필요하다(read:packages 권한의 토큰).
+    // 로컬은 ~/.gradle/gradle.properties의 gpr.user·gpr.key 또는 환경 변수 GITHUB_ACTOR·GITHUB_TOKEN, CI는 GITHUB_TOKEN을 쓴다.
+    maven {
+        url = uri("https://maven.pkg.github.com/dozycoffee/dozy-auth")
+        credentials {
+            username = providers.gradleProperty("gpr.user").orElse(providers.environmentVariable("GITHUB_ACTOR")).orNull
+            password = providers.gradleProperty("gpr.key").orElse(providers.environmentVariable("GITHUB_TOKEN")).orNull
+        }
+        content { includeGroup("com.dozycoffee.auth") }
+    }
 }
 
 // Spring Boot BOM이 관리하는 kotlinx-coroutines 버전을 Exposed가 요구하는 버전으로 올린다(libs.versions.toml 참고).
@@ -37,7 +47,7 @@ configurations {
 dependencies {
     // presentation / application — 리액티브 웹, 보안
     implementation(libs.spring.boot.starter.webflux)
-    implementation(libs.spring.boot.starter.security)
+    implementation(libs.dozy.auth.starter)
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.reactor.kotlin.extensions)
     implementation(libs.kotlin.reflect)
@@ -67,7 +77,7 @@ dependencies {
 
     // test
     testImplementation(libs.spring.boot.starter.webflux.test)
-    testImplementation(libs.spring.boot.starter.security.test)
+    testImplementation(libs.dozy.auth.test)
     testImplementation(libs.kotlin.test.junit5)
     testImplementation(libs.kotlinx.coroutines.test)
     testRuntimeOnly(libs.junit.platform.launcher)
