@@ -151,10 +151,11 @@ Dozy 서비스 공통 형식인 RFC 9457 Problem Details를 쓴다. `Content-Typ
 
 | 코드 | 상태 코드 | 상황 |
 |---|---|---|
-| `INVALID_REQUEST` | 400 | 본문을 읽을 수 없음, 필수 필드 누락, 타입 불일치, 허용되지 않는 enum 값, `ids`·`size` 상한 초과 |
+| `INVALID_REQUEST` | 400 | 본문을 읽을 수 없음, 필수 필드 누락, 타입 불일치, 허용되지 않는 enum 값, `ids`·`size` 상한 초과, 형식이 틀린 `If-Match`. `detail`에 문제가 된 필드나 파라미터 이름을 담는다 |
 | `VERSION_REQUIRED` | 428 | 버전이 필요한 요청에 `If-Match`가 없음 |
 | `UNAUTHENTICATED` | 401 | 토큰 없음·검증 실패 (스타터) |
 | `FORBIDDEN` | 403 | 역할이나 경로 인가 조건 불만족 (스타터) |
+| `NOT_FOUND`, `METHOD_NOT_ALLOWED`, `UNSUPPORTED_MEDIA_TYPE` 등 | 404, 405, 415 등 | 없는 경로, 허용하지 않는 메서드, 지원하지 않는 `Content-Type` 같은 HTTP 수준의 오류. `code`는 HTTP 상태 이름이다. 대상 리소스가 없는 경우는 도메인 오류(`PRODUCT_NOT_FOUND` 등)로 따로 응답한다 |
 | `INTERNAL_ERROR` | 500 | 그 밖의 서버 오류. 서버 로그에 error로 남는다 |
 
 모듈별 문서의 각 엔드포인트에는 그 요청이 받을 수 있는 도메인 오류 코드를 적는다. `INVALID_REQUEST`, `INTERNAL_ERROR`, 인증·인가 오류는 모든 엔드포인트에 공통이라 따로 적지 않는다.

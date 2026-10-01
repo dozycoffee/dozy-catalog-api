@@ -1,30 +1,21 @@
 package com.dozycoffee.catalog.common.web
 
-import com.dozycoffee.auth.test.WithDozyPrincipal
-import com.dozycoffee.catalog.support.IntegrationTest
+import com.dozycoffee.catalog.support.ApiTest
 import com.dozycoffee.webprobe.WebProbeController
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient
 import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
-import org.springframework.test.web.reactive.server.WebTestClient
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 // 도메인 예외의 HTTP 오류 응답(RFC 9457 Problem Details, docs/api/README.md 오류 응답).
 @DisplayName("오류 응답 형식")
-@AutoConfigureWebTestClient
 @Import(WebProbeController::class)
-@WithDozyPrincipal(roles = ["catalog:admin"])
-class ProblemResponseTest : IntegrationTest() {
-    @Autowired
-    private lateinit var client: WebTestClient
-
+class ProblemResponseTest : ApiTest() {
     @ParameterizedTest
     @CsvSource(
         "INVALID_INPUT, 400",

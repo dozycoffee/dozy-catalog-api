@@ -12,9 +12,9 @@
 | application 정책 단위 | JUnit 5 + `kotlin.test` | 여러 애그리거트를 함께 보는 판단(`application/<module>/policy`, [ADR-0012](../adr/0012-cross-aggregate-judgment-in-application-policy.md)). 정책은 I/O가 없으므로 domain 단위와 같이 객체만 만든다 | 정해짐 |
 | persistence 통합 | Testcontainers(PostgreSQL), `IntegrationTest` 상속 | 마이그레이션 적용, Exposed Table 정의와 스키마 일치, Repository 매핑, CHECK·부분 UNIQUE 등 DB 제약, 트랜잭션, 동시성 처리([ERD](../erd.md#동시성-처리)) | 정해짐 (아래 통합 테스트 기반) |
 | application 서비스(유스케이스) | Testcontainers(PostgreSQL), `ApplicationTest` 상속 | 조회·잠금·저장 오케스트레이션, 도메인 이벤트 처리, 외부 포트 호출, 거부 시 DB 상태 불변 | 정해짐 |
-| API 슬라이스 | `spring-boot-starter-webflux-test`, `spring-boot-starter-security-test` | 요청·응답 형식, `ErrorType`별 HTTP 상태([예외 구조](exception.md)), 인가 | 해당 작업 때 정함 |
+| API | Testcontainers(PostgreSQL), `ApiTest` 상속, `WebTestClient`, `auth-test` | 엔드포인트별 성공 응답 형식, 웹 계층이 관여하는 오류(요청 오류 400, 도메인 오류의 상태 매핑, 428, 409의 `currentVersion`), 도메인 오류 대표. 규칙 자체는 유스케이스 테스트가 덮으므로 API 테스트에서 다시 나열하지 않는다 | 정해짐 (아래 API 테스트) |
 
-**유스케이스 테스트에 가짜 저장소를 쓰지 않는다.** 이 계층에서 틀리기 쉬운 것이 잠금 순서, 조건부 upsert, 트랜잭션 롤백, 상태 조건 저장인데 가짜 저장소는 이를 전부 통과시킨다. 실제 Repository와 DB로 검증한다.
+**유스케이스·API 테스트에 가짜 저장소를 쓰지 않는다.** 이 계층에서 틀리기 쉬운 것이 잠금 순서, 조건부 upsert, 트랜잭션 롤백, 상태 조건 저장인데 가짜 저장소는 이를 전부 통과시킨다. 실제 Repository와 DB로 검증한다.
 
 ### 시나리오를 테스트로 옮기는 방법
 
@@ -34,6 +34,14 @@
 - 스키마는 실제 앱과 같이 Flyway가 만든다.
 - **데이터 정리**: 테스트마다 `flyway_schema_history`를 뺀 모든 테이블을 `TRUNCATE … RESTART IDENTITY CASCADE`로 비운다. R2DBC는 테스트 트랜잭션 롤백이 어렵기 때문이다. 그래서 테스트는 다른 테스트가 남긴 데이터에 기대지 않는다.
 - 테스트 JVM 시간대는 UTC로 고정된다(`build.gradle.kts`). 시간이 들어가는 테스트는 고정된 값이나 `Clock`을 쓴다.
+
+## API 테스트
+
+- API 테스트는 `support/ApiTest`를 상속한다. `ApplicationTest` 위에 `WebTestClient`를 더하고, 요청은 실제 필터 체인(인가)과 컨트롤러를 거쳐 실제 DB까지 간다. `@WebFluxTest`로 서비스를 가짜로 바꾸지 않는다.
+- 요청자는 `auth-test`의 `@WithDozyPrincipal`로 만든다. `ApiTest`의 기본값은 본사 직원(`catalog:admin`)이고, 내부 API 테스트는 클래스에 `@WithDozyPrincipal(type = PrincipalType.SYSTEM, roles = ["catalog:store_agent"])`를 붙여 바꾼다.
+- 토큰 검증 자체(만료, 다른 `aud`, 믿지 않는 키 등)를 확인할 때만 `DozyTestTokens`로 실제 토큰을 만들어 보낸다(`AuthorizationTest`). 이 테스트는 `ApiTest`의 기본 요청자가 끼어들지 않도록 `IntegrationTest`를 상속한다.
+- 웹 공통 규약(오류 응답, 버전 헤더, 목록 파라미터)을 확인하는 테스트 전용 컨트롤러 `WebProbeController`는 앱의 컴포넌트 스캔 범위 밖(`com.dozycoffee.webprobe`)에 두고, 필요한 테스트만 `@Import`한다.
+- JSON의 `null` 필드는 `jsonPath`가 없는 필드와 구분하지 못한다. `null`로 나가는지 확인할 때는 응답 본문 문자열을 본다.
 
 ## 작성 관례
 
