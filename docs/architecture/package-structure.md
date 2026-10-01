@@ -100,7 +100,7 @@ com.dozycoffee.catalog
 │   │                                      #   ListQueryExpressions(목록 조회의 검색어·이름 순 정렬)
 │   ├── paging/                            # PageRequest, Page (목록 조회의 페이징), requireIdsWithinLimit(ids 개수 상한)
 │   ├── time/                              # TimeConfiguration
-│   └── web/                               # GlobalExceptionHandler, ErrorResponse
+│   └── web/                               # GlobalExceptionHandler, ProblemDetails (RFC 9457 오류 응답)
 │
 ├── product/                               # 본사가 정의하는 상품 (요구사항 1장)
 │   ├── domain/

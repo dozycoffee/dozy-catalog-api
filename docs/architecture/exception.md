@@ -31,14 +31,14 @@ enum class ProductErrorCode(override val type: ErrorType) : ErrorCode {
 
 - **domain은 HTTP를 모른다.** `ErrorCode`는 프레임워크와 무관한 `ErrorType`까지만 가진다. `ErrorType`을 `HttpStatus`로 바꾸는 일은 `common.web.GlobalExceptionHandler`에서 `else` 없는 `when` 한 곳에서만 한다. 예외가 늘어도 핸들러 분기는 늘지 않고, `ErrorType`을 추가하면 매핑 누락이 컴파일 에러로 드러난다.
 - **예외 서브클래스는 유지한다.** 타입 있는 생성자 파라미터(`ProductId` 등)로 메시지를 만드는 책임을 지고, 테스트에서 `assertFailsWith<XxxException>`으로 구분하기 위해서다.
-- **응답 본문** `ErrorResponse(code, message)`의 `code`는 `ErrorCode.code`(enum 이름) 문자열이다. 클라이언트 계약이므로 enum 이름을 바꿀 때 주의한다.
+- **응답 본문**은 RFC 9457 Problem Details다([API 명세](../api/README.md#오류-응답)). `code`에 `ErrorCode.code`(enum 이름)를, `detail`에 예외 메시지를 담는다. `code`는 클라이언트 계약이므로 enum 이름을 바꿀 때 주의한다. `dozy-auth` 스타터가 401·403을 같은 형식으로 돌려주므로 한 API의 오류 형식이 하나로 유지된다.
 - **새** `<Aggregate>ErrorCode` **enum을 만들면** `ErrorCodeTest`의 목록에도 추가해야 code 문자열 유일성 검사 대상이 된다.
 
 ## DomainException과 require/check의 구분
 
 | 상황 | 쓰는 것 | 결과 |
 |---|---|---|
-| 사용자 요청으로 생길 수 있는 규칙 위반 (예: 참조 중인 카테고리 삭제, 이미 Active인 상품 활성화) | `DomainException` 서브클래스 | `ErrorType`에 따라 4xx와 `ErrorResponse`로 응답한다. 클라이언트가 이유를 알 수 있어야 한다 |
+| 사용자 요청으로 생길 수 있는 규칙 위반 (예: 참조 중인 카테고리 삭제, 이미 Active인 상품 활성화) | `DomainException` 서브클래스 | `ErrorType`에 따라 4xx와 Problem Details로 응답한다. 클라이언트가 이유를 알 수 있어야 한다 |
 | 사용자가 일으킬 수 없고 호출하는 코드가 잘못됐을 때만 생기는 상황 (예: application 정책에 다른 상품의 데이터가 섞여 들어옴) | Kotlin 표준 함수 `require`(인자 검증, `IllegalArgumentException`) / `check`(상태 검증, `IllegalStateException`) | 도메인 예외로 처리하지 않고 500 `INTERNAL_ERROR`로 응답하며 error 로그로 남긴다([API 명세](../api/README.md#오류-응답)). 클라이언트 잘못처럼 4xx로 보고하지 않고 서버 버그로 드러나게 한다 |
 
 - 사용자 요청으로 생길 수 있는지 애매하면 `DomainException`을 쓴다.
