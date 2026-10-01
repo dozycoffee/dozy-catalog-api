@@ -80,7 +80,7 @@ base package: `com.dozycoffee.catalog`
 
 ## 전체 트리
 
-목표 구조다. 아직 구현되지 않은 것(유스케이스, presentation, exposure)도 포함한다.
+현재 구조다. 외부 연동(Store BC 호출, 재고 이벤트 구독, 외부 이벤트 발행)처럼 아직 구현되지 않은 것은 괄호로 표시한다.
 
 ```
 com.dozycoffee.catalog
@@ -127,8 +127,9 @@ com.dozycoffee.catalog
 │   │   ├── product/ optiongroup/ category/ tag/ productgroup/
 │   │   ├── query/                         # ExposedProductSearchQuery (조건 검색·페이징으로 상품 ID를 고름)
 │   │   ├── eventing/                      # 상품 이벤트 발행 구현 (지금은 로그)
-│   │   └── acl/                           # AlwaysExistingStoreAdapter (StoreBcAdapter + StoreBcClient는 5단계)
-│   └── presentation/                      # (4단계)
+│   │   └── acl/                           # AlwaysExistingStoreAdapter (StoreBcAdapter + StoreBcClient는 Store BC 연동 때)
+│   └── presentation/                      # 본사 API(/api/v1/admin/**). 애그리거트별 컨트롤러 + dto/
+│       └── product/ optiongroup/ category/ tag/ productgroup/
 │
 ├── store/                                 # 가맹점 진열·판매 가능 여부 (요구사항 2·3장)
 │   ├── domain/
@@ -137,24 +138,27 @@ com.dozycoffee.catalog
 │   ├── application/
 │   │   ├── policy/                        # ProductVisibilityPolicy, StoreVisibility, StoreScopeCleanupPolicy
 │   │   ├── display/ availability/         # 점주의 진열·수동 품절 유스케이스와 재고 이벤트 반영 + command/
-│   │   ├── storeproduct/                  # 매장 상품 목록 조회(StoreProductQueryService, StoreProductView)
+│   │   ├── storeproduct/                  # 매장 상품 조회(StoreProductQueryService, StoreProductView),
+│   │   │                                  #   점주 설정 변경과 결과 조회를 한 트랜잭션에서(StoreProductApplicationService)
 │   │   └── scope/                         # StoreScopeCleanupHandler (ProductStoreScopeChanged 구독)
-│   ├── infrastructure/                    # display/ availability/ (+ messaging: 재고 이벤트 구독, 5단계)
-│   └── presentation/                      # (4단계)
+│   ├── infrastructure/                    # display/ availability/ (+ messaging: 재고 이벤트 구독, 메시징 기술 결정 후)
+│   └── presentation/                      # 매장 내부 API(/api/v1/internal/**, Store 서비스)와 본사의 매장 상품 조회 + dto/
 │
 ├── schedule/                              # 예약 변경 (요구사항 1.4)
 │   ├── domain/                            # ScheduledChange, ScheduledValue, TargetKind, ScheduleStatus, Repository + exception/
 │   ├── application/                       # ScheduledChangeApplicationService(등록·취소·조회), ScheduledChangeApplier,
 │   │                                      #   ScheduledChangeApplicationBatch, ScheduledValueValidator(등록 시점 검증),
 │   │                                      #   값 타입(ScheduledFieldValue 등) + command/
-│   └── infrastructure/                    # ScheduledChangesTable, ExposedScheduledChangeRepository, ScheduledValueJsonbCodec
+│   ├── infrastructure/                    # ScheduledChangesTable, ExposedScheduledChangeRepository, ScheduledValueJsonbCodec
+│   └── presentation/                      # 예약 API. 경로의 필드 이름 해석(ScheduleField), UNKNOWN_SCHEDULE_FIELD + dto/
 │
 └── exposure/                              # 노출 현황 조회 (요구사항 1.10)
     ├── application/                       # ProductExposureQueryService, ProductExposureFilter + 결과 View
     │   └── port/                          # ProductExposureQueryPort(조회), StoreDirectoryPort(전체 매장, 외부)
-    └── infrastructure/
-        ├── query/                         # ExposedProductExposureQuery (여러 테이블을 직접 조회)
-        └── acl/                           # ConfiguredStoreDirectory (Store BC 연동 전 임시 구현)
+    ├── infrastructure/
+    │   ├── query/                         # ExposedProductExposureQuery (여러 테이블을 직접 조회)
+    │   └── acl/                           # ConfiguredStoreDirectory (Store BC 연동 전 임시 구현)
+    └── presentation/                      # 노출 현황 API + dto/
 ```
 
 테스트도 같은 트리를 따른다. 다만 여러 모듈의 테스트가 함께 쓰는 `fixture/`와 `support/`는 테스트 소스 최상위에 둔다. Exposed `Table` 정의 목록(`support/ExposedTables`)도 스키마 검사 테스트만 쓰므로 테스트 소스에 있다.
