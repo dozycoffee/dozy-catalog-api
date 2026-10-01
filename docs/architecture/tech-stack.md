@@ -19,8 +19,8 @@
 | 애플리케이션 | Spring Boot 4 | |
 | 웹 스택 | Spring WebFlux (리액티브, non-blocking) | Servlet/MVC 아님 |
 | 동시성 모델 | Kotlin Coroutines + Project Reactor | 컨트롤러·서비스는 `suspend` 함수로 작성 |
-| 보안 | Spring Security (리액티브) | 인증 방식은 미정 ([개요](README.md#미정-사항)) |
-| 모니터링 | Spring Boot Actuator | `health`, `info`만 웹에 노출. Security가 있어도 `/actuator/health`는 Boot 기본값으로 인증 없이 허용된다(k8s·로드밸런서 프로브용, 직접 확인함) |
+| 보안 | `dozy-auth`의 `auth-spring-boot-starter` (Spring Security 리액티브 기반) | 토큰 검증·권한 변환·필터 체인·401·403 응답을 스타터가 제공한다. Catalog는 audience `catalog`, realm `internal`로 설정하고 역할 기반 인가만 작성한다. 라이브러리는 GitHub Packages(`maven.pkg.github.com/dozycoffee/dozy-auth`)에서 받으므로 빌드에 인증이 필요하다. 테스트는 `auth-test`의 `@WithDozyPrincipal`·`DozyTestTokens`를 쓴다 |
+| 모니터링 | Spring Boot Actuator | `health`, `info`만 웹에 노출. 스타터가 모든 요청에 인증을 요구하므로 `/actuator/health`는 `dozy.auth.public-paths`에 넣어 허용한다(k8s·로드밸런서 프로브용) |
 
 ## 영속성
 
