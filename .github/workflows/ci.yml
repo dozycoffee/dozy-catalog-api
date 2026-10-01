@@ -27,3 +27,14 @@ jobs:
       - run: ./gradlew build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 테스트가 실패하면 결과(단언 메시지, 스택, 로그)를 남긴다. 간헐 실패의 원인을 나중에 확인하기 위해서다(#109).
+      - name: 테스트 결과 보관
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            build/test-results/test/
+            build/reports/tests/test/
+          retention-days: 14
