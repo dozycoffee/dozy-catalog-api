@@ -3,8 +3,8 @@ package com.dozycoffee.catalog.store.presentation
 import com.dozycoffee.catalog.common.web.ListParams
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.product.domain.product.ProductId
-import com.dozycoffee.catalog.store.application.availability.StoreProductAvailabilityApplicationService
 import com.dozycoffee.catalog.store.application.display.StoreDisplaySettingApplicationService
+import com.dozycoffee.catalog.store.application.storeproduct.StoreProductApplicationService
 import com.dozycoffee.catalog.store.application.storeproduct.StoreProductQueryService
 import com.dozycoffee.catalog.store.presentation.dto.ChangeStockStatusRequest
 import com.dozycoffee.catalog.store.presentation.dto.ChangeVisibilityRequest
@@ -25,8 +25,8 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/internal/stores/{storeId}/products")
 class StoreProductInternalController(
     private val storeProductQueryService: StoreProductQueryService,
+    private val storeProductService: StoreProductApplicationService,
     private val displaySettingService: StoreDisplaySettingApplicationService,
-    private val availabilityService: StoreProductAvailabilityApplicationService,
 ) {
     @GetMapping
     suspend fun list(
@@ -47,28 +47,22 @@ class StoreProductInternalController(
         return storeProductQueryService.listProducts(StoreId(storeId)).map(StoreProductResponse::from)
     }
 
-    // 변경 유스케이스는 진열 설정·판매 가능 여부만 돌려주므로, 노출 판단을 반영한 응답은 변경 후 다시 조회해 만든다.
-    // 변경 유스케이스는 상품 상태를 보지 않아(Active가 아닌 상품의 설정도 미리 바꿀 수 있음) 판매 범위 안의 Draft·단종 상품이면
-    // 변경은 반영되고 응답은 404다. Store 서비스는 매장 상품 목록에 있는 상품만 바꾸므로, 그 사이 단종된 경우에만 생긴다.
+    // 응답은 바꾼 결과다. 목록과 달리 상품 상태를 보지 않고 점주의 설정만 담는다 — Draft·단종 상품의 설정도 미리 바꿀 수 있기 때문이다.
     @PutMapping("/{productId}/visibility")
     suspend fun changeVisibility(
         @PathVariable storeId: Long,
         @PathVariable productId: Long,
         @RequestBody request: ChangeVisibilityRequest,
-    ): StoreProductResponse {
-        displaySettingService.changeVisibility(request.toCommand(StoreId(storeId), ProductId(productId)))
-        return get(storeId, productId)
-    }
+    ): StoreProductResponse =
+        StoreProductResponse.from(storeProductService.changeVisibility(request.toCommand(StoreId(storeId), ProductId(productId))))
 
     @PutMapping("/{productId}/stock-status")
     suspend fun changeStockStatus(
         @PathVariable storeId: Long,
         @PathVariable productId: Long,
         @RequestBody request: ChangeStockStatusRequest,
-    ): StoreProductResponse {
-        availabilityService.changeStockStatusByOwner(request.toCommand(StoreId(storeId), ProductId(productId)))
-        return get(storeId, productId)
-    }
+    ): StoreProductResponse =
+        StoreProductResponse.from(storeProductService.changeStockStatus(request.toCommand(StoreId(storeId), ProductId(productId))))
 
     @GetMapping("/{productId}/effective-options")
     suspend fun effectiveOptions(
@@ -76,9 +70,4 @@ class StoreProductInternalController(
         @PathVariable productId: Long,
     ): EffectiveOptionsResponse =
         EffectiveOptionsResponse.from(storeProductQueryService.getEffectiveOptions(StoreId(storeId), ProductId(productId)))
-
-    private suspend fun get(
-        storeId: Long,
-        productId: Long,
-    ): StoreProductResponse = StoreProductResponse.from(storeProductQueryService.getProduct(StoreId(storeId), ProductId(productId)))
 }

@@ -2,7 +2,6 @@ package com.dozycoffee.catalog.store.application.storeproduct
 
 import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.product.domain.product.ProductId
-import com.dozycoffee.catalog.product.domain.product.exception.ProductNotFoundException
 import com.dozycoffee.catalog.store.application.policy.StoreVisibility
 import com.dozycoffee.catalog.store.domain.availability.StockStatus
 import com.dozycoffee.catalog.support.ApplicationTest
@@ -13,7 +12,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -154,55 +152,6 @@ class StoreProductQueryServiceTest : ApplicationTest() {
                 val products = service.listProducts(gangnam, ids = setOf(latte, ProductId(4), ProductId(99)))
 
                 assertEquals(listOf(latte), products.map { it.product.id })
-            }
-    }
-
-    @Nested
-    @DisplayName("상품 하나 조회")
-    inner class GetProduct {
-        @Test
-        fun `목록과 같은 기준으로 진열 순서와 노출 상태를 돌려준다`() =
-            runTest {
-                changeDisplayOrder(gangnam, latte, 1)
-                markSoldOutByOwner(gangnam, latte)
-
-                val product = service.getProduct(gangnam, latte)
-
-                assertEquals(latte, product.product.id)
-                assertEquals(1, product.displayOrder)
-                assertEquals(StockStatus.SOLD_OUT, assertIs<StoreVisibility.Visible>(product.visibility).stockStatus)
-                assertEquals(service.listProducts(gangnam, ids = setOf(latte)).single(), product)
-            }
-
-        @Test
-        fun `숨긴 상품도 조회되고 비노출로 나온다`() =
-            runTest {
-                hide(gangnam, americano)
-
-                assertIs<StoreVisibility.NotVisible>(service.getProduct(gangnam, americano).visibility)
-            }
-
-        @Test
-        fun `Active가 아닌 상품은 없는 상품으로 거부한다`() =
-            runTest {
-                insertProduct("단종된 상품", status = "DISCONTINUED", tracksInventory = false)
-
-                assertFailsWith<ProductNotFoundException> { service.getProduct(gangnam, ProductId(4)) }
-            }
-
-        @Test
-        fun `판매 범위 밖 상품은 없는 상품으로 거부한다`() =
-            runTest {
-                insertProduct("지역 한정 상품", status = "ACTIVE", tracksInventory = false, storeScope = "LIMITED")
-                execute("INSERT INTO product_target_stores (product_id, store_id) VALUES (4, ${gangnam.value})")
-
-                assertFailsWith<ProductNotFoundException> { service.getProduct(hongdae, ProductId(4)) }
-            }
-
-        @Test
-        fun `없는 상품은 거부한다`() =
-            runTest {
-                assertFailsWith<ProductNotFoundException> { service.getProduct(gangnam, ProductId(99)) }
             }
     }
 

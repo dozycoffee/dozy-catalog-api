@@ -8,6 +8,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
 import kotlin.test.assertEquals
@@ -21,7 +23,7 @@ import kotlin.test.assertTrue
 class StoreProductInternalApiTest : ApiTest() {
     private val base = "/api/v1/internal/stores/$GANGNAM/products"
 
-    // 1 아메리카노, 2 카페라떼(재고 미추적), 3 텀블러(재고 추적), 4 홍대 한정 상품(강남은 판매 범위 밖)
+    // 1 아메리카노, 2 카페라떼(재고 미추적), 3 텀블러(재고 추적), 4 홍대 한정 상품(강남은 판매 범위 밖). 모두 Active다
     @BeforeEach
     fun prepareProducts() =
         runTest {
@@ -165,6 +167,15 @@ class StoreProductInternalApiTest : ApiTest() {
             }
 
         @Test
+        fun `목록에 null이 있으면 400 INVALID_REQUEST`() =
+            runTest {
+                putJson("$base/display-order", """{"productIds": [1, null]}""")
+                    .expectProblem(400, "INVALID_REQUEST")
+
+                assertEquals(0, count("SELECT count(*) FROM store_display_settings"))
+            }
+
+        @Test
         fun `이 매장에서 판매할 수 없는 상품이 있으면 404 PRODUCT_NOT_FOUND이고 아무것도 바꾸지 않는다`() =
             runTest {
                 putJson("$base/display-order", """{"productIds": [1, 4]}""")
@@ -207,11 +218,32 @@ class StoreProductInternalApiTest : ApiTest() {
                     .isEqualTo("ON_SALE")
             }
 
+        @ParameterizedTest
+        @ValueSource(strings = ["DRAFT", "DISCONTINUED"])
+        fun `판매 범위에 든 Active가 아닌 상품도 바꾸고 점주의 설정을 돌려준다`(status: String) =
+            runTest {
+                insertProduct("판매 전후 상품", tracksInventory = false, status = status)
+
+                putJson("$base/5/visibility", """{"visibility": "HIDDEN"}""")
+                    .expectStatus()
+                    .isOk
+                    .expectBody()
+                    .jsonPath("$.productId")
+                    .isEqualTo(5)
+                    .jsonPath("$.visibility")
+                    .isEqualTo("HIDDEN")
+
+                assertEquals(1, count("SELECT count(*) FROM store_display_settings WHERE product_id = 5 AND visibility = 'HIDDEN'"))
+            }
+
         @Test
-        fun `판매 범위 밖 상품이면 404 PRODUCT_NOT_FOUND`() {
-            putJson("$base/4/visibility", """{"visibility": "HIDDEN"}""")
-                .expectProblem(404, "PRODUCT_NOT_FOUND")
-        }
+        fun `판매 범위 밖 상품이면 404 PRODUCT_NOT_FOUND이고 아무것도 저장하지 않는다`() =
+            runTest {
+                putJson("$base/4/visibility", """{"visibility": "HIDDEN"}""")
+                    .expectProblem(404, "PRODUCT_NOT_FOUND")
+
+                assertEquals(0, count("SELECT count(*) FROM store_display_settings"))
+            }
     }
 
     @Nested
@@ -361,13 +393,14 @@ class StoreProductInternalApiTest : ApiTest() {
         tracksInventory: Boolean,
         storeScope: String = "ALL",
         imageUrl: String? = null,
+        status: String = "ACTIVE",
     ) {
         val id = count("SELECT count(*) FROM products") + 1
         val image = imageUrl?.let { "'$it'" } ?: "NULL"
         execute(
             """
             INSERT INTO products (sku, name, category_id, image_url, base_price, status, store_scope, tracks_inventory)
-            VALUES ('DZ-${id.toString().padStart(8, '0')}', '$name', 2, $image, 4500, 'ACTIVE', '$storeScope', $tracksInventory)
+            VALUES ('DZ-${id.toString().padStart(8, '0')}', '$name', 2, $image, 4500, '$status', '$storeScope', $tracksInventory)
             """.trimIndent(),
         )
     }

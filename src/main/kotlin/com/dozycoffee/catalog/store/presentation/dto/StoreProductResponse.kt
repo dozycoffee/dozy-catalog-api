@@ -21,7 +21,7 @@ data class StoreProductResponse(
     val stockStatus: StockStatus?,
 ) {
     companion object {
-        // 매장 상품은 Active이고 판매 범위에 든 상품뿐이라 노출 판단의 비노출은 점주가 숨긴 것이다(StoreProductView).
+        // 목록(노출 판단)이든 설정 변경의 결과(점주 설정)든 비노출은 곧 점주가 숨긴 것이다(StoreProductView).
         fun from(view: StoreProductView): StoreProductResponse {
             val product = view.product
             return StoreProductResponse(
