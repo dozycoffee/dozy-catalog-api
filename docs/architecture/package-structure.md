@@ -16,7 +16,7 @@ base package: `com.dozycoffee.catalog`
 3. **모듈 간 의존은 단방향이다.** `store → product`, `schedule → product`, `exposure → product, store`. `product`은 다른 모듈을 참조하지 않는다. 순환은 만들지 않는다.
 4. **모듈 밖에 두는 것은 두 가지뿐이다.**
    - `core` — 여러 모듈이 쓰는 도메인 타입(`AggregateRoot`, `DomainEvent`, `DomainException`, `ErrorCode`, `Money`, `StoreId` 등). 프레임워크를 모르고, 특정 애그리거트의 개념은 두지 않는다. 계층 없이 평평하다.
-   - `common` — 애그리거트에 속하지 않는 기술 공통(`TransactionRunner`, `BusinessTimeZone`, `event/`, `exposed/`, `paging/`, `time/`, `web/`). 모듈을 참조하지 않는다.
+   - `common` — 애그리거트에 속하지 않는 기술 공통(`TransactionRunner`, `BusinessTimeZone`, `event/`, `exposed/`, `paging/`, `security/`, `time/`, `web/`). 모듈을 참조하지 않는다.
 5. **서브패키지 규칙**: 폴더 안 파일이 6~7개를 넘거나 역할 종류(event/exception 등)가 3가지 이상 섞이면 역할별 서브패키지로 나눈다. 그 미만이면 평평하게 유지한다. Repository 인터페이스는 애그리거트 패키지 최상위에 둔다(모델과 짝을 이루는 존재라 바로 보이는 게 낫다).
 6. **DTO 정책**: Request/Response DTO는 모듈의 `presentation/dto`에서만 쓴다. `application` 경계에서 Command/Query 객체로 변환한다. Exposed `Table` 객체와 row 매핑은 모듈의 `infrastructure` 안에서만 쓰고 domain 모델과 분리한다.
 
@@ -99,8 +99,9 @@ com.dozycoffee.catalog
 │   ├── exposed/                           # ExposedConfiguration, ExposedTransactionRunner, AuditColumns, JsonbColumnType,
 │   │                                      #   ListQueryExpressions(목록 조회의 검색어·이름 순 정렬)
 │   ├── paging/                            # PageRequest, Page (목록 조회의 페이징), requireIdsWithinLimit(ids 개수 상한)
+│   ├── security/                          # SecurityConfiguration(호출자별 경로 인가), CatalogRoles
 │   ├── time/                              # TimeConfiguration
-│   └── web/                               # GlobalExceptionHandler, ProblemDetails (RFC 9457 오류 응답)
+│   └── web/                               # GlobalExceptionHandler, ProblemResponses·TraceIds (RFC 9457 오류 응답)
 │
 ├── product/                               # 본사가 정의하는 상품 (요구사항 1장)
 │   ├── domain/

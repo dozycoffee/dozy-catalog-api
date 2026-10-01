@@ -12,11 +12,14 @@ kotlin-logging = "8.0.4"
 # 중첩 BOM(testcontainers-bom) 버전까지는 못 끌어와서 명시. Boot 업그레이드 시 같이 갱신할 것.
 testcontainers = "2.0.5"
 ktlint-gradle = "14.2.0"
+# 인증 라이브러리(dozy-auth). GitHub Packages에서 받는다(build.gradle.kts의 repositories 참고).
+dozy-auth = "0.1.0"
 
 [libraries]
 # presentation / application — 리액티브 웹, 보안
 spring-boot-starter-webflux = { module = "org.springframework.boot:spring-boot-starter-webflux" }
-spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security" }
+# 토큰 검증·권한 변환·필터 체인·401/403 응답. Spring Security(OAuth2 Resource Server)를 함께 가져온다.
+dozy-auth-starter = { module = "com.dozycoffee.auth:auth-spring-boot-starter", version.ref = "dozy-auth" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 reactor-kotlin-extensions = { module = "io.projectreactor.kotlin:reactor-kotlin-extensions" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
@@ -48,7 +51,8 @@ spring-boot-configuration-processor = { module = "org.springframework.boot:sprin
 
 # test
 spring-boot-starter-webflux-test = { module = "org.springframework.boot:spring-boot-starter-webflux-test" }
-spring-boot-starter-security-test = { module = "org.springframework.boot:spring-boot-starter-security-test" }
+# @WithDozyPrincipal, DozyTestTokens. spring-boot-starter-security-test를 함께 가져온다.
+dozy-auth-test = { module = "com.dozycoffee.auth:auth-test", version.ref = "dozy-auth" }
 kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }

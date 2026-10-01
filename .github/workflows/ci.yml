@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: read
+  # dozy-auth 라이브러리를 GitHub Packages에서 받는다.
+  packages: read
 
 jobs:
   build:
@@ -23,3 +25,5 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - run: ./gradlew build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
