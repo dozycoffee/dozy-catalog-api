@@ -49,6 +49,7 @@ base package: `com.dozycoffee.catalog`
 - **컨트롤러**는 모듈의 `presentation/`에 두고, 요청 DTO는 `presentation/dto`에서 Command로 바꾼다. 버전이 필요한 요청은 `@RequestHeader(HttpHeaders.IF_MATCH, required = false)`로 받아 `VersionHeaders.requireIfMatch`로 읽고, 단건 응답은 `VersionHeaders.okWithVersion`으로 `ETag`를 붙인다. 목록은 `ListParams`로 파라미터를 읽고 `Page.toResponse`로 페이지 응답을 만든다.
 - **예약 적용처럼 사람이 보던 화면이 없는 경로는 버전을 요구하지 않는다.** 즉시 반영(PUT)은 화면이 보던 버전을 받아 그 사이의 변경을 거부하지만(낙관적 잠금, [ADR-0013](../adr/0013-optimistic-locking-for-product-and-option-group.md)), 배치는 비교할 화면이 없으므로 대상 행을 잠그고(`findByIdForUpdate`) 최신 상태에 적용한다. 그래서 필드 하나만 바꾸는 유스케이스(`ProductFieldApplicationService`, 버전 없는 `replaceOptions`·`replaceOptionGroupLinks`·`replaceOptionOverrides`)를 즉시 반영과 나란히 둔다. 잠금·검증·이벤트 발행은 그대로 그 모듈의 유스케이스 안에서 일어난다.
 - **배치는 처리 단위마다 트랜잭션을 연다.** 예약 적용 배치는 대상 목록을 짧은 트랜잭션에서 고른 뒤, 예약 한 건마다 그 행을 다시 잠그고(`FOR UPDATE SKIP LOCKED`) 적용한다. 적용과 `APPLIED` 기록은 같은 트랜잭션에서 함께 커밋해 "적용됐는데 대기로 남는" 상태를 만들지 않고, 규칙 위반(`DomainException`)이면 적용 트랜잭션을 통째로 롤백해 대상 값을 되돌린 뒤 **별도 트랜잭션에서** `FAILED`만 기록한다(같은 트랜잭션에서 기록하면 롤백에 함께 쓸려 나간다). 그 밖의 예외는 규칙 위반이 아니므로 실패로 확정하지 않고 대기로 남겨 다음 실행에서 다시 시도한다. 한 번에 처리할 건수에는 상한을 둔다.
+- **예약 적용 배치는 `schedule.infrastructure.ScheduledChangeBatchScheduler`가 주기적으로 부른다**(`@Scheduled`, 기본 1분 간격, `catalog.schedule.batch.*`). 00시 정각 cron 대신 짧은 간격으로 부르므로 00시를 놓쳐도 다음 실행에서 따라잡고, 업무 시간대를 cron에 적을 필요가 없다. 인스턴스마다 돌아도 예약마다 잠그므로 스케줄러의 중복 실행을 따로 막지 않는다. Spring Batch는 쓰지 않는다. 처리량이 작고 건별 트랜잭션·실패 기록·재시도를 배치가 이미 하며, JDBC 트랜잭션 관리자가 함께 들어와 `TransactionRunner`와 섞이기 때문이다.
 - **도메인 이벤트는 저장 후 `pullDomainEvents()`로 꺼내 같은 트랜잭션에서 동기로 처리한다.** 중간 상태를 만들지 않고, 핸들러가 실패하면 원래 변경도 함께 롤백된다. 발행·구독 방식은 아래를 따른다. 규모가 커지거나 다른 BC로 나가는 전파가 생기면 비동기로 바꾼다(전환 조건은 [미정 사항](README.md#미정-사항)).
 
 ### 도메인 이벤트 발행과 구독
@@ -149,7 +150,8 @@ com.dozycoffee.catalog
 │   ├── application/                       # ScheduledChangeApplicationService(등록·취소·조회), ScheduledChangeApplier,
 │   │                                      #   ScheduledChangeApplicationBatch, ScheduledValueValidator(등록 시점 검증),
 │   │                                      #   값 타입(ScheduledFieldValue 등) + command/
-│   ├── infrastructure/                    # ScheduledChangesTable, ExposedScheduledChangeRepository, ScheduledValueJsonbCodec
+│   ├── infrastructure/                    # ScheduledChangesTable, ExposedScheduledChangeRepository, ScheduledValueJsonbCodec,
+│   │                                      #   ScheduledChangeBatchScheduler(예약 적용 배치를 주기적으로 부름)
 │   └── presentation/                      # 예약 API. 경로의 필드 이름 해석(ScheduleField), UNKNOWN_SCHEDULE_FIELD + dto/
 │
 └── exposure/                              # 노출 현황 조회 (요구사항 1.10)

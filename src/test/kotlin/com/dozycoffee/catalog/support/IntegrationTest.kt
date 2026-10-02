@@ -14,9 +14,11 @@ import org.testcontainers.containers.PostgreSQLContainer
 // - PostgreSQL 컨테이너는 JVM 전체에서 하나만 띄워 모든 통합 테스트가 공유한다.
 //   @ServiceConnection이 R2DBC와 JDBC(Flyway) 연결 정보를 함께 만들어 주므로 설정 파일에 접속 정보를 두지 않는다.
 // - 테스트마다 flyway_schema_history를 뺀 모든 테이블을 비운다. R2DBC는 테스트 트랜잭션 롤백이 어려워 TRUNCATE로 정리한다.
+// - 예약 적용 스케줄러는 끈다. 켜 두면 테스트가 만든 대기 예약을 백그라운드에서 적용해 결과가 흔들린다.
+//   스케줄러를 확인하는 테스트만 @TestPropertySource로 켠다.
 // integration 태그가 붙어 ./gradlew unitTest에서는 제외된다(Docker가 필요하므로).
 @Tag("integration")
-@SpringBootTest
+@SpringBootTest(properties = ["catalog.schedule.batch.enabled=false"])
 abstract class IntegrationTest {
     @Autowired
     protected lateinit var databaseClient: DatabaseClient
