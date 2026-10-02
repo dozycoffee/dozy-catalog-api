@@ -96,7 +96,34 @@
 
 ## GET `/internal/stores/{storeId}/products/{productId}/effective-options` — 유효 옵션 구성 (요구사항 1.9)
 
-- 응답: 본사 API의 [유효 옵션 구성](product.md#get-productsproductideffective-options--유효-옵션-구성-요구사항-19)과 같은 형식
+이 매장에서 판매할 수 있는 상품의 옵션 그룹에 상품별 예외를 반영한 결과와 표시용 시작가다. 조합 금액 계산과 선택 검증은 주문·POS의 책임이다([ADR-0006](../adr/0006-catalog-pricing-boundary.md)).
+
+```json
+{
+  "productId": 12,
+  "basePrice": 4500,
+  "displayStartingPrice": 4500,
+  "groups": [
+    {
+      "optionGroupId": 7,
+      "name": "사이즈",
+      "selectionType": "SINGLE",
+      "required": true,
+      "autoSelectedOptionKey": null,
+      "options": [
+        { "optionKey": "REGULAR", "name": "레귤러", "price": 0, "priceOverridden": false },
+        { "optionKey": "LARGE", "name": "라지", "price": 700, "priceOverridden": true }
+      ]
+    }
+  ]
+}
+```
+
+- `groups`는 상품의 연결 순서, `options`는 옵션 그룹의 순서를 따르고 제외된 옵션은 빠진다.
+- `price`는 상품별 가격 예외를 반영한 값이고, `priceOverridden`은 예외가 적용됐는지다.
+- `autoSelectedOptionKey`: 필수 그룹에 유효 옵션이 1개면 그 옵션 키, 아니면 `null`
+- `displayStartingPrice`: 기준가 + 필수 그룹마다 유효 옵션 중 최저가
+- 본사 API의 유효 옵션 구성과 지금은 모양이 같지만 별도 계약이다. 한쪽을 바꿔도 다른 쪽은 바뀌지 않는다.
 - 오류: `PRODUCT_NOT_FOUND`(404, 없거나 이 매장에서 판매할 수 없는 상품)
 
 ---

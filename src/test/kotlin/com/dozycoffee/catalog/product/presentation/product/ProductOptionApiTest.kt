@@ -1,6 +1,7 @@
 package com.dozycoffee.catalog.product.presentation.product
 
 import com.dozycoffee.catalog.support.ApiTest
+import com.dozycoffee.catalog.support.expectProblem
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -349,18 +350,6 @@ class ProductOptionApiTest : ApiTest() {
         request
             .headers { headers -> ifMatch?.let { headers.set(HttpHeaders.IF_MATCH, it) } }
             .exchange()
-
-    private fun WebTestClient.ResponseSpec.expectProblem(
-        status: Int,
-        code: String,
-    ): WebTestClient.BodyContentSpec =
-        expectStatus()
-            .isEqualTo(status)
-            .expectHeader()
-            .contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON)
-            .expectBody()
-            .jsonPath("$.code")
-            .isEqualTo(code)
 
     private companion object {
         const val PRODUCTS = "/api/v1/admin/products"

@@ -3,6 +3,7 @@ package com.dozycoffee.catalog.store.presentation
 import com.dozycoffee.auth.core.PrincipalType
 import com.dozycoffee.auth.test.WithDozyPrincipal
 import com.dozycoffee.catalog.support.ApiTest
+import com.dozycoffee.catalog.support.expectProblem
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -372,18 +373,6 @@ class StoreProductInternalApiTest : ApiTest() {
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(json)
             .exchange()
-
-    private fun WebTestClient.ResponseSpec.expectProblem(
-        status: Int,
-        code: String,
-    ): WebTestClient.BodyContentSpec =
-        expectStatus()
-            .isEqualTo(status)
-            .expectHeader()
-            .contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON)
-            .expectBody()
-            .jsonPath("$.code")
-            .isEqualTo(code)
 
     private fun bodyOf(response: WebTestClient.ResponseSpec): String =
         String(assertNotNull(response.expectBody().returnResult().responseBody))

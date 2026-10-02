@@ -23,7 +23,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import java.net.URI
 
 // 옵션 그룹 API(docs/api/product.md 옵션 그룹, 요구사항 1.9).
 // 정의·옵션 목록 변경은 화면이 보던 버전을 If-Match로 받는다(ADR-0013). 삭제는 연결 상품 여부로만 막으므로 버전을 받지 않는다.
@@ -37,10 +36,11 @@ class OptionGroupController(
         @RequestBody request: RegisterOptionGroupRequest,
     ): ResponseEntity<OptionGroupResponse> {
         val optionGroup = optionGroupService.register(request.toCommand())
-        return ResponseEntity
-            .created(URI.create("$BASE_PATH/${optionGroup.id.value}"))
-            .eTag("\"${optionGroup.version}\"")
-            .body(OptionGroupResponse.from(optionGroup))
+        return VersionHeaders.createdWithVersion(
+            "$BASE_PATH/${optionGroup.id.value}",
+            OptionGroupResponse.from(optionGroup),
+            optionGroup.version,
+        )
     }
 
     // 등록 순. 페이징하지 않는다.

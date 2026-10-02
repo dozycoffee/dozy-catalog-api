@@ -1,6 +1,7 @@
 package com.dozycoffee.catalog.common.web
 
 import org.springframework.http.ResponseEntity
+import java.net.URI
 
 // 낙관적 잠금 버전을 HTTP 헤더로 주고받는다(docs/api/README.md 낙관적 잠금, ADR-0013).
 // 응답은 ETag: "3", 요청은 If-Match: "3". 본문 없는 DELETE에도 같은 방식으로 받기 위해 본문 필드가 아니라 헤더를 쓴다.
@@ -21,5 +22,14 @@ object VersionHeaders {
     fun <T : Any> okWithVersion(
         body: T,
         version: Long,
-    ): ResponseEntity<T> = ResponseEntity.ok().eTag("\"$version\"").body(body)
+    ): ResponseEntity<T> = ResponseEntity.ok().eTag(entityTag(version)).body(body)
+
+    // 생성 응답(201). 만든 리소스의 위치와 함께, 본문의 version과 같은 값을 ETag에도 담는다.
+    fun <T : Any> createdWithVersion(
+        location: String,
+        body: T,
+        version: Long,
+    ): ResponseEntity<T> = ResponseEntity.created(URI.create(location)).eTag(entityTag(version)).body(body)
+
+    private fun entityTag(version: Long): String = "\"$version\""
 }

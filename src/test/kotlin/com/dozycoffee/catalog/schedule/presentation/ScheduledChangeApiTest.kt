@@ -4,6 +4,7 @@ import com.dozycoffee.catalog.support.ApiTest
 import com.dozycoffee.catalog.support.FakeStoreExistenceValidator
 import com.dozycoffee.catalog.support.MutableClock
 import com.dozycoffee.catalog.support.MutableClockConfiguration
+import com.dozycoffee.catalog.support.expectProblem
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -449,18 +450,6 @@ class ScheduledChangeApiTest : ApiTest() {
             .get()
             .uri("/api/v1/admin/option-groups/$optionGroupId/scheduled-changes")
             .exchange()
-
-    private fun WebTestClient.ResponseSpec.expectProblem(
-        status: Int,
-        code: String,
-    ): WebTestClient.BodyContentSpec =
-        expectStatus()
-            .isEqualTo(status)
-            .expectHeader()
-            .contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON)
-            .expectBody()
-            .jsonPath("$.code")
-            .isEqualTo(code)
 
     private fun scheduledChangeJson(
         field: String,

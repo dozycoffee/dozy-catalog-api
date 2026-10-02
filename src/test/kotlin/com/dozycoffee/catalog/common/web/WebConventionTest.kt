@@ -1,6 +1,7 @@
 package com.dozycoffee.catalog.common.web
 
 import com.dozycoffee.catalog.support.ApiTest
+import com.dozycoffee.catalog.support.expectProblem
 import com.dozycoffee.webprobe.WebProbeController
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -20,18 +21,6 @@ import kotlin.test.assertTrue
 @DisplayName("API 공통 규약")
 @Import(WebProbeController::class)
 class WebConventionTest : ApiTest() {
-    private fun WebTestClient.ResponseSpec.expectProblem(
-        status: Int,
-        code: String,
-    ): WebTestClient.BodyContentSpec =
-        expectStatus()
-            .isEqualTo(status)
-            .expectHeader()
-            .contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON)
-            .expectBody()
-            .jsonPath("$.code")
-            .isEqualTo(code)
-
     private fun postBody(json: String): WebTestClient.ResponseSpec =
         client
             .post()
