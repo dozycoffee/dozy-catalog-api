@@ -33,6 +33,12 @@ dozy:
 catalog:
   # 업무 기준 시간대. 예약 적용일의 00시를 이 시간대로 해석한다(docs/adr/0010). 서버·JVM·DB 시간대는 UTC로 둔다.
   business-zone: Asia/Seoul
+  schedule:
+    batch:
+      # 예약 적용 배치(ScheduledChangeBatchScheduler). 앞 실행이 끝난 뒤 이 간격마다 적용 시각이 지난 대기 예약을 적용한다.
+      # 인스턴스마다 켜 둬도 된다(예약마다 잠그므로 두 번 적용되지 않는다). 통합 테스트에서는 끈다(IntegrationTest).
+      enabled: true
+      fixed-delay: PT1M
   exposure:
     # 전체 매장 목록. 매장의 원본은 Store BC지만 호출 방식이 정해지기 전이라, 노출 현황 조회가
     # 판매 범위 All인 상품의 판매 가능 매장으로 이 설정값을 쓴다(5단계에서 실제 호출로 교체).

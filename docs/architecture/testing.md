@@ -33,6 +33,7 @@
 - PostgreSQL 컨테이너는 JVM 전체에서 하나만 띄워 공유한다. `@ServiceConnection`이 R2DBC와 JDBC(Flyway) 연결 정보를 함께 만들므로 설정 파일에 접속 정보를 두지 않는다.
 - 스키마는 실제 앱과 같이 Flyway가 만든다.
 - **데이터 정리**: 테스트마다 `flyway_schema_history`를 뺀 모든 테이블을 `TRUNCATE … RESTART IDENTITY CASCADE`로 비운다. R2DBC는 테스트 트랜잭션 롤백이 어렵기 때문이다. 그래서 테스트는 다른 테스트가 남긴 데이터에 기대지 않는다.
+- **예약 적용 스케줄러는 꺼 둔다**(`IntegrationTest`의 `catalog.schedule.batch.enabled=false`). 켜 두면 테스트가 만든 대기 예약을 백그라운드에서 적용해 결과가 흔들린다. 스케줄러를 확인하는 테스트만 `@TestPropertySource`로 켜고, `@DirtiesContext`로 끝나면 컨텍스트를 닫는다.
 - 테스트 JVM 시간대는 UTC로 고정된다(`build.gradle.kts`). 시간이 들어가는 테스트는 고정된 값이나 `Clock`을 쓴다.
 
 ## API 테스트
