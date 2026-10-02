@@ -6,13 +6,13 @@ import com.dozycoffee.catalog.exposure.presentation.dto.ProductExposureDetailRes
 import com.dozycoffee.catalog.exposure.presentation.dto.ProductExposureResponse
 import com.dozycoffee.catalog.support.ApiTest
 import com.dozycoffee.catalog.support.FakeStoreDirectory
+import com.dozycoffee.catalog.support.expectProblem
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.test.web.reactive.server.expectBody
 import kotlin.test.assertEquals
@@ -278,19 +278,6 @@ class ProductExposureApiTest : ApiTest() {
             assertEquals(detail.stores.size, detail.sellableStoreCount, "상품 ${summary.productId}")
             assertEquals(detail.stores.count { it.exposed }, detail.exposedStoreCount, "상품 ${summary.productId}")
         }
-    }
-
-    private fun WebTestClient.ResponseSpec.expectProblem(
-        status: Int,
-        code: String,
-    ) {
-        expectStatus()
-            .isEqualTo(status)
-            .expectHeader()
-            .contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON)
-            .expectBody()
-            .jsonPath("$.code")
-            .isEqualTo(code)
     }
 
     private suspend fun insertProduct(

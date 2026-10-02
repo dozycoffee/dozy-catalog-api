@@ -31,7 +31,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import java.net.URI
 
 // 본사관리자의 상품 등록·조회·교체·삭제, 상태 전환, 판매 범위 변경(docs/api/product.md 상품, 요구사항 1.2~1.5, 1.11, 1.12).
 // 옵션 그룹 연결·예외와 유효 옵션 구성은 ProductOptionController가 맡는다.
@@ -47,10 +46,7 @@ class ProductController(
         @RequestBody request: RegisterProductRequest,
     ): ResponseEntity<ProductResponse> {
         val product = productService.register(request.toCommand())
-        return ResponseEntity
-            .created(URI.create("$PRODUCTS_PATH/${product.id.value}"))
-            .eTag("\"${product.version}\"")
-            .body(ProductResponse.from(product))
+        return VersionHeaders.createdWithVersion("$PRODUCTS_PATH/${product.id.value}", ProductResponse.from(product), product.version)
     }
 
     // 최근 등록한 상품이 먼저 온다. categoryId는 대분류도 받는다(그 아래 소분류의 상품을 모두 포함).

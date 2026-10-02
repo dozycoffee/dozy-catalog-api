@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.product.presentation.tag
 
-import com.dozycoffee.catalog.product.presentation.expectProblem
 import com.dozycoffee.catalog.support.ApiTest
+import com.dozycoffee.catalog.support.expectProblem
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
