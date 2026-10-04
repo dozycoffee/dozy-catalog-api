@@ -74,7 +74,7 @@ base package: `com.dozycoffee.catalog`
 
 | 연동 대상 | 방향 | 포트 위치 | 구현 위치 |
 |---|---|---|---|
-| Store BC — 매장 존재 검증 | outbound | `product.application.port.ValidateStoreExistsPort` | 지금은 모든 매장이 존재한다고 답하는 `product.infrastructure.acl.AlwaysExistingStoreAdapter`. 호출 방식이 정해지면 `StoreBcAdapter`(포트 구현) + `StoreBcClient`(호출)로 교체 |
+| Store BC — 매장 존재 검증 | outbound | `product.application.port.ValidateStoreExistsPort` | 지금은 모든 매장이 존재한다고 답하는 `product.infrastructure.acl.AlwaysExistingStoreAdapter`. 호출 방식이 정해지면 `StoreBcAdapter`(포트 구현) + `StoreBcClient`(호출, system token 클라이언트 `dozySystemWebClient` 사용)로 교체 |
 | Store BC — 전체 매장 목록(노출 현황의 판매 가능 매장) | outbound | `exposure.application.port.StoreDirectoryPort` | 지금은 설정값(`catalog.exposure.store-ids`)을 돌려주는 `exposure.infrastructure.acl.ConfiguredStoreDirectory`. 호출 방식이 정해지면 실제 어댑터로 교체 |
 | 재고관리 서비스 — 입고/품절/재입고 이벤트 구독 | inbound | (`store.application`에서 직접 처리) | `store.infrastructure.messaging.InventoryEventConsumer` + `store.infrastructure.acl.InventoryServiceEventTranslator` |
 | POS/정산 등 — 상품 상태·정보 변경 이벤트 발행 | outbound | `product.application.port.ProductEventPublisherPort` | `common`의 이벤트 발행 구현 또는 `product.infrastructure.eventing.DomainEventPublisher` |
