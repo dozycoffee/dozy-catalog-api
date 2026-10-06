@@ -110,15 +110,26 @@ com.dozycoffee.catalog
 
 ## CI
 
-`main` 브랜치로의 push와 PR에서 `.github/workflows/ci.yml`이 `./gradlew build`를 실행합니다. dozy-auth 라이브러리는 워크플로의 `GITHUB_TOKEN`(`packages: read`)으로 받습니다. 테스트가 실패하면 테스트 결과와 리포트를 `test-results` 아티팩트로 14일간 남깁니다.
+`main` 브랜치로의 push와 PR에서 `.github/workflows/ci.yml`이 `./gradlew build`를 실행하고 서버 이미지를 빌드합니다. `main` push일 때만 이미지를 올립니다([배포](#배포)). dozy-auth 라이브러리는 워크플로의 `GITHUB_TOKEN`으로 받습니다. 테스트가 실패하면 테스트 결과와 리포트를 `test-results` 아티팩트로 14일간 남깁니다.
 
 ## 배포
 
-실행 이미지는 [`Dockerfile`](Dockerfile)로 만들어 GitHub Container Registry에 올립니다. 방식과 이유는 [ADR-0019](docs/adr/0019-container-image-with-dockerfile-and-tag-release.md)에 있습니다.
+실행 이미지는 [`Dockerfile`](Dockerfile)로 만들어 GitHub Container Registry(`ghcr.io/dozycoffee/dozy-catalog-api`)에 올립니다. 규칙은 dozy-auth 서버 이미지와 같고, 이유는 [ADR-0019](docs/adr/0019-container-image-with-dockerfile-and-tag-release.md)에 있습니다.
+
+### 이미지와 태그
+
+| 언제 | 이미지 태그 | 누가 |
+|---|---|---|
+| `main`에 병합될 때마다 | `sha-{커밋 7자리}`, `main`(가장 최근 `main` 커밋) | CI(`.github/workflows/ci.yml`). PR에서는 빌드만 확인합니다 |
+| 버전 태그 `v{major}.{minor}.{patch}`를 푸시할 때 | `{major}.{minor}.{patch}` (예: `0.1.0`) | `.github/workflows/release.yml`. 다시 빌드하지 않고 그 커밋의 `sha-` 이미지에 태그만 붙입니다 |
+
+- 플랫폼은 `linux/amd64`, `linux/arm64`입니다. 한 태그에 두 아키텍처가 함께 있습니다.
+- `latest`와 `0.1` 같은 이동 버전 태그는 두지 않습니다.
+- 실행 중인 버전은 이미지의 `org.opencontainers.image.revision`(커밋)과 GitHub Release(버전 ↔ 커밋)로 확인합니다.
 
 ### 릴리스
 
-`main`의 커밋에 `v{major}.{minor}.{patch}` 태그를 푸시하면 `.github/workflows/release.yml`이 빌드·테스트 후 이미지를 올리고 GitHub Release를 만듭니다. `main`에 없는 커밋의 태그는 실패합니다.
+`main` CI가 그 커밋의 이미지를 올린 뒤 태그를 푸시합니다. `main`에 없는 커밋의 태그, 이미 있는 버전은 실패합니다.
 
 ```bash
 git checkout main && git pull
@@ -126,26 +137,26 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-- 이미지: `ghcr.io/dozycoffee/dozy-catalog-api:{버전}`(예: `0.1.0`), `ghcr.io/dozycoffee/dozy-catalog-api:sha-{커밋}`. `latest`는 두지 않습니다.
-- 플랫폼: `linux/amd64`, `linux/arm64`. Apple Silicon PC에서도 에뮬레이션 없이 뜹니다.
-- 버전은 [SemVer](https://semver.org/lang/ko/)를 따릅니다. 0.x 동안은 API 호환이 깨지는 변경(엔드포인트 제거 등)에 minor를, 기능 추가에 minor를, 수정에 patch를 올립니다.
-- 앱 버전은 태그에서 받습니다(`-PappVersion`). 태그 없이 빌드하면 `0.1.0-SNAPSHOT`입니다.
+- 버전은 [SemVer](https://semver.org/lang/ko/)를 따르고 0.x로 시작합니다. 0.x 동안은 API 호환이 깨지는 변경(엔드포인트 제거 등)과 기능 추가에 minor를, 버그 수정·내부 개선에 patch를 올립니다. 1.0.0은 운영 배포 시점에 정합니다.
+- 태그를 너무 일찍 푸시해 이미지가 없다고 실패하면, `main` CI가 끝난 뒤 실패한 Release 워크플로를 다시 실행합니다.
 
 ### 실행
 
-이미지는 `prod` 프로필로 뜨고 8080 포트를 엽니다. 아래 환경 변수가 필요합니다.
+이미지는 8080 포트를 열고, 프로필과 비밀값은 실행할 때 환경 변수로 줍니다.
 
 | 환경 변수 | 설명 |
 |---|---|
+| `SPRING_PROFILES_ACTIVE` | `prod` |
 | `DB_HOST`, `DB_PORT`(기본 5432), `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` | PostgreSQL. 앱 요청은 R2DBC로, 시작 시 마이그레이션은 Flyway(JDBC)로 같은 DB에 붙습니다 |
 | `DOZY_AUTH_ISSUER_BASE_URI` | Auth 주소. 토큰 발급자 확인과 공개키(JWKS) 조회에 씁니다 |
 
-- 힙은 컨테이너 메모리 한도의 75%입니다(`JAVA_TOOL_OPTIONS`). 바꾸려면 이 환경 변수를 덮어씁니다.
+- root가 아닌 UID·GID `10001`로 실행됩니다.
+- 힙은 컨테이너 메모리 한도의 75%입니다(`JAVA_TOOL_OPTIONS`). 바꾸려면 이 환경 변수를 다시 지정합니다.
 - 프로브는 `/actuator/health`(토큰 불필요)를 씁니다. `liveness`·`readiness` 그룹도 있습니다.
 
 로컬에서 이미지를 확인하려면 jar를 먼저 빌드합니다. 이미지 빌드 안에서는 Gradle을 돌리지 않습니다.
 
 ```bash
-./gradlew bootJar
-docker build -t dozy-catalog-api:local .
+./gradlew bootJar        # build/libs/dozy-catalog-api.jar
+docker build -t dozy-catalog-api .
 ```

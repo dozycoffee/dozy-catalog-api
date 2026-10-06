@@ -57,9 +57,9 @@
 
 | 항목 | 선택 | 이유 |
 |---|---|---|
-| 실행 이미지 | `Dockerfile` (`eclipse-temurin:21-jre`, 레이어 분리, root 아닌 사용자, `linux/amd64`·`linux/arm64`) | 구성이 파일 하나에 드러나 다른 서비스가 그대로 가져다 쓸 수 있다 ([ADR-0019](../adr/0019-container-image-with-dockerfile-and-tag-release.md)) |
+| 실행 이미지 | `Dockerfile` (`eclipse-temurin:21-jre-noble`, 레이어 분리, UID 10001, `linux/amd64`·`linux/arm64`) | 구성이 파일 하나에 드러나고 dozy-auth 서버 이미지와 같은 틀을 쓴다 ([ADR-0019](../adr/0019-container-image-with-dockerfile-and-tag-release.md)) |
 | 레지스트리 | GitHub Container Registry (`ghcr.io/dozycoffee/dozy-catalog-api`) | 라이브러리를 받는 GitHub Packages와 권한 체계가 같다 |
-| 릴리스 | main 커밋의 `v{major}.{minor}.{patch}` 태그 → `.github/workflows/release.yml` | 리뷰를 거친 커밋만, 의도한 시점에 버전으로 낸다. 방법은 [README](../../README.md#배포) |
+| 이미지 배포 | `main` 병합마다 `sha-…`·`main` 태그(CI), `v{major}.{minor}.{patch}` 태그를 푸시하면 그 커밋의 이미지에 `X.Y.Z` 태그만 추가(`release.yml`) | 운영에 올라가는 이미지가 `main`에서 테스트를 통과한 바로 그 이미지다. 방법은 [README](../../README.md#배포) |
 
 ## 개발 편의
 

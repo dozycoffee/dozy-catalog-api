@@ -1,7 +1,7 @@
 name: Release
 
-# main의 커밋에 v{major}.{minor}.{patch} 태그를 푸시하면 실행 이미지를 만들어 GitHub Container Registry에 올리고
-# GitHub Release를 만든다(docs/adr/0019, README 배포 절).
+# main의 커밋에 v{major}.{minor}.{patch} 태그를 푸시하면, 그 커밋에서 CI가 이미 빌드·테스트해 올린
+# sha-{7자리} 이미지에 버전 태그(X.Y.Z)를 붙이고 GitHub Release를 만든다. 다시 빌드하지 않는다(docs/adr/0019, README 배포 절).
 on:
   push:
     tags:
@@ -9,19 +9,19 @@ on:
 
 permissions:
   contents: write # GitHub Release 생성
-  packages: write # 이미지 푸시, dozy-auth 라이브러리 받기
+  packages: write # 이미지에 태그 추가
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 env:
-  IMAGE: ghcr.io/${{ github.repository }}
+  IMAGE: ghcr.io/dozycoffee/dozy-catalog-api
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,62 +35,35 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: gradle/actions/setup-gradle@v4
-
-      # 태그의 버전(v 제외)을 앱 버전으로 쓴다. 이미지에 넣기 전에 테스트까지 다시 돌린다.
-      - name: 빌드와 테스트
-        run: ./gradlew build -PappVersion="${GITHUB_REF_NAME#v}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 테스트 결과 보관
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: |
-            build/test-results/test/
-            build/reports/tests/test/
-          retention-days: 14
-
-      # 서버용 amd64와 Apple Silicon 개발 PC·ARM 서버용 arm64를 함께 만든다(docs/adr/0019).
-      # 이미지 안에서 실행하는 명령은 실행 사용자 만들기뿐이라 arm64 에뮬레이션 비용이 작다.
-      - uses: docker/setup-qemu-action@v3
-
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 이미지 태그는 버전(0.1.0)과 커밋(sha-xxxxxxx)만 둔다. latest는 어떤 버전이 떠 있는지 모호해져 두지 않는다.
-      - id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE }}
-          flavor: latest=false
-          tags: |
-            type=semver,pattern={{version}}
-            type=sha,prefix=sha-
-
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+      # main CI가 그 커밋의 이미지를 올린 뒤여야 한다. 버전 태그는 한 번 붙이면 다른 이미지로 바꾸지 않는다.
+      - name: sha- 이미지에 버전 태그 붙이기
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          source="$IMAGE:sha-${GITHUB_SHA::7}"
+          if ! docker buildx imagetools inspect "$source" > /dev/null 2>&1; then
+            echo "::error::$source 이미지가 없습니다. main CI가 끝난 뒤 이 워크플로를 다시 실행하세요."
+            exit 1
+          fi
+          if docker buildx imagetools inspect "$IMAGE:$version" > /dev/null 2>&1; then
+            echo "::error::$IMAGE:$version 이미지가 이미 있습니다. 버전 태그는 덮어쓰지 않습니다."
+            exit 1
+          fi
+          docker buildx imagetools create \
+            --annotation "index:org.opencontainers.image.version=$version" \
+            --annotation "index:org.opencontainers.image.revision=$GITHUB_SHA" \
+            --tag "$IMAGE:$version" "$source"
 
       - name: GitHub Release 만들기
         run: |
           gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes \
-            --notes "이미지: \`${IMAGE}:${GITHUB_REF_NAME#v}\`"
+            --notes "이미지: \`${IMAGE}:${GITHUB_REF_NAME#v}\` (커밋 \`${GITHUB_SHA::7}\`)"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,26 +1,45 @@
-# Catalog 실행 이미지. jar는 CI(또는 로컬)의 ./gradlew build가 만든 build/libs의 실행 jar를 받는다.
-# dozy-auth 라이브러리를 받는 GitHub 인증을 이미지 빌드 안으로 넘기지 않으려고 이미지 안에서 Gradle을 돌리지 않는다.
-# 빌드: ./gradlew build && docker build -t dozy-catalog-api .
+# Catalog 실행 이미지. 이미지 규칙은 docs/adr/0019, 실행에 필요한 설정은 README의 배포 절.
+#
+# jar는 Gradle이 테스트를 통과한 뒤 만든 것을 그대로 담는다. 이미지 안에서 빌드하지 않는다.
+# (dozy-auth 라이브러리를 받는 GitHub 인증을 이미지 빌드 안으로 넘기지 않기 위해서다.)
+#   ./gradlew bootJar
+#   docker build -t dozy-catalog-api .
+#
+# DB 비밀번호 같은 비밀값과 프로필은 이미지에 넣지 않고 실행할 때 환경 변수로 준다.
 
-# 1단계: 실행 jar를 레이어별로 푼다. 의존성 레이어는 코드가 바뀌어도 그대로라 이미지를 다시 올릴 때 받지 않는다.
-# 푼 결과는 아키텍처와 무관하므로 빌드 머신의 아키텍처로 한 번만 돌린다(여러 아키텍처를 만들 때 에뮬레이션을 피한다).
-FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jre AS extractor
-WORKDIR /extract
-COPY build/libs/*.jar application.jar
-RUN java -Djarmode=tools -jar application.jar extract --layers --destination extracted
+# JDK major와 OS(Ubuntu noble)를 고정하고 21의 patch 업데이트는 빌드할 때마다 받는다
+ARG JRE_IMAGE=eclipse-temurin:21-jre-noble
 
-# 2단계: 실행 이미지. 대상 아키텍처(linux/amd64, linux/arm64)마다 만든다. 잘 바뀌지 않는 레이어부터 쌓는다.
-FROM eclipse-temurin:21-jre
-RUN groupadd --system --gid 1001 catalog \
-    && useradd --system --uid 1001 --gid catalog --no-create-home catalog
+# 1단계: jar를 Spring Boot 계층별 폴더로 푼다. 푼 결과는 아키텍처와 무관하므로
+# 빌드 머신의 아키텍처로 한 번만 돌린다(여러 아키텍처를 만들 때 에뮬레이션을 피한다).
+FROM --platform=$BUILDPLATFORM ${JRE_IMAGE} AS extract
+WORKDIR /build
+COPY build/libs/dozy-catalog-api.jar app.jar
+RUN java -Djarmode=tools -jar app.jar extract --layers --launcher --destination extracted
+
+# 2단계: 실행 이미지. 대상 아키텍처(linux/amd64, linux/arm64)마다 만든다.
+# 자주 바뀌지 않는 계층부터 담아 이미지 계층 캐시를 살린다
+FROM ${JRE_IMAGE}
+
+LABEL org.opencontainers.image.title="dozy-catalog-api" \
+      org.opencontainers.image.description="Dozy Catalog 서버" \
+      org.opencontainers.image.source="https://github.com/dozycoffee/dozy-catalog-api"
+
+# root가 아닌 고정 UID·GID(10001)로 실행한다(dozy-auth 서버 이미지와 같음)
+RUN groupadd --system --gid 10001 catalog \
+    && useradd --system --uid 10001 --gid catalog --no-create-home --shell /usr/sbin/nologin catalog
+
 WORKDIR /app
-COPY --from=extractor /extract/extracted/dependencies/ ./
-COPY --from=extractor /extract/extracted/spring-boot-loader/ ./
-COPY --from=extractor /extract/extracted/snapshot-dependencies/ ./
-COPY --from=extractor /extract/extracted/application/ ./
-USER catalog
+COPY --from=extract /build/extracted/dependencies/ ./
+COPY --from=extract /build/extracted/spring-boot-loader/ ./
+COPY --from=extract /build/extracted/snapshot-dependencies/ ./
+COPY --from=extract /build/extracted/application/ ./
+
+USER 10001:10001
 EXPOSE 8080
-# 힙은 컨테이너 메모리 한도의 75%. 시간대는 코드가 시스템 기본값에 기대지 않지만(docs/adr/0010) 서버 기준대로 UTC로 둔다.
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -Duser.timezone=UTC" \
-    SPRING_PROFILES_ACTIVE=prod
-ENTRYPOINT ["java", "-jar", "application.jar"]
+
+# 힙 최대치를 컨테이너 메모리 제한의 75%로 잡는다. JVM 기본값(25%)은 JVM만 도는 컨테이너에서 메모리를 대부분 놀린다.
+# 실행할 때 JAVA_TOOL_OPTIONS를 다시 주면 덮어쓴다
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75"
+
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]

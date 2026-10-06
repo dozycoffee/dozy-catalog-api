@@ -38,7 +38,7 @@
 | [0015](0015-domain-modules-as-top-level-packages.md) | 최상위 패키지를 도메인 모듈로 두고, 그 안에서 레이어를 나눈다 | 채택 | 2026-09-20 |
 | [0017](0017-resource-oriented-api-split-by-caller.md) | API는 리소스 단위로 설계하고, 호출자별로 경로를 나눈다 | 일부 대체됨 (호출자 구분과 경로 → 0018) | 2026-09-21 |
 | [0018](0018-partner-requests-through-store-service.md) | 가맹점주의 요청은 Store 서비스가 받고, Catalog는 내부 API로 제공한다 | 채택 | 2026-10-01 |
-| [0019](0019-container-image-with-dockerfile-and-tag-release.md) | 실행 이미지는 Dockerfile로 만들고, main의 버전 태그로 GitHub Container Registry에 배포한다 | 채택 | 2026-10-06 |
+| [0019](0019-container-image-with-dockerfile-and-tag-release.md) | 서버 이미지는 Dockerfile로 만들어 main 병합마다 올리고, 버전 태그는 그 이미지에 덧붙인다 | 채택 | 2026-10-06 |
 
 ### 영속성
 | ADR | 제목 | 상태 | 날짜 |

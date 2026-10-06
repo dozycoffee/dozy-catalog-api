@@ -8,8 +8,8 @@ on:
 
 permissions:
   contents: read
-  # dozy-auth 라이브러리를 GitHub Packages에서 받는다.
-  packages: read
+  # dozy-auth 라이브러리를 GitHub Packages에서 받고, main push일 때 서버 이미지를 ghcr에 올린다.
+  packages: write
 
 jobs:
   build:
@@ -27,6 +27,43 @@ jobs:
       - run: ./gradlew build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 서버 이미지: 위 build가 테스트를 통과하고 만든 build/libs의 실행 jar를 담는다(docs/adr/0019).
+      # PR은 빌드만 확인하고, main push일 때만 sha-{7자리}와 main 태그로 ghcr에 올린다.
+      # 릴리스(v* 태그)는 다시 빌드하지 않고 이 sha- 이미지에 버전 태그를 붙인다(release.yml).
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v4
+
+      - if: github.event_name == 'push'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: image-meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/dozycoffee/dozy-catalog-api
+          tags: |
+            type=sha
+            type=raw,value=main,enable={{is_default_branch}}
+          # 저장소 정보로 채우는 기본 라벨이 Dockerfile의 title·description을 덮지 않도록 같은 값을 준다
+          labels: |
+            org.opencontainers.image.title=dozy-catalog-api
+            org.opencontainers.image.description=Dozy Catalog 서버
+
+      # 서버용 amd64와 Apple Silicon 개발 PC·ARM 서버용 arm64를 한 태그로 함께 만든다
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.image-meta.outputs.tags }}
+          labels: ${{ steps.image-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       # 테스트가 실패하면 결과(단언 메시지, 스택, 로그)를 남긴다. 간헐 실패의 원인을 나중에 확인하기 위해서다(#109).
       - name: 테스트 결과 보관
