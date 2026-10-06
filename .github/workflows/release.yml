@@ -1,0 +1,69 @@
+name: Release
+
+# main의 커밋에 v{major}.{minor}.{patch} 태그를 푸시하면, 그 커밋에서 CI가 이미 빌드·테스트해 올린
+# sha-{7자리} 이미지에 버전 태그(X.Y.Z)를 붙이고 GitHub Release를 만든다. 다시 빌드하지 않는다(docs/adr/0019, README 배포 절).
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write # GitHub Release 생성
+  packages: write # 이미지에 태그 추가
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/dozycoffee/dozy-catalog-api
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # main 포함 여부 검사에 전체 기록이 필요
+
+      # 리뷰와 CI를 거친 코드만 배포한다. main에 없는 커밋에 붙인 태그는 실패시킨다.
+      - name: 태그 커밋이 main에 있는지 확인
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_REF_NAME 태그의 커밋이 main에 없습니다."
+            exit 1
+          fi
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # main CI가 그 커밋의 이미지를 올린 뒤여야 한다. 버전 태그는 한 번 붙이면 다른 이미지로 바꾸지 않는다.
+      - name: sha- 이미지에 버전 태그 붙이기
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          source="$IMAGE:sha-${GITHUB_SHA::7}"
+          if ! docker buildx imagetools inspect "$source" > /dev/null 2>&1; then
+            echo "::error::$source 이미지가 없습니다. main CI가 끝난 뒤 이 워크플로를 다시 실행하세요."
+            exit 1
+          fi
+          if docker buildx imagetools inspect "$IMAGE:$version" > /dev/null 2>&1; then
+            echo "::error::$IMAGE:$version 이미지가 이미 있습니다. 버전 태그는 덮어쓰지 않습니다."
+            exit 1
+          fi
+          docker buildx imagetools create \
+            --annotation "index:org.opencontainers.image.version=$version" \
+            --annotation "index:org.opencontainers.image.revision=$GITHUB_SHA" \
+            --tag "$IMAGE:$version" "$source"
+
+      - name: GitHub Release 만들기
+        run: |
+          gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes \
+            --notes "이미지: \`${IMAGE}:${GITHUB_REF_NAME#v}\` (커밋 \`${GITHUB_SHA::7}\`)"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

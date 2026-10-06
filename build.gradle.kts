@@ -8,6 +8,8 @@ plugins {
 }
 
 group = "com.dozycoffee"
+// 배포 버전은 git 태그(v0.1.0)와 이미지 태그(0.1.0)가 정한다. 릴리스는 다시 빌드하지 않고 main에서 만든 이미지에
+// 버전 태그만 붙이므로 jar 버전은 쓰지 않는다(docs/adr/0019). 실행 중인 버전은 이미지 라벨의 커밋으로 확인한다.
 version = "0.0.1-SNAPSHOT"
 description = "dozy-catalog-api"
 
@@ -96,6 +98,16 @@ dependencies {
     testImplementation(libs.testcontainers.r2dbc)
     testImplementation(libs.exposed.migration.core)
     testImplementation(libs.exposed.migration.r2dbc)
+}
+
+// 이미지에는 실행 jar 하나만 넣는다(Dockerfile). 이름을 고정해 build/libs에 남은 옛 jar와 섞이지 않게 하고,
+// plain jar는 만들지 않는다.
+tasks.bootJar {
+    archiveFileName = "dozy-catalog-api.jar"
+}
+
+tasks.jar {
+    enabled = false
 }
 
 kotlin {
