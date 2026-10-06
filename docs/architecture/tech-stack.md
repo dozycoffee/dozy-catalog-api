@@ -53,6 +53,14 @@
 | 시큐리티 | `dozy-auth`의 `auth-test` | `@WithDozyPrincipal`로 인증된 사용자를 만들고, `DozyTestTokens`로 실제 검증 체인을 거치는 토큰을 만든다. `spring-boot-starter-security-test`를 함께 가져온다 |
 | 영속성 통합 | Testcontainers (`spring-boot-testcontainers`의 `@ServiceConnection`) | 로컬 개발의 docker-compose 자동 연결과 같은 방식으로 테스트에서도 R2DBC 연결을 자동 구성한다. 접속 정보를 `application.yaml`에 두지 않는 방침과 맞는다 |
 
+## 배포
+
+| 항목 | 선택 | 이유 |
+|---|---|---|
+| 실행 이미지 | `Dockerfile` (`eclipse-temurin:21-jre`, 레이어 분리, root 아닌 사용자) | 구성이 파일 하나에 드러나 다른 서비스가 그대로 가져다 쓸 수 있다 ([ADR-0019](../adr/0019-container-image-with-dockerfile-and-tag-release.md)) |
+| 레지스트리 | GitHub Container Registry (`ghcr.io/dozycoffee/dozy-catalog-api`) | 라이브러리를 받는 GitHub Packages와 권한 체계가 같다 |
+| 릴리스 | main 커밋의 `v{major}.{minor}.{patch}` 태그 → `.github/workflows/release.yml` | 리뷰를 거친 커밋만, 의도한 시점에 버전으로 낸다. 방법은 [README](../../README.md#배포) |
+
 ## 개발 편의
 
 - `spring-boot-devtools`: 핫 리로드

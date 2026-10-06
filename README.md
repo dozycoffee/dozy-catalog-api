@@ -111,3 +111,40 @@ com.dozycoffee.catalog
 ## CI
 
 `main` 브랜치로의 push와 PR에서 `.github/workflows/ci.yml`이 `./gradlew build`를 실행합니다. dozy-auth 라이브러리는 워크플로의 `GITHUB_TOKEN`(`packages: read`)으로 받습니다. 테스트가 실패하면 테스트 결과와 리포트를 `test-results` 아티팩트로 14일간 남깁니다.
+
+## 배포
+
+실행 이미지는 [`Dockerfile`](Dockerfile)로 만들어 GitHub Container Registry에 올립니다. 방식과 이유는 [ADR-0019](docs/adr/0019-container-image-with-dockerfile-and-tag-release.md)에 있습니다.
+
+### 릴리스
+
+`main`의 커밋에 `v{major}.{minor}.{patch}` 태그를 푸시하면 `.github/workflows/release.yml`이 빌드·테스트 후 이미지를 올리고 GitHub Release를 만듭니다. `main`에 없는 커밋의 태그는 실패합니다.
+
+```bash
+git checkout main && git pull
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+- 이미지: `ghcr.io/dozycoffee/dozy-catalog-api:{버전}`(예: `0.1.0`), `ghcr.io/dozycoffee/dozy-catalog-api:sha-{커밋}`. `latest`는 두지 않습니다.
+- 버전은 [SemVer](https://semver.org/lang/ko/)를 따릅니다. 0.x 동안은 API 호환이 깨지는 변경(엔드포인트 제거 등)에 minor를, 기능 추가에 minor를, 수정에 patch를 올립니다.
+- 앱 버전은 태그에서 받습니다(`-PappVersion`). 태그 없이 빌드하면 `0.1.0-SNAPSHOT`입니다.
+
+### 실행
+
+이미지는 `prod` 프로필로 뜨고 8080 포트를 엽니다. 아래 환경 변수가 필요합니다.
+
+| 환경 변수 | 설명 |
+|---|---|
+| `DB_HOST`, `DB_PORT`(기본 5432), `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` | PostgreSQL. 앱 요청은 R2DBC로, 시작 시 마이그레이션은 Flyway(JDBC)로 같은 DB에 붙습니다 |
+| `DOZY_AUTH_ISSUER_BASE_URI` | Auth 주소. 토큰 발급자 확인과 공개키(JWKS) 조회에 씁니다 |
+
+- 힙은 컨테이너 메모리 한도의 75%입니다(`JAVA_TOOL_OPTIONS`). 바꾸려면 이 환경 변수를 덮어씁니다.
+- 프로브는 `/actuator/health`(토큰 불필요)를 씁니다. `liveness`·`readiness` 그룹도 있습니다.
+
+로컬에서 이미지를 확인하려면 jar를 먼저 빌드합니다. 이미지 빌드 안에서는 Gradle을 돌리지 않습니다.
+
+```bash
+./gradlew bootJar
+docker build -t dozy-catalog-api:local .
+```

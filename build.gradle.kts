@@ -8,7 +8,8 @@ plugins {
 }
 
 group = "com.dozycoffee"
-version = "0.0.1-SNAPSHOT"
+// 배포 버전은 태그에서 받는다(-PappVersion=0.1.0, .github/workflows/release.yml). 로컬 빌드는 SNAPSHOT이다.
+version = providers.gradleProperty("appVersion").getOrElse("0.1.0-SNAPSHOT")
 description = "dozy-catalog-api"
 
 java {
@@ -96,6 +97,11 @@ dependencies {
     testImplementation(libs.testcontainers.r2dbc)
     testImplementation(libs.exposed.migration.core)
     testImplementation(libs.exposed.migration.r2dbc)
+}
+
+// 이미지에는 실행 jar 하나만 넣는다. plain jar가 함께 생기면 Dockerfile이 어느 jar를 쓸지 모호해진다.
+tasks.jar {
+    enabled = false
 }
 
 kotlin {
