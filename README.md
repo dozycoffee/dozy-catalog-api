@@ -127,6 +127,7 @@ git push origin v0.1.0
 ```
 
 - 이미지: `ghcr.io/dozycoffee/dozy-catalog-api:{버전}`(예: `0.1.0`), `ghcr.io/dozycoffee/dozy-catalog-api:sha-{커밋}`. `latest`는 두지 않습니다.
+- 플랫폼: `linux/amd64`, `linux/arm64`. Apple Silicon PC에서도 에뮬레이션 없이 뜹니다.
 - 버전은 [SemVer](https://semver.org/lang/ko/)를 따릅니다. 0.x 동안은 API 호환이 깨지는 변경(엔드포인트 제거 등)에 minor를, 기능 추가에 minor를, 수정에 patch를 올립니다.
 - 앱 버전은 태그에서 받습니다(`-PappVersion`). 태그 없이 빌드하면 `0.1.0-SNAPSHOT`입니다.
 

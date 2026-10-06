@@ -3,12 +3,13 @@
 # 빌드: ./gradlew build && docker build -t dozy-catalog-api .
 
 # 1단계: 실행 jar를 레이어별로 푼다. 의존성 레이어는 코드가 바뀌어도 그대로라 이미지를 다시 올릴 때 받지 않는다.
-FROM eclipse-temurin:21-jre AS extractor
+# 푼 결과는 아키텍처와 무관하므로 빌드 머신의 아키텍처로 한 번만 돌린다(여러 아키텍처를 만들 때 에뮬레이션을 피한다).
+FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jre AS extractor
 WORKDIR /extract
 COPY build/libs/*.jar application.jar
 RUN java -Djarmode=tools -jar application.jar extract --layers --destination extracted
 
-# 2단계: 실행 이미지. 잘 바뀌지 않는 레이어부터 쌓는다.
+# 2단계: 실행 이미지. 대상 아키텍처(linux/amd64, linux/arm64)마다 만든다. 잘 바뀌지 않는 레이어부터 쌓는다.
 FROM eclipse-temurin:21-jre
 RUN groupadd --system --gid 1001 catalog \
     && useradd --system --uid 1001 --gid catalog --no-create-home catalog

@@ -58,6 +58,10 @@ jobs:
             build/reports/tests/test/
           retention-days: 14
 
+      # 서버용 amd64와 Apple Silicon 개발 PC·ARM 서버용 arm64를 함께 만든다(docs/adr/0019).
+      # 이미지 안에서 실행하는 명령은 실행 사용자 만들기뿐이라 arm64 에뮬레이션 비용이 작다.
+      - uses: docker/setup-qemu-action@v3
+
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -79,7 +83,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
