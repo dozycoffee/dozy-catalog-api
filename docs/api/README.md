@@ -57,6 +57,24 @@ API는 클라이언트와의 계약이다. 필드 이름, 경로, 오류 코드�
 - 필드 교체로 표현하기 어려운 행위는 `POST /{리소스}/{id}/{동사}`로 둔다(예: `POST /admin/products/{id}/activate`).
 - 토큰 검증과 401·403 응답은 `dozy-auth`의 스타터가 맡는다. Catalog는 `dozy.auth.audience=catalog`, `accepted-realms=[internal]`로 설정한다.
 
+### CORS
+
+본사 API는 관리 콘솔이 브라우저에서 직접 부르므로 CORS를 연다. 내부 API는 Store 서비스가 서버에서 부르므로 열지 않는다.
+
+| 항목 | 값 |
+|---|---|
+| 적용 경로 | `/api/v1/admin/**` |
+| 허용 출처 | 설정값(`CATALOG_CORS_ALLOWED_ORIGINS`, 쉼표 구분). `scheme://host[:port]`만 받고 와일드카드는 쓰지 않는다. 로컬 기본값은 `http://localhost:3000` |
+| 허용 메서드 | `GET`, `POST`, `PUT`, `DELETE` |
+| 허용 요청 헤더 | `Authorization`, `Content-Type`, `If-Match` |
+| 브라우저가 읽을 수 있는 응답 헤더 | `ETag`, `Location`, `X-Trace-Id` |
+| credentials | 허용하지 않는다(쿠키를 쓰지 않고 Bearer 토큰만 받는다) |
+| 사전 요청 캐시 | 1시간(`Access-Control-Max-Age: 3600`) |
+
+- 사전 요청(`OPTIONS`)은 토큰 없이 CORS 규칙으로만 답한다. 허용하지 않은 출처는 `403`이다.
+- 콘솔은 응답의 `ETag`를 읽어 다음 수정 요청의 `If-Match`에 넣는다([낙관적 잠금](#낙관적-잠금)).
+- 401·403 같은 오류 응답에도 CORS 헤더가 붙어, 콘솔이 오류 본문(`code`)을 읽을 수 있다.
+
 ## 요청·응답 형식
 
 - 본문은 JSON(`application/json`), 필드 이름은 camelCase다.

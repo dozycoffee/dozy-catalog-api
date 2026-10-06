@@ -31,6 +31,10 @@ dozy:
     public-paths: [/actuator/health, /actuator/health/**]
 
 catalog:
+  cors:
+    # 본사 API를 브라우저에서 부를 수 있는 출처(관리 콘솔). 쉼표로 구분하고 와일드카드는 쓰지 않는다.
+    # 로컬 기본값은 dozy-auth와 같은 관리 콘솔 주소다. prod는 기본값 없이 반드시 지정한다(아래 prod 프로필).
+    allowed-origins: ${CATALOG_CORS_ALLOWED_ORIGINS:http://localhost:3000}
   # 업무 기준 시간대. 예약 적용일의 00시를 이 시간대로 해석한다(docs/adr/0010). 서버·JVM·DB 시간대는 UTC로 둔다.
   business-zone: Asia/Seoul
   schedule:
@@ -66,3 +70,7 @@ dozy:
   auth:
     # 운영은 기본값을 쓰지 않고 반드시 지정한다.
     issuer-base-uri: ${DOZY_AUTH_ISSUER_BASE_URI}
+catalog:
+  cors:
+    # 운영은 기본값을 쓰지 않고 반드시 지정한다.
+    allowed-origins: ${CATALOG_CORS_ALLOWED_ORIGINS}
