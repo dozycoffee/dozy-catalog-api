@@ -101,7 +101,7 @@ com.dozycoffee.catalog
 │   ├── exposed/                           # ExposedConfiguration, ExposedTransactionRunner, AuditColumns, JsonbColumnType,
 │   │                                      #   ListQueryExpressions(목록 조회의 검색어·이름 순 정렬)
 │   ├── paging/                            # PageRequest, Page (목록 조회의 페이징), requireIdsWithinLimit(ids 개수 상한)
-│   ├── security/                          # SecurityConfiguration(호출자별 경로 인가), CatalogRoles
+│   ├── security/                          # SecurityConfiguration(호출자별 경로 인가, 본사 API CORS), CatalogRoles, CatalogCorsProperties
 │   ├── time/                              # TimeConfiguration
 │   └── web/                               # GlobalExceptionHandler, ProblemResponses·TraceIds (RFC 9457 오류 응답),
 │                                          #   VersionHeaders(If-Match·ETag), ListParams·PageResponse(목록 파라미터·페이지 응답),
