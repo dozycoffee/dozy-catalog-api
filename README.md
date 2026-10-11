@@ -149,6 +149,7 @@ git push origin v0.1.0
 | `SPRING_PROFILES_ACTIVE` | `prod` |
 | `DB_HOST`, `DB_PORT`(기본 5432), `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` | PostgreSQL. 앱 요청은 R2DBC로, 시작 시 마이그레이션은 Flyway(JDBC)로 같은 DB에 붙습니다 |
 | `DOZY_AUTH_ISSUER_BASE_URI` | Auth 주소. 토큰 발급자 확인과 공개키(JWKS) 조회에 씁니다 |
+| `CATALOG_CORS_ALLOWED_ORIGINS` | 본사 API를 브라우저에서 부를 수 있는 출처(관리 콘솔 주소). 쉼표로 구분하고 와일드카드는 쓰지 않습니다. 예: `https://admin.dozycoffee.com` ([API 명세 CORS](docs/api/README.md#cors)) |
 
 - root가 아닌 UID·GID `10001`로 실행됩니다.
 - 힙은 컨테이너 메모리 한도의 75%입니다(`JAVA_TOOL_OPTIONS`). 바꾸려면 이 환경 변수를 다시 지정합니다.
