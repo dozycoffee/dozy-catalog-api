@@ -14,6 +14,10 @@ spring:
 
 management:
   metrics:
+    distribution:
+      # p95·p99를 Prometheus에서 계산하려면 요청 시간의 히스토그램 버킷이 필요하다(비기능 요구사항 4.4, 부하테스트 loadtest/).
+      percentiles-histogram:
+        http.server.requests: true
     tags:
       # 모든 지표에 붙는 서비스 이름. 한 Prometheus에서 여러 서비스를 모을 때 구분한다.
       # 버전·인스턴스처럼 값이 자주 바뀌는 것은 넣지 않는다(시계열이 새로 생기므로).
