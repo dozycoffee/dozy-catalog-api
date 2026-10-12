@@ -47,6 +47,16 @@ export const PROFILES = {
 
 const perMinute = (rps, scale) => Math.max(1, Math.round(rps * scale * 60));
 
+const UNIT_SECONDS = { s: 1, m: 60, h: 3600 };
+const seconds = (duration) => parseInt(duration) * UNIT_SECONDS[duration.slice(-1)];
+
+// 측정 구간에서 도착해야 하는 요청 수(단계마다 배율이 일정하다고 본 근사)
+const expectedIterations = (rps, phase) =>
+  phase.stages.reduce((sum, [duration, scale]) => sum + seconds(duration) * (perMinute(rps, scale) / 60), 0);
+
+// 시작하지 못한 요청이 의도한 요청의 0.1%를 넘으면 실패다(요구사항 4.3 오류율 기준과 같은 값).
+const DROPPED_TOLERANCE = 0.001;
+
 function arrivalScenario(name, rps, phase) {
   const peakScale = Math.max(...phase.stages.map(([, scale]) => scale));
   const peakRps = rps * peakScale;
@@ -57,7 +67,8 @@ function arrivalScenario(name, rps, phase) {
     startRate: perMinute(rps, phase.stages[0][1]),
     startTime: phase.startTime,
     // 응답이 느려져도 도착률을 지키도록 VU를 넉넉히 준다
-    preAllocatedVUs: Math.max(2, Math.ceil(peakRps * 0.3)),
+    // 응답이 0.6초까지 느려져도 새 VU를 만들지 않고 받도록 미리 할당한다(VU 지연 생성이 만드는 누락을 줄이려는 값)
+    preAllocatedVUs: Math.max(2, Math.ceil(peakRps * 0.6) + 2),
     maxVUs: Math.ceil(peakRps * 2.5) + 10,
     stages: phase.stages.map(([duration, scale]) => ({ target: perMinute(rps, scale), duration })),
   };
@@ -85,6 +96,10 @@ export function buildOptions(profileName) {
     }
     if (profile.thresholds === 'all' || profile.thresholds === 'errors') {
       thresholds[`http_req_failed${selector}`] = ['rate<0.001'];
+      // 서버가 못 따라가 k6가 시작하지 못한 요청도 실패로 본다. 오류율은 실제로 보낸 요청만 세므로
+      // 이게 없으면 부하의 대부분을 못 보내고도 오류율이 낮게 나온다(ramp에서 의도한 요청의 88%가 시작되지 못했다).
+      // dropped_iterations에는 name 태그가 없어서 시나리오만 고른다.
+      thresholds[`dropped_iterations{scenario:measure_${name}}`] = [`count<=${Math.floor(expectedIterations(rps, profile.measure) * DROPPED_TOLERANCE)}`];
     }
     if (profile.thresholds === 'none') {
       // 임계값이 없으면 k6가 서브 메트릭을 만들지 않아 결과 요약에 안 나오므로, 항상 통과하는 값을 건다
