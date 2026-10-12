@@ -42,4 +42,9 @@ EXPOSE 8080
 # 실행할 때 JAVA_TOOL_OPTIONS를 다시 주면 덮어쓴다
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75"
 
+# 실행 중인 서버의 커밋 SHA. CI가 빌드할 때 넘기고(--build-arg GIT_REVISION), 없으면 비워 둔다(앱이 unknown으로 본다).
+# 릴리스 버전은 이미지를 다시 빌드하지 않으므로 여기 두지 않고, 배포가 CATALOG_RELEASE_VERSION으로 준다.
+ARG GIT_REVISION=""
+ENV CATALOG_REVISION=${GIT_REVISION}
+
 ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]

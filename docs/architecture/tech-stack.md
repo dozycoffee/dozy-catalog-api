@@ -20,7 +20,7 @@
 | 웹 스택 | Spring WebFlux (리액티브, non-blocking) | Servlet/MVC 아님 |
 | 동시성 모델 | Kotlin Coroutines + Project Reactor | 컨트롤러·서비스는 `suspend` 함수로 작성 |
 | 보안 | `dozy-auth`의 `auth-spring-boot-starter` (Spring Security 리액티브 기반) | 토큰 검증·권한 변환·필터 체인·401·403 응답을 스타터가 제공한다. Catalog는 audience `catalog`, realm `internal`로 설정하고 역할 기반 인가만 작성한다. 라이브러리는 GitHub Packages(`maven.pkg.github.com/dozycoffee/dozy-auth`)에서 받으므로 빌드에 인증이 필요하다. 테스트는 `auth-test`의 `@WithDozyPrincipal`·`DozyTestTokens`를 쓴다. 다른 서비스를 서비스 자격으로 부를 때는 스타터의 system token 클라이언트(`@Qualifier("dozySystemWebClient") WebClient.Builder`, `dozy.auth.client.*`)를 쓴다. 토큰 발급·캐시·재발급은 스타터가 맡는다 |
-| 모니터링 | Spring Boot Actuator | `health`, `info`만 웹에 노출. 스타터가 모든 요청에 인증을 요구하므로 `/actuator/health`는 `dozy.auth.public-paths`에 넣어 허용한다(k8s·로드밸런서 프로브용) |
+| 모니터링 | Spring Boot Actuator, Micrometer(`micrometer-registry-prometheus`) | `health`, `info`, `prometheus`만 웹에 노출. 스타터가 모든 요청에 인증을 요구하므로 `/actuator/health`(k8s·로드밸런서 프로브용)와 `/actuator/prometheus`(수집용)는 `dozy.auth.public-paths`에 넣어 허용한다. 수집기가 짧은 수명의 토큰을 갱신하기 어렵고 지표에 비밀값·개인정보가 없기 때문이다. 외부에서 닿지 않게 하는 것은 배포 환경이 맡는다. `/actuator/info`는 토큰이 필요하다. JVM·HTTP 서버·R2DBC 풀 지표는 Boot가 자동으로 만들고, 모든 지표에 `application`(서비스 이름) 태그가 붙는다. 실행 중인 서버의 버전은 `dozy.catalog.build.info` 지표(`version`, `revision` 태그)로 보고, HTTP로는 열지 않는다. `revision`은 CI가 이미지에 넣고 릴리스 버전은 배포가 알려 준다([ADR-0019](../adr/0019-container-image-with-dockerfile-and-tag-release.md)). Prometheus 서버와 대시보드는 이 저장소 범위 밖이다 |
 
 ## 영속성
 

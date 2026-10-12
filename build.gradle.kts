@@ -56,6 +56,7 @@ dependencies {
     implementation(libs.spring.boot.starter.webflux)
     implementation(libs.dozy.auth.starter)
     implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.micrometer.registry.prometheus)
     implementation(libs.reactor.kotlin.extensions)
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines.reactor)
