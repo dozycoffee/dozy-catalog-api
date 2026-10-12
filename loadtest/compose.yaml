@@ -1,9 +1,35 @@
-# 부하테스트용 인프라: PostgreSQL(+pg_stat_statements, 지표 수출), Prometheus, Grafana.
-# Catalog 서버는 컨테이너가 아니라 jar로 직접 띄운다(scripts/app.sh). 로컬 dozy-auth의 issuer가 localhost 주소라
-# 컨테이너 안에서는 토큰의 iss를 검증할 수 없기 때문이다. 자세한 설명은 README.
+# 부하테스트용 인프라: PostgreSQL(+pg_stat_statements, 지표 수출), Prometheus, Grafana, Catalog 서버(컨테이너).
+# Catalog 서버는 DB와 같은 compose 네트워크에서 CPU·메모리 제한을 건 컨테이너로 돈다(profile app, scripts/app.sh).
+# 호스트 프로세스로 돌릴 때 생기던 문제(제한이 강제되지 않음, Docker Desktop 포트 포워딩을 거치는 DB 접속)를 없앤다.
 #
-# 자원 제한은 docs/requirements.md 4.4의 초기 사양(DB 2 vCPU, 8GiB)이 기본값이다.
+# 토큰 검증: Catalog 컨테이너는 issuer 주소로 검증 키를 받으므로 dozy-auth가 컨테이너에서 닿는 주소를 issuer로 써야 한다.
+# dozy-auth를 DOZY_AUTH_ISSUER_BASE_URI=http://host.docker.internal:8080 으로 띄운다(README).
+#
+# 자원 제한은 docs/requirements.md 4.4의 초기 사양이 기본값이다(Catalog 2 vCPU·2GiB, DB 2 vCPU·8GiB).
 # Docker Desktop 메모리가 모자라면 .env의 LOADTEST_DB_MEMORY를 줄인다(개발·스모크용).
+x-catalog: &catalog
+  image: dozy-catalog-api:loadtest
+  profiles: ["app"]
+  environment:
+    SPRING_PROFILES_ACTIVE: prod
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    DB_NAME: catalog
+    DB_USERNAME: catalog
+    DB_PASSWORD: catalog
+    DOZY_AUTH_ISSUER_BASE_URI: ${LOADTEST_AUTH_ISSUER:-http://host.docker.internal:8080}
+    CATALOG_CORS_ALLOWED_ORIGINS: http://localhost:3000
+    SPRING_R2DBC_POOL_MAX_SIZE: ${LOADTEST_POOL_SIZE:-10}
+    SPRING_R2DBC_POOL_INITIAL_SIZE: ${LOADTEST_POOL_SIZE:-10}
+    CATALOG_RELEASE_VERSION: loadtest
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  cpus: ${LOADTEST_APP_CPUS:-2}
+  mem_limit: ${LOADTEST_APP_MEMORY:-2g}
+  depends_on:
+    postgres:
+      condition: service_healthy
+
 services:
   postgres:
     image: postgres:18
@@ -31,6 +57,16 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
+
+  catalog-1:
+    <<: *catalog
+    ports:
+      - "8081:8080"
+
+  catalog-2:
+    <<: *catalog
+    ports:
+      - "8082:8080"
 
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:latest
