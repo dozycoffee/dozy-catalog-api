@@ -1,0 +1,13 @@
+# Catalog 서버는 호스트에서 jar로 뜨므로 host.docker.internal로 수집한다. 인스턴스를 늘리면 targets를 추가한다.
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: dozy-catalog-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8081", "host.docker.internal:8082"]
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
