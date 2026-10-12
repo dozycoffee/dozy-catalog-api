@@ -8,7 +8,7 @@
 - **프레임워크**: Spring Boot 4.1.0, Spring WebFlux(리액티브), Kotlin Coroutines + Project Reactor
 - **영속성**: PostgreSQL 18, R2DBC + [Exposed](https://github.com/JetBrains/Exposed)(DSL 기반, Spring Data R2DBC 리포지토리는 사용하지 않음)
 - **보안**: [dozy-auth](https://github.com/dozycoffee/dozy-auth)의 `auth-spring-boot-starter`(Spring Security 기반 토큰 검증·인가)
-- **모니터링**: Spring Boot Actuator (`/actuator/health`, `/actuator/info`만 노출)
+- **모니터링**: Spring Boot Actuator + Micrometer (`/actuator/health`, `/actuator/info`, `/actuator/prometheus`만 노출)
 - **직렬화**: Jackson (Jackson 3.x, `tools.jackson` groupId)
 - **테스트**: JUnit 5, Testcontainers(`@ServiceConnection`로 R2DBC 연결 자동 구성)
 - **코드 스타일**: ktlint (`org.jlleitschuh.gradle.ktlint`)
@@ -44,7 +44,7 @@ cp .env.example .env
 
 프로파일을 지정하지 않으면(local/default) `spring-boot-docker-compose`가 `compose.yaml`의 PostgreSQL 컨테이너를 자동으로 기동하고 연결까지 구성하므로, 별도로 DB 접속 정보를 설정할 필요가 없습니다.
 
-`/actuator/health`를 뺀 모든 API는 dozy-auth가 발급한 토큰이 필요합니다. 기본 Auth 주소는 `http://localhost:8080`(dozy-auth 로컬 실행 주소)이고, 바꾸려면 `DOZY_AUTH_ISSUER_BASE_URI`를 지정합니다. Auth의 JWKS는 첫 요청 때 받으므로 Auth를 띄우지 않아도 앱은 기동합니다. 운영(`prod`)은 이 값을 반드시 지정해야 합니다.
+`/actuator/health`와 `/actuator/prometheus`를 뺀 모든 API는 dozy-auth가 발급한 토큰이 필요합니다. 기본 Auth 주소는 `http://localhost:8080`(dozy-auth 로컬 실행 주소)이고, 바꾸려면 `DOZY_AUTH_ISSUER_BASE_URI`를 지정합니다. Auth의 JWKS는 첫 요청 때 받으므로 Auth를 띄우지 않아도 앱은 기동합니다. 운영(`prod`)은 이 값을 반드시 지정해야 합니다.
 
 ## 테스트
 
@@ -149,11 +149,14 @@ git push origin v0.1.0
 | `SPRING_PROFILES_ACTIVE` | `prod` |
 | `DB_HOST`, `DB_PORT`(기본 5432), `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` | PostgreSQL. 앱 요청은 R2DBC로, 시작 시 마이그레이션은 Flyway(JDBC)로 같은 DB에 붙습니다 |
 | `DOZY_AUTH_ISSUER_BASE_URI` | Auth 주소. 토큰 발급자 확인과 공개키(JWKS) 조회에 씁니다 |
+| `CATALOG_RELEASE_VERSION` | (선택) 배포하는 이미지 태그의 버전 `X.Y.Z`. 릴리스는 이미지를 다시 빌드하지 않으므로 배포가 알려 줍니다. 없으면 `sha-{커밋 7자리}`입니다. 기동 로그와 `dozy_catalog_build_info`의 `version`에 쓰입니다 |
 | `CATALOG_CORS_ALLOWED_ORIGINS` | 본사 API를 브라우저에서 부를 수 있는 출처(관리 콘솔 주소). 쉼표로 구분하고 와일드카드는 쓰지 않습니다. 예: `https://admin.dozycoffee.com` ([API 명세 CORS](docs/api/README.md#cors)) |
 
 - root가 아닌 UID·GID `10001`로 실행됩니다.
 - 힙은 컨테이너 메모리 한도의 75%입니다(`JAVA_TOOL_OPTIONS`). 바꾸려면 이 환경 변수를 다시 지정합니다.
 - 프로브는 `/actuator/health`(토큰 불필요)를 씁니다. `liveness`·`readiness` 그룹도 있습니다.
+- Prometheus는 `/actuator/prometheus`(토큰 불필요)를 수집합니다. 지표에는 비밀값·개인정보가 없어 앱에서는 토큰 없이 열어 두므로, 이 경로가 외부(인터넷)에서 닿지 않게 하는 것은 배포 환경(게이트웨이·네트워크)이 맡습니다. `/actuator/info`는 토큰이 필요합니다.
+- 실행 중인 서버의 버전은 `dozy_catalog_build_info`(값 1, `version`·`revision` 태그)로 인스턴스마다 확인합니다. `revision`은 CI가 이미지를 만들 때 넣은 커밋 SHA(`CATALOG_REVISION`)이고, 로컬 빌드는 `unknown`·`local`입니다. 버전은 HTTP 엔드포인트로 열지 않습니다.
 
 로컬에서 이미지를 확인하려면 jar를 먼저 빌드합니다. 이미지 빌드 안에서는 Gradle을 돌리지 않습니다.
 

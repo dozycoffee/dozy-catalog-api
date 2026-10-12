@@ -16,6 +16,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
 import java.time.Duration
 import java.time.Instant
+import kotlin.test.assertTrue
 
 // 호출자별 경로 인가와 토큰 검증(docs/api/README.md 경로와 인가, docs/adr/0018).
 // 토큰 검증은 dozy-auth 스타터가 하므로, 여기서는 Catalog 설정(audience·realm·경로 규칙)이 의도대로 걸렸는지만 확인한다.
@@ -74,6 +75,27 @@ class AuthorizationTest : IntegrationTest() {
         @Test
         fun `헬스 체크는 토큰 없이 부를 수 있다`() {
             get("/actuator/health").expectStatus().isOk
+        }
+
+        @Test
+        fun `Prometheus 지표는 토큰 없이 부를 수 있다`() {
+            get("/actuator/prometheus")
+                .expectStatus()
+                .isOk
+                .expectBody(String::class.java)
+                .value { body ->
+                    val text = body.orEmpty()
+                    assertTrue(text.contains("jvm_memory_used_bytes"))
+                    // 부하 테스트에서 풀 포화를 보려면 필요한 지표라, 사라지면 알아챌 수 있게 확인한다.
+                    assertTrue(text.contains("r2dbc_pool_pending_connections"))
+                    assertTrue(text.contains("""application="dozy-catalog-api""""))
+                    assertTrue(text.contains("dozy_catalog_build_info"))
+                }
+        }
+
+        @Test
+        fun `info는 토큰이 필요하다`() {
+            get("/actuator/info").expectStatus().isUnauthorized
         }
 
         @Test

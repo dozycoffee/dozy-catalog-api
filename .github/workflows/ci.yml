@@ -62,6 +62,8 @@ jobs:
           push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.image-meta.outputs.tags }}
           labels: ${{ steps.image-meta.outputs.labels }}
+          build-args: |
+            GIT_REVISION=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
