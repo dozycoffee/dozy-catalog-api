@@ -44,6 +44,10 @@
 - 웹 공통 규약(오류 응답, 버전 헤더, 목록 파라미터)을 확인하는 테스트 전용 컨트롤러 `WebProbeController`는 앱의 컴포넌트 스캔 범위 밖(`com.dozycoffee.webprobe`)에 두고, 필요한 테스트만 `@Import`한다.
 - JSON의 `null` 필드는 `jsonPath`가 없는 필드와 구분하지 못한다. `null`로 나가는지 확인할 때는 응답 본문 문자열을 본다.
 
+## 부하테스트
+
+비기능 요구사항([요구사항 4장](../requirements.md#4-비기능-요구사항))의 목표를 검증하는 부하테스트는 저장소 최상위 `loadtest/`에 둔다. k6 시나리오, 시드 데이터, Prometheus·Grafana, 실행 스크립트가 있고 방법과 한계는 [loadtest/README](../../loadtest/README.md)에 있다. 단위·통합 테스트와 달리 `./gradlew test`에 들어가지 않고 직접 실행한다.
+
 ## 작성 관례
 
 - **이름**: 테스트 메서드 이름은 한국어 백틱 문장으로 쓴다. 규칙별로 `@Nested` 내부 클래스로 묶고 `@DisplayName`을 붙인다.
