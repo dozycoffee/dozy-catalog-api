@@ -40,6 +40,7 @@
 | [0018](0018-partner-requests-through-store-service.md) | 가맹점주의 요청은 Store 서비스가 받고, Catalog는 내부 API로 제공한다 | 일부 대체됨 (매장 대상 API → 0020) | 2026-10-01 |
 | [0019](0019-container-image-with-dockerfile-and-tag-release.md) | 서버 이미지는 Dockerfile로 만들어 main 병합마다 올리고, 버전 태그는 그 이미지에 덧붙인다 | 채택 | 2026-10-06 |
 | [0020](0020-store-owns-store-product-state.md) | 매장 단위의 상품 상태는 Store 서비스가 소유하고, Catalog는 상품 이벤트와 조회 API로 연동한다 | 채택 | 2026-10-14 |
+| [0021](0021-kafka-outbox-for-product-events.md) | 서비스 간 이벤트는 Kafka로 발행하고, 아웃박스와 폴링 릴레이로 보낸다 | 채택 | 2026-10-14 |
 
 ### 영속성
 | ADR | 제목 | 상태 | 날짜 |
