@@ -67,10 +67,28 @@ loadtest/scripts/run.sh target      # 목표 처리량 10분 유지(판정)
 | `n1` | 한 대를 내린 상태에서 정상 피크(목표의 0.5배)를 10분. `BASE_URLS`를 남은 한 대로 준다 | 지연·오류율 임계값 |
 | `soak` | 워밍업 3분 + 목표 처리량 30분 | 지연·오류율 임계값 |
 | `contention` | 매장 1, 2에 진열 순서 변경을 20 VU로 2분 | 없음(지연 확인) |
+| `probe` | 요청 **하나**를 낮은 고정 부하로 약 2분. 서버 지연과 **요청당 CPU**를 출력한다. `scripts/probe.sh`로 실행 | 없음(요청별 비용 측정) |
 
 - 요청별 목표 처리량과 지연 임계값은 `k6/lib/profiles.js`의 `TARGET_RPS`, `LATENCY_MS`이고 [요구사항 4.3](../docs/requirements.md#43-목표)과 같은 값이다. 거기가 바뀌면 여기도 바꾼다.
 - 임계값에는 지연과 오류율 외에 **시작하지 못한 요청(`dropped_iterations`)이 의도한 요청의 0.1% 이하**여야 한다는 조건도 있다(`baseline`, `target`, `n1`, `soak`, `spike`). 서버가 못 따라가서 k6가 시작하지 못한 요청은 오류율에 잡히지 않으므로, 이 조건이 없으면 부하의 대부분을 못 보내고도 통과할 수 있다.
 - 워밍업 구간(`warm_*` 시나리오)은 임계값에 넣지 않는다. 임계값은 `measure_*` 시나리오와 요청 이름으로만 건다. 같은 VU가 부르는 토큰 발급이 지연에 섞이지 않게 하기 위해서다.
+
+### 요청 하나씩 재기 (`probe`)
+
+혼합 부하를 포화시키는 프로필(`ramp`, `spike`)은 9~15분이 걸리고, 어느 요청이 비용을 내는지 섞여서 보인다. **요청별 비용을 알아보거나 수정 전후를 비교할 때는 `probe`가 빠르다**(약 2분).
+
+```bash
+loadtest/scripts/probe.sh store_list              # 기본 부하(초당 20건)로 60초
+loadtest/scripts/probe.sh store_list 50           # 초당 50건
+loadtest/scripts/probe.sh store_display_order 2 120   # 초당 2건으로 120초
+```
+
+요청 이름은 `store_list`, `store_options`, `store_setting`, `store_display_order`, `admin_search`다. 출력은 처리량, 서버가 잰 지연(평균, p95, p99), 유휴 CPU를 뺀 **요청당 CPU(ms)**, 이번 실행의 상위 쿼리다.
+
+- 포화시키지 않는 낮은 부하라 줄(큐)이 생기지 않고, 요청당 CPU는 부하 수준과 거의 무관하다. 그래서 장비가 시끄러운 로컬에서도 혼합 부하보다 값이 안정적이다.
+- 수정 전후 비교: 같은 요청을 같은 시드에서 `probe`로 재서 요청당 CPU와 p95를 비교한다.
+- 요청당 CPU는 앱 CPU 코어(컨테이너 한도로 정규화한 `process_cpu_usage` × 한도) 중 유휴 상태를 뺀 값을 처리량으로 나눈 것이다. JIT, GC, 지표 수집이 섞여 있어 ±수 ms의 오차는 있다.
+- 긴 프로필(`ramp`, `target`, `spike`, `soak`)은 최종 검증에 쓴다.
 
 ### 합격 판정은 서버가 잰 값으로
 

@@ -1,11 +1,11 @@
 // 부하테스트 진입점. 실행은 scripts/run.sh <프로필>.
-//   프로필: smoke, baseline, target, ramp, spike, n1, soak, contention
-import { buildOptions, contentionOptions } from './lib/profiles.js';
+//   프로필: smoke, baseline, target, ramp, spike, n1, soak, contention, probe(scripts/probe.sh)
+import { buildOptions, contentionOptions, probeOptions } from './lib/profiles.js';
 import { adminSearch, effectiveOptions, listStoreProducts, setDisplayOrder, setStockStatus, setVisibility } from './lib/requests.js';
 import { ACTIVE, ALL_SCOPE_IDS, OPTION_IDS, UNTRACKED_IDS, pick, randomStore } from './lib/config.js';
 
 const profile = __ENV.PROFILE || 'smoke';
-export const options = profile === 'contention' ? contentionOptions() : buildOptions(profile);
+export const options = profile === 'contention' ? contentionOptions() : profile === 'probe' ? probeOptions() : buildOptions(profile);
 
 function shuffled(ids) {
   const copy = ids.slice();

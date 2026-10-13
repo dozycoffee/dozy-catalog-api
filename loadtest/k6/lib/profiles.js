@@ -124,3 +124,44 @@ export function contentionOptions() {
     },
   };
 }
+
+// probe: 요청 하나를 낮은 고정 도착률로 짧게 재서 요청별 비용(지연, 요청당 CPU)을 본다. 포화시키지 않으므로 줄(큐)이 생기지 않고,
+// 요청당 CPU처럼 부하 수준과 거의 무관한 값을 2분 안에 얻는다. 수정 전후 비교에 쓴다. 실행은 scripts/probe.sh.
+//   환경 변수: PROBE(요청 이름), PROBE_RATE(초당, 기본은 아래), PROBE_WARMUP(기본 30s), PROBE_DURATION(기본 60s)
+export const PROBE_DEFAULT_RPS = {
+  store_list: 20,
+  store_options: 20,
+  store_setting: 10,
+  store_display_order: 2,
+  admin_search: 5,
+};
+
+export function probeOptions() {
+  const name = __ENV.PROBE;
+  if (!TARGET_RPS[name]) throw new Error(`PROBE는 ${Object.keys(TARGET_RPS).join(', ')} 중 하나여야 한다 (받은 값: ${name})`);
+  const rps = parseFloat(__ENV.PROBE_RATE || PROBE_DEFAULT_RPS[name]);
+  const warmup = __ENV.PROBE_WARMUP || '30s';
+  const duration = __ENV.PROBE_DURATION || '60s';
+
+  const scenario = (startTime, scenarioDuration) => ({
+    executor: 'constant-arrival-rate',
+    exec: name,
+    timeUnit: '1m',
+    rate: perMinute(rps, 1),
+    duration: scenarioDuration,
+    startTime,
+    preAllocatedVUs: Math.max(2, Math.ceil(rps * 0.6) + 2),
+    maxVUs: Math.ceil(rps * 5) + 10,
+  });
+
+  const selector = `{scenario:measure_${name},name:${name}}`;
+  return {
+    scenarios: { [`warm_${name}`]: scenario('0s', warmup), [`measure_${name}`]: scenario(warmup, duration) },
+    // 판정이 아니라 측정이다. 임계값이 없으면 k6가 서브 메트릭을 만들지 않아 요약에 안 나오므로, 항상 통과하는 값을 건다
+    thresholds: {
+      [`http_req_duration${selector}`]: ['p(95)<1e9', 'p(99)<1e9'],
+      [`http_req_failed${selector}`]: ['rate<1.01'],
+      [`dropped_iterations{scenario:measure_${name}}`]: ['count<1e9'],
+    },
+  };
+}
