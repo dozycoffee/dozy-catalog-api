@@ -35,10 +35,11 @@
 | [0008](0008-judgment-in-domain-service-orchestration-in-application.md) | 판단은 도메인 서비스, 오케스트레이션과 트랜잭션 경계는 application | 대체됨 (→ 0012) | 2026-09-19 |
 | [0011](0011-transaction-boundary-with-transaction-runner.md) | 트랜잭션 경계는 application의 `TransactionRunner`로 연다 | 채택 | 2026-09-19 |
 | [0012](0012-cross-aggregate-judgment-in-application-policy.md) | 여러 애그리거트를 보는 판단은 application 정책에 두고, domain은 다른 애그리거트를 ID로만 참조한다 | 채택 | 2026-09-19 |
-| [0015](0015-domain-modules-as-top-level-packages.md) | 최상위 패키지를 도메인 모듈로 두고, 그 안에서 레이어를 나눈다 | 채택 | 2026-09-20 |
+| [0015](0015-domain-modules-as-top-level-packages.md) | 최상위 패키지를 도메인 모듈로 두고, 그 안에서 레이어를 나눈다 | 일부 대체됨 (store·exposure 모듈 → 0020) | 2026-09-20 |
 | [0017](0017-resource-oriented-api-split-by-caller.md) | API는 리소스 단위로 설계하고, 호출자별로 경로를 나눈다 | 일부 대체됨 (호출자 구분과 경로 → 0018) | 2026-09-21 |
-| [0018](0018-partner-requests-through-store-service.md) | 가맹점주의 요청은 Store 서비스가 받고, Catalog는 내부 API로 제공한다 | 채택 | 2026-10-01 |
+| [0018](0018-partner-requests-through-store-service.md) | 가맹점주의 요청은 Store 서비스가 받고, Catalog는 내부 API로 제공한다 | 일부 대체됨 (매장 대상 API → 0020) | 2026-10-01 |
 | [0019](0019-container-image-with-dockerfile-and-tag-release.md) | 서버 이미지는 Dockerfile로 만들어 main 병합마다 올리고, 버전 태그는 그 이미지에 덧붙인다 | 채택 | 2026-10-06 |
+| [0020](0020-store-owns-store-product-state.md) | 매장 단위의 상품 상태는 Store 서비스가 소유하고, Catalog는 상품 이벤트와 조회 API로 연동한다 | 채택 | 2026-10-14 |
 
 ### 영속성
 | ADR | 제목 | 상태 | 날짜 |
@@ -50,8 +51,8 @@
 ### 도메인 모델
 | ADR | 제목 | 상태 | 날짜 |
 |---|---|---|---|
-| [0003](0003-keep-store-settings-on-discontinue.md) | 단종·재활성화 때 매장 설정을 바꾸지 않는다 | 채택 | 2026-09-18 |
-| [0005](0005-split-display-setting-and-availability.md) | 진열 설정과 판매 가능 여부를 분리하고, 재고는 이벤트 투영으로 둔다 | 채택 | 2026-09-18 |
+| [0003](0003-keep-store-settings-on-discontinue.md) | 단종·재활성화 때 매장 설정을 바꾸지 않는다 | 일부 대체됨 (매장 설정의 소유 → 0020) | 2026-09-18 |
+| [0005](0005-split-display-setting-and-availability.md) | 진열 설정과 판매 가능 여부를 분리하고, 재고는 이벤트 투영으로 둔다 | 일부 대체됨 (매장 상태의 소유 → 0020) | 2026-09-18 |
 | [0006](0006-catalog-pricing-boundary.md) | Catalog는 가격 데이터·유효 옵션 구성·표시용 시작가까지만 제공한다 | 채택 | 2026-09-19 |
 | [0016](0016-system-generated-sku.md) | SKU는 시스템이 전용 시퀀스로 발급하고 의미를 담지 않는다 | 채택 | 2026-09-20 |
 | [0014](0014-scheduled-change-target-and-typed-values.md) | 예약 대상은 상품·옵션 그룹뿐이고, 예약 값은 필드별 타입으로 표현하며, 활성화와 단종은 별도 필드로 예약한다 | 채택 | 2026-09-19 |
