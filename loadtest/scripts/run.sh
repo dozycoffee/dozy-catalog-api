@@ -9,6 +9,17 @@ shift
 
 command -v k6 > /dev/null || { echo "k6가 필요합니다 (brew install k6)" >&2; exit 1; }
 
+# 측정 전 장비 상태. 다른 프로세스가 CPU를 쓰고 있으면 같은 부하에서도 결과가 크게 흔들린다(로컬 측정에서 270ms~4초까지 관찰).
+if cores="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null)"; then
+  load1="$(uptime | sed -E 's/.*load averages?: *([0-9.]+).*/\1/')"
+  echo "장비: ${cores}코어, 로드 평균(1분) ${load1}"
+  if awk "BEGIN { exit !($load1 > $cores * 0.4) }"; then
+    echo "경고: 로드 평균이 코어의 40%를 넘습니다. 브라우저·IDE 등 CPU를 쓰는 프로세스를 닫고(그라파나 탭 포함) 잠시 쉰 뒤 실행하면 결과가 덜 흔들립니다." >&2
+    # head가 파이프를 먼저 닫아도(SIGPIPE) 스크립트가 멈추지 않게 한다
+    { ps -Ao pcpu,comm -r | head -4 | awk '{printf "  %s%%  %s\n", $1, $2}' >&2; } || true
+  fi
+fi
+
 first_url="$(echo "${BASE_URLS:-http://localhost:8081}" | cut -d, -f1)"
 revision="$(curl -s "$first_url/actuator/prometheus" | grep '^dozy_catalog_build_info' | sed -E 's/.*revision="([^"]*)".*/\1/' || true)"
 echo "측정 대상 revision: ${revision:-알 수 없음}"
