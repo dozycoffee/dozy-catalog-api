@@ -121,7 +121,8 @@ com.dozycoffee.catalog
 │   │   ├── product/                       # ProductApplicationService, ProductOptionApplicationService,
 │   │   │   │                              #   ProductFieldApplicationService(예약 적용용 필드 단위) + command/ (+ SkuGenerator),
 │   │   │   │                              #   ProductReferenceValidator·ProductTagResolver(즉시 변경·예약 등록·적용이 함께 쓰는 참조 확인·태그 이름 해석)
-│   │   │   └── query/                     # 상품 목록 검색: ProductQueryService(본사), SellableProductQueryService(점주) + 검색 조건
+│   │   │   └── query/                     # 상품 목록 검색: ProductQueryService(본사), SellableProductQueryService(점주) + 검색 조건,
+│   │   │                                  #   InternalProductQueryService(Store 서비스용: 기준 정보·유효 옵션·상태 목록)
 │   │   ├── optiongroup/ category/ tag/ productgroup/  # 애그리거트별 유스케이스 서비스 + command/
 │   │   └── port/                          # ProductEventPublisherPort, ValidateStoreExistsPort, ProductSearchQueryPort(조회)
 │   ├── infrastructure/                    # 애그리거트별 Exposed Table + Repository 구현
@@ -130,7 +131,8 @@ com.dozycoffee.catalog
 │   │   ├── eventing/                      # 상품 이벤트의 아웃박스 기록, JSON 직렬화(ProductEventJson)
 │   │   └── acl/                           # AlwaysExistingStoreAdapter (StoreBcAdapter + StoreBcClient는 Store BC 연동 때)
 │   └── presentation/                      # 본사 API(/api/v1/admin/**). 애그리거트별 컨트롤러 + dto/
-│       └── product/ optiongroup/ category/ tag/ productgroup/
+│       ├── product/ optiongroup/ category/ tag/ productgroup/
+│       └── internal/                      # Store 서비스용 상품 조회(/api/v1/internal/products·categories·product-states, docs/api/store-service.md)
 │
 ├── store/                                 # 가맹점 진열·판매 가능 여부 (요구사항 2·3장)
 │   ├── domain/
