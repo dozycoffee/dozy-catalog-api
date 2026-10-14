@@ -1,7 +1,7 @@
 package com.dozycoffee.catalog.schedule.presentation
 
 import com.dozycoffee.catalog.support.ApiTest
-import com.dozycoffee.catalog.support.FakeStoreExistenceValidator
+import com.dozycoffee.catalog.support.FakeStoreAssignabilityChecker
 import com.dozycoffee.catalog.support.MutableClock
 import com.dozycoffee.catalog.support.MutableClockConfiguration
 import com.dozycoffee.catalog.support.expectProblem
@@ -32,7 +32,7 @@ class ScheduledChangeApiTest : ApiTest() {
     private lateinit var clock: MutableClock
 
     @Autowired
-    private lateinit var storeValidator: FakeStoreExistenceValidator
+    private lateinit var storeValidator: FakeStoreAssignabilityChecker
 
     private var beverage = 0L
     private var coffee = 0L

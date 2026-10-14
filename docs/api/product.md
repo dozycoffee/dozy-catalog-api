@@ -201,7 +201,7 @@
 `kind`가 `ALL`이면 `targetStoreIds`는 비워야 한다. `LIMITED`에 빈 목록도 허용한다(어떤 매장에도 노출되지 않음). 대상에서 빠진 매장의 개별 설정과 수동 품절은 같은 요청 안에서 삭제된다.
 
 - 응답: `Product`
-- 오류: `PRODUCT_NOT_FOUND`(404), `TARGET_STORE_NOT_FOUND`(404, 존재하지 않는 매장), `VERSION_CONFLICT`(409)
+- 오류: `PRODUCT_NOT_FOUND`(404), `TARGET_STORE_NOT_FOUND`(404, 존재하지 않는 매장), `TARGET_STORE_CLOSED`(422, 폐점한 매장), `STORE_SERVICE_UNAVAILABLE`(503, Store 서비스에 확인하지 못함), `VERSION_CONFLICT`(409)
 
 ### 옵션 그룹 연결 (요구사항 1.9)
 

@@ -19,6 +19,7 @@ import com.dozycoffee.catalog.schedule.domain.ScheduleStatus
 import com.dozycoffee.catalog.schedule.domain.ScheduledChange
 import com.dozycoffee.catalog.schedule.domain.ScheduledChangeRepository
 import com.dozycoffee.catalog.support.ApplicationTest
+import com.dozycoffee.catalog.support.FakeStoreAssignabilityChecker
 import com.dozycoffee.catalog.support.MutableClock
 import com.dozycoffee.catalog.support.MutableClockConfiguration
 import kotlinx.coroutines.async
@@ -42,6 +43,9 @@ import kotlin.test.assertNull
 class ScheduledChangeApplicationBatchTest : ApplicationTest() {
     @Autowired
     private lateinit var batch: ScheduledChangeApplicationBatch
+
+    @Autowired
+    private lateinit var storeChecker: FakeStoreAssignabilityChecker
 
     @Autowired
     private lateinit var scheduledChangeService: ScheduledChangeApplicationService
@@ -206,6 +210,21 @@ class ScheduledChangeApplicationBatchTest : ApplicationTest() {
                 val found = assertNotNull(tx { productRepository.findById(product) })
                 assertEquals(StoreScope.Limited(setOf(StoreId(1))), found.storeScope)
                 assertEquals(0, count("SELECT count(*) FROM store_display_settings"))
+            }
+
+        @Test
+        fun `판매 범위를 적용할 때는 Store 서비스를 부르지 않는다 - 서비스가 멈춰 있어도 적용된다`() =
+            runTest {
+                val product = insertProduct(status = "ACTIVE")
+                register(product, ProductFieldValue.Scope(StoreScope.Limited(setOf(StoreId(1)))), OCTOBER_1)
+                storeChecker.reset()
+                storeChecker.markUnavailable()
+
+                val result = runBatchAt(OCTOBER_1_MIDNIGHT)
+
+                assertEquals(ScheduledChangeBatchResult(applied = 1, failed = 0, skipped = 0), result)
+                assertEquals(emptyList(), storeChecker.checked)
+                assertEquals(StoreScope.Limited(setOf(StoreId(1))), tx { productRepository.findById(product) }?.storeScope)
             }
 
         @Test

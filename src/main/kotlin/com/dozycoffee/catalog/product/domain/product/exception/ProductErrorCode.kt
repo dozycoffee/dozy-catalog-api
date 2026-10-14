@@ -15,6 +15,8 @@ enum class ProductErrorCode(
     INVALID_OPTION_GROUP_ORDER(ErrorType.INVALID_INPUT),
     OPTION_KEY_NOT_FOUND(ErrorType.NOT_FOUND),
     TARGET_STORE_NOT_FOUND(ErrorType.NOT_FOUND),
+    TARGET_STORE_CLOSED(ErrorType.BUSINESS_RULE_VIOLATION),
+    STORE_SERVICE_UNAVAILABLE(ErrorType.UNAVAILABLE),
     ;
 
     override val code: String get() = name

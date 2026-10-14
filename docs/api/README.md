@@ -165,6 +165,7 @@ Dozy 서비스 공통 형식인 RFC 9457 Problem Details를 쓴다. `Content-Typ
 | `NOT_FOUND` | 404 |
 | `CONFLICT` | 409 |
 | `BUSINESS_RULE_VIOLATION` | 422 |
+| `UNAVAILABLE` | 503 |
 
 도메인 예외가 아닌 오류는 다음 코드로 응답한다. 401·403은 스타터가 돌려준다.
 

@@ -24,6 +24,9 @@ x-catalog: &catalog
     CATALOG_RELEASE_VERSION: loadtest
     # 부하테스트는 Kafka를 띄우지 않는다. 릴레이를 꺼서 보낼 곳 없는 재시도가 측정에 끼지 않게 하고, 이벤트는 아웃박스에만 쌓는다.
     KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+    # 부하테스트는 판매 범위를 바꾸지 않아 Store 서비스를 부르지 않는다. prod 프로필이 요구하는 값만 채운다.
+    STORE_BASE_URL: http://localhost:1
+    DOZY_AUTH_CLIENT_SECRET: loadtest
     CATALOG_OUTBOX_RELAY_ENABLED: "false"
   extra_hosts:
     - "host.docker.internal:host-gateway"

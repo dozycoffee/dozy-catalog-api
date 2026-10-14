@@ -67,22 +67,24 @@ class ProductApplicationService(
             productRepository.save(product)
         }
 
-    // 판매 범위 변경(요구사항 1.5, 시나리오 S4). Limited면 대상 매장이 모두 존재하는지 Store BC에 확인하고,
-    // 하나라도 없으면 아무것도 바꾸지 않고 거부한다. 대상에서 빠진 매장의 설정 정리는 store 모듈이
+    // 판매 범위 변경(요구사항 1.5, 시나리오 S4). Limited면 대상 매장을 모두 지정할 수 있는지 Store 서비스에 확인하고,
+    // 없거나 폐점한 매장이 하나라도 있으면 아무것도 바꾸지 않고 거부한다. 대상에서 빠진 매장의 설정 정리는 store 모듈이
     // ProductStoreScopeChanged를 구독해 같은 트랜잭션에서 처리한다 — product은 store를 부르지 않는다(ADR-0015).
-    suspend fun changeStoreScope(command: ChangeStoreScopeCommand): Product =
-        transactionRunner.inTransaction {
+    suspend fun changeStoreScope(command: ChangeStoreScopeCommand): Product {
+        // Store 서비스 호출은 상품 행을 잠그기 전에 끝낸다(ProductReferenceValidator.requireTargetStoresAssignable).
+        referenceValidator.requireTargetStoresAssignable(command.scope)
+        return transactionRunner.inTransaction {
             val product =
                 productRepository.findByIdForUpdate(command.productId)
                     ?: throw ProductNotFoundException(command.productId)
             product.checkVersion(command.version)
-            referenceValidator.requireTargetStoresExist(command.scope)
 
             product.changeStoreScope(command.scope)
             val saved = productRepository.save(product)
             afterSave(saved)
             saved
         }
+    }
 
     // 상태 전이는 행을 잠근 채 확인하고 바꾼다. 동시에 두 요청이 들어와도 한 번만 전이된다.
     suspend fun activate(productId: ProductId): Product = changeStatus(productId) { it.activate() }

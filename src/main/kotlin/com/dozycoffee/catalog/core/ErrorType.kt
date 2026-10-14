@@ -14,4 +14,7 @@ enum class ErrorType {
 
     // 값은 유효하지만 도메인 불변식 위반
     BUSINESS_RULE_VIOLATION,
+
+    // 요청은 올바르지만 필요한 외부 서비스에 닿지 못해 처리할 수 없음 (잠시 뒤 다시 시도하면 성공할 수 있음)
+    UNAVAILABLE,
 }

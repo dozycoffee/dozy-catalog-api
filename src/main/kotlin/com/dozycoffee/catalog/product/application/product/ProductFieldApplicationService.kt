@@ -82,14 +82,14 @@ class ProductFieldApplicationService(
             product.changeGroups(groupIds)
         }
 
-    // 판매 범위 변경(요구사항 1.5). 즉시 반영 경로와 같이 대상 매장의 존재를 Store BC에 확인하고,
+    // 판매 범위 변경(요구사항 1.5). 대상 매장은 예약을 등록할 때 이미 확인했으므로 여기서는 Store 서비스를 부르지 않는다.
+    // 적용 시점에 Store를 부르면 서비스 장애나 그사이의 폐점이 예약을 멈추거나 실패시키고, 배치 트랜잭션이 호출을 기다리게 된다.
     // 대상에서 빠진 매장의 설정 정리는 store 모듈이 ProductStoreScopeChanged를 구독해 같은 트랜잭션에서 처리한다.
     suspend fun changeStoreScope(
         productId: ProductId,
         scope: StoreScope,
     ): Product =
         change(productId) { product ->
-            referenceValidator.requireTargetStoresExist(scope)
             product.changeStoreScope(scope)
         }
 

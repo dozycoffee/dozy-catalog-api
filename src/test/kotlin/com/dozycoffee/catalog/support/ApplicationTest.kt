@@ -12,7 +12,7 @@ import tools.jackson.databind.json.JsonMapper
 // 유스케이스는 스스로 트랜잭션을 열지만, 결과를 확인하려고 테스트가 Repository를 직접 부를 때는
 // 트랜잭션이 필요하다. 그 용도로 tx { … }를 둔다.
 @Import(
-    FakeStoreExistenceValidatorConfiguration::class,
+    FakeStoreAssignabilityCheckerConfiguration::class,
     FakeStoreDirectoryConfiguration::class,
 )
 abstract class ApplicationTest : IntegrationTest() {

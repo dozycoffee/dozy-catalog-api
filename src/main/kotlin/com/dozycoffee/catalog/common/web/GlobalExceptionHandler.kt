@@ -123,4 +123,5 @@ internal fun ErrorType.toHttpStatus(): HttpStatus =
         ErrorType.NOT_FOUND -> HttpStatus.NOT_FOUND
         ErrorType.CONFLICT -> HttpStatus.CONFLICT
         ErrorType.BUSINESS_RULE_VIOLATION -> HttpStatus.UNPROCESSABLE_CONTENT
+        ErrorType.UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE
     }
