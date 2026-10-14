@@ -2,7 +2,7 @@
 
 - **상태**: 채택
 - **날짜**: 2026-10-14
-- **관련**: [ADR-0020](0020-store-owns-store-product-state.md)(상품 이벤트가 필요해진 이유), [미정 사항](../architecture/README.md#미정-사항)의 "메시징 기술", 이슈 #130, 공통 "MSA 이벤트 형식", Store의 [ADR-0002](https://github.com/dozycoffee/dozy-store-api/blob/main/docs/adr/0002-minimal-product-replica-with-full-state-events.md)·요구사항 7.1, `dozy-platform`의 ADR-0001(Kafka)·0002(아웃박스)·0004(CloudEvents, 모두 제안 상태)와 공통 이벤트 규약 초안
+- **관련**: [ADR-0020](0020-store-owns-store-product-state.md)(상품 이벤트가 필요해진 이유), [미정 사항](../architecture/README.md#미정-사항)의 "메시징 기술", 이슈 #130, 사내 공통 "MSA 이벤트 형식", Store의 [ADR-0002](https://github.com/dozycoffee/dozy-store-api/blob/main/docs/adr/0002-minimal-product-replica-with-full-state-events.md)·요구사항 7.1, [Reactor Kafka 중단 공지](https://spring.io/blog/2025/05/20/reactor-kafka-discontinued)
 
 ## 맥락
 
@@ -20,24 +20,11 @@ Catalog의 제약은 다음과 같다.
 - 스택은 WebFlux와 코루틴이고 영속성은 R2DBC 기반 Exposed다. 애플리케이션 요청 경로에 JDBC가 없다.
 - 트랜잭션 경계는 `TransactionRunner`가 연다(ADR-0011). 예약 적용 배치도 같은 유스케이스를 거친다.
 - Spring Boot 4.1.0이 `spring-kafka` 4.1.0과 `kafka-clients` 4.2.1을 관리한다.
-- `dozy-platform`은 같은 문제를 다루는 ADR 초안(Kafka, 아웃박스)과 공통 이벤트 규약 초안을 이미 갖고 있다. 둘 다 아직 "제안" 상태이고, 채택은 영향받는 서비스 담당자의 승인을 요구한다. 플랫폼 ADR-0001에 따르면 Reactor Kafka는 개발이 중단되었고 Spring for Apache Kafka의 리액티브 템플릿도 deprecated라 리액티브 클라이언트를 그대로 쓸 수 없다.
+- Reactor Kafka는 2025년 5월에 개발 중단이 발표되었고(1.3이 마지막 마이너 릴리스) Spring for Apache Kafka의 리액티브 템플릿도 deprecated 대상이 되었다. 리액티브 클라이언트를 그대로 쓸 수 없다.
 
 ### 이벤트 형식
 
-서비스 공통 형식은 "MSA 이벤트 형식"(Kafka 헤더 없이 이벤트 메타데이터와 데이터를 JSON 값 하나에 담는 방식)으로 확정되었다(2026-10-14 확인). `dozy-platform`의 공통 이벤트 규약 초안은 CloudEvents 1.0 structured 모드(헤더 `content-type`, `traceparent`)를 제안하고 있어 이 형식과 다르다. 아래는 그 차이다. 플랫폼 초안은 MSA 이벤트 형식에 맞춰 고쳐야 한다.
-
-| 항목 | MSA 이벤트 형식(확정) | 플랫폼 초안(CloudEvents, 고칠 대상) |
-|---|---|---|
-| 이벤트 ID | `eventId` | `id` |
-| 종류 | `eventType` (`PRODUCT_ACTIVATED`) | `type` (`com.dozycoffee.catalog.product.activated`) |
-| 스키마 버전 | `eventVersion` (정수) | 값에 없음. 깨지는 변경은 토픽 `v{major}` |
-| 시각 | `occurredAt` (오프셋 포함 ISO-8601) | `time` (UTC, 마이크로초) |
-| 발행 서비스 | `source` (`catalog`) | `source` (`/dozy/catalog`) |
-| 추적 | 값의 `traceparent` 필드 | Kafka 헤더 `traceparent` |
-| 대상 | `data` 안의 ID | `subject` (`products/1024`) |
-| 순번 | 정해진 필드 없음 | 확장 속성 `subjectversion` |
-| Kafka 헤더 | 쓰지 않음 | `content-type`, `traceparent` |
-| 토픽 | `dozy.{서비스}.{집계}` | `{서비스}.{대상}.v{major}` |
+서비스 공통 형식은 사내 "MSA 이벤트 형식"이다(2026-10-14 확인). Kafka 헤더를 쓰지 않고 이벤트 메타데이터(`eventId`, `eventType`, `eventVersion`, `occurredAt`, `source`, `traceparent`)와 비즈니스 데이터(`data`)를 JSON 값 하나에 담는다. 토픽은 `dozy.{서비스}.{집계}`(집계마다 하나), 메시지 키는 순서를 지킬 단위의 문자열이다.
 
 ## 결정
 
@@ -78,20 +65,20 @@ Catalog의 제약은 다음과 같다.
   - **`occurredAt`**은 트랜잭션 안에서 아웃박스에 기록한 시각이다. **`traceparent`**는 요청 안에서 만든 이벤트에만 있고, 예약 배치처럼 요청이 없는 경로는 보내지 않는다. 릴레이는 다른 시점에 보내므로 아웃박스에 쓸 때 현재 trace context를 저장해 둔다.
   - 구독자는 `eventId`로 중복을 거르고 `sequence`가 더 클 때만 상태를 교체한다. 처음 채우기와 다시 맞추기에 쓰는 전체 상품 상태 목록 API는 같은 `data` 형태와 `sequence`를 담는다.
   - 이벤트 계약(필드 정의, 예시, 변경 이력)은 Catalog의 `docs/events/`에 둔다.
-- **토픽 설정(파티션 수, 보존 기간, 복제), 브로커 인증, 운영 형태는 플랫폼이 정한다.** 키와 파티션의 대응이 바뀌면 순서가 깨질 수 있으므로 파티션 수는 처음 정하고 늘리지 않는 것을 전제로 한다.
+- **토픽 설정(파티션 수, 보존 기간, 복제), 브로커 인증, 운영 형태는 인프라(배포) 담당이 정한다.** 키와 파티션의 대응이 바뀌면 순서가 깨질 수 있으므로 파티션 수는 처음 정하고 늘리지 않는 것을 전제로 한다.
 - **로컬과 테스트**: 서비스 저장소의 `compose.yaml`에 단일 노드 Kafka(KRaft)를 두고 호스트 포트는 고정하지 않는다. 통합 테스트는 Testcontainers의 Kafka를 쓴다.
 - **관측**: 아웃박스의 미전송 행 수, 가장 오래된 행의 나이, 격리된 행 수를 지표로 낸다. 이름은 서비스 지표 규칙(`dozy.catalog.` 접두어, 정해진 값만 태그)을 따른다.
 
 ## 검토한 대안
 
-- **다른 브로커(RabbitMQ, Redis Streams, 클라우드 매니지드 큐)**: 운영이 가볍거나 이미 쓰는 인프라일 수 있다. 하지만 소비한 메시지가 사라지거나(다시 읽기 불가), 키 단위 순서를 따로 만들어야 하거나, 배포 환경이 정해지지 않았다. 플랫폼 ADR-0001이 같은 이유로 Kafka를 제안했다.
+- **다른 브로커(RabbitMQ, Redis Streams, 클라우드 매니지드 큐)**: 운영이 가볍거나 이미 쓰는 인프라일 수 있다. 하지만 소비한 메시지가 사라지거나(다시 읽기 불가), 키 단위 순서를 따로 만들어야 하거나, 배포 환경이 정해지지 않았다.
 - **커밋 후 바로 전송(after-commit)**: 아웃박스가 필요 없다. 하지만 커밋과 전송 사이에 서버가 죽으면 이벤트가 사라지고, 복제본은 다음 변경까지 어긋난다.
 - **CDC(Debezium)로 아웃박스를 릴레이**: 폴링 지연과 부하가 없다. 하지만 Kafka Connect를 따로 운영해야 하고, 발행 서비스가 하나뿐인 지금은 부담이 이득보다 크다. 폴링의 지연이나 부하가 문제가 되면 다시 검토한다.
 - **Kafka 트랜잭션(exactly-once)**: Kafka 안에서만 보장되고 DB 쓰기와는 묶이지 않는다. 구독자의 DB 반영까지는 결국 멱등 처리가 필요하다.
-- **클라이언트로 Reactor Kafka나 리액티브 템플릿**: 코루틴과 맞지만 개발 중단·deprecated다.
+- **클라이언트로 Reactor Kafka나 리액티브 템플릿**: 코루틴과 맞지만 개발 중단·deprecated다([공지](https://spring.io/blog/2025/05/20/reactor-kafka-discontinued)).
 - **클라이언트로 `kafka-clients` 직접 사용**: 의존성이 가볍다. 하지만 Boot 설정, Micrometer 지표, 직렬화·재시도 보일러플레이트를 직접 만들어야 한다. `spring-kafka`는 같은 `kafka-clients` 위에 이를 제공한다.
-- **플랫폼 초안의 CloudEvents structured 모드로 형식을 정함**: 표준이고 도구가 있다. 하지만 서비스 공통 형식은 MSA 이벤트 형식으로 확정되었으므로 그것을 따른다.
-- **Kafka 릴레이 잠금으로 ShedLock 같은 분산 잠금 라이브러리**: 플랫폼 ADR-0002가 제안한 방식이다. 하지만 Catalog는 이미 PostgreSQL 권고 잠금을 쓰고 있어 새 의존성 없이 같은 효과를 낼 수 있다.
+- **CloudEvents 1.0(structured 모드)로 형식을 정함**: 표준이고 도구가 있다. 하지만 서비스 공통 형식은 MSA 이벤트 형식으로 확정되었으므로 그것을 따른다.
+- **릴레이 단일 실행을 ShedLock 같은 분산 잠금 라이브러리로 보장**: 흔한 방식이다. 하지만 Catalog는 이미 PostgreSQL 권고 잠금을 쓰고 있어 새 의존성 없이 같은 효과를 낼 수 있다.
 - **행마다 병렬로 릴레이(`FOR UPDATE SKIP LOCKED`)**: 처리량이 높다. 하지만 같은 상품의 이벤트가 인스턴스에 흩어져 순서가 깨진다. 상품 변경 빈도는 낮아 단일 릴레이로 충분하다.
 
 ## 결과
@@ -107,16 +94,16 @@ Catalog의 제약은 다음과 같다.
   - 폴링 간격만큼 전달이 늦다. 단종·판매 범위 변경이 매장에 반영되기까지 지연은 이 간격과 Store의 처리 시간을 더한 값이다.
   - 릴레이가 DB 트랜잭션을 열고 Kafka 응답을 기다린다. 한 번에 보내는 건수와 전송 타임아웃을 작게 두어야 한다. 단일 릴레이라 처리량에 상한이 있지만, 상품 변경 빈도(예약이 00시에 수백 건 적용되는 정도)에는 충분하다고 본다.
   - 블로킹 Kafka 클라이언트를 쓰므로 릴레이를 이벤트 루프가 아닌 전용 디스패처에서 돌려야 한다.
-  - **플랫폼 문서(공통 이벤트 규약 초안, ADR-0004)가 이 형식과 다르다.** 플랫폼 문서를 MSA 이벤트 형식에 맞춰 고쳐야 하고, 그 전까지 문서가 어긋난다. Store의 구독 구현은 MSA 이벤트 형식을 기준으로 해야 한다.
+  - Store의 구독 구현은 MSA 이벤트 형식을 기준으로 해야 한다. 형식이 바뀌면 직렬화 코드와 계약 문서가 함께 바뀐다(아웃박스가 직렬화된 JSON 전체를 저장하므로 영향이 거기에 모인다).
   - `sequence`가 Product의 낙관적 잠금 버전에 기댄다. 버전을 올리는 방식을 바꾸면 이벤트 순번에 영향이 간다.
   - 한정 판매 상품의 판매 범위가 대상 매장 목록 전체를 담는다. 매장 3,000개를 모두 대상으로 하면 ID만 약 20KB이고 Kafka 기본 메시지 크기 한도(약 1MB) 안이지만, 매장 수가 크게 늘면 한도를 다시 봐야 한다.
   - 파티션 수를 늘리기 어렵다.
-  - Kafka 클러스터 운영 부담이 생긴다(플랫폼 담당).
+  - Kafka 클러스터 운영 부담이 생긴다(인프라 담당).
 - **후속 작업**
-  - 플랫폼의 공통 이벤트 규약 초안과 ADR-0004(CloudEvents)를 MSA 이벤트 형식에 맞춰 고치도록 플랫폼에 요청한다. 플랫폼 ADR-0001·0002의 채택 승인에 Catalog 담당이 참여한다. Store에는 구독 구현의 기준이 MSA 이벤트 형식임을 알린다.
+  - Store에 구독 구현의 기준이 MSA 이벤트 형식임을 알리고, 이벤트 계약(필드, 순번)을 Store 요구사항 7.1과 맞춘다.
   - 이벤트 계약 문서 `docs/events/`를 쓴다(`dozy.catalog.product`의 필드, 예시, 변경 이력). Store 요구사항 7.1과 맞춘다.
   - 아웃박스 테이블 설계(ERD, 마이그레이션)와 릴레이 설계(묶음 크기, 타임아웃, 재시도 한도와 간격, 격리와 재발행 절차, 정리 배치)를 정한다.
   - `spring-kafka` 의존성, `catalog.kafka.*` 설정, `compose.yaml`의 Kafka, Testcontainers 통합 테스트를 추가한다.
   - [미정 사항](../architecture/README.md#미정-사항)의 "메시징 기술"을 지우고, 기술 스택 문서에 메시징을 올렸다(이 PR). 패키지 구조의 외부 연동 표와 도메인 모델의 도메인 이벤트 절은 구현 PR에서 고친다.
-  - 토픽 생성(파티션 수, 보존, 복제), 브로커 인증, 운영 형태는 플랫폼과 정한다.
+  - 토픽 생성(파티션 수, 보존, 복제), 브로커 인증, 운영 형태는 인프라 담당과 정한다.
   - ADR-0020 이행 1단계(이벤트 발행과 조회 API 추가)의 첫 작업으로 이 결정을 구현한다.

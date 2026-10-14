@@ -45,8 +45,8 @@
 |---|---|---|
 | 브로커 | Apache Kafka | 서비스 사이의 비동기 연동은 Kafka로만 한다. 키 단위 순서, 다시 읽기, 구독자 추가에 발행 서비스가 바뀌지 않는다 ([ADR-0021](../adr/0021-kafka-outbox-for-product-events.md)) |
 | 발행 | 트랜잭셔널 아웃박스 + 서비스 안의 폴링 릴레이 | 상품 변경과 이벤트를 한 트랜잭션에 저장하고, 릴레이가 순서대로 보낸다. 릴레이는 PostgreSQL 권고 잠금으로 한 번에 하나만 돈다 |
-| 클라이언트 | Spring for Apache Kafka(`KafkaTemplate`), 전송 결과를 코루틴에서 `await()` | Reactor Kafka와 리액티브 템플릿은 개발 중단·deprecated다. 릴레이는 배치 경로라 블로킹 클라이언트의 부담이 작다. Boot BOM이 버전을 관리한다 |
-| 형식 | 공통 MSA 이벤트 형식(헤더 없이 JSON 값 하나). 토픽 `dozy.catalog.product`, 키 `productId` | 이벤트 계약은 `docs/events/`에 둔다. MSA 이벤트 형식이 서비스 공통 형식이다(플랫폼의 CloudEvents 초안은 이에 맞춰 고친다) |
+| 클라이언트 | Spring for Apache Kafka(`KafkaTemplate`), 전송 결과를 코루틴에서 `await()` | Reactor Kafka와 리액티브 템플릿은 개발 중단·deprecated다([공지](https://spring.io/blog/2025/05/20/reactor-kafka-discontinued)). 릴레이는 배치 경로라 블로킹 클라이언트의 부담이 작다. Boot BOM이 버전을 관리한다 |
+| 형식 | 공통 MSA 이벤트 형식(헤더 없이 JSON 값 하나). 토픽 `dozy.catalog.product`, 키 `productId` | 이벤트 계약은 `docs/events/`에 둔다. MSA 이벤트 형식이 서비스 공통 형식이다 |
 | 구독 | 하지 않는다 | 재고 이벤트 소비는 Store가 맡는다([ADR-0020](../adr/0020-store-owns-store-product-state.md)) |
 
 이벤트 발행은 아직 구현 전이다. 서비스 내부의 도메인 이벤트(`common.event.DomainEventDispatcher`)는 이 경로가 아니다.
