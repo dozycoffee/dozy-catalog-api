@@ -4,7 +4,6 @@ import com.dozycoffee.catalog.core.Money
 import com.dozycoffee.catalog.core.VersionConflictException
 import com.dozycoffee.catalog.product.application.category.CategoryApplicationService
 import com.dozycoffee.catalog.product.application.category.command.RegisterChildCategoryCommand
-import com.dozycoffee.catalog.product.application.port.ProductEventPublisherPort
 import com.dozycoffee.catalog.product.application.product.command.RegisterProductCommand
 import com.dozycoffee.catalog.product.application.product.command.ReplaceProductCommand
 import com.dozycoffee.catalog.product.domain.category.CategoryId
@@ -16,8 +15,6 @@ import com.dozycoffee.catalog.product.domain.optiongroup.exception.OptionGroupNo
 import com.dozycoffee.catalog.product.domain.product.ProductId
 import com.dozycoffee.catalog.product.domain.product.ProductRepository
 import com.dozycoffee.catalog.product.domain.product.ProductStatus
-import com.dozycoffee.catalog.product.domain.product.event.ProductActivated
-import com.dozycoffee.catalog.product.domain.product.event.ProductDiscontinued
 import com.dozycoffee.catalog.product.domain.product.exception.DuplicateOptionGroupLinkException
 import com.dozycoffee.catalog.product.domain.product.exception.InvalidProductStatusTransitionException
 import com.dozycoffee.catalog.product.domain.product.exception.ProductNotDeletableException
@@ -25,7 +22,6 @@ import com.dozycoffee.catalog.product.domain.product.exception.ProductNotFoundEx
 import com.dozycoffee.catalog.product.domain.productgroup.ProductGroupId
 import com.dozycoffee.catalog.product.domain.productgroup.exception.ProductGroupNotFoundException
 import com.dozycoffee.catalog.support.ApplicationTest
-import com.dozycoffee.catalog.support.RecordingProductEventPublisher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -34,7 +30,6 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -50,15 +45,12 @@ class ProductApplicationServiceTest : ApplicationTest() {
     @Autowired
     private lateinit var productRepository: ProductRepository
 
-    @Autowired
-    private lateinit var eventPublisher: ProductEventPublisherPort
-
     private lateinit var coffee: ChildCategory
 
     @BeforeEach
     fun setUpCategory() =
         runTest {
-            recorder().clear()
+            clearOutbox()
             val beverage = categoryService.registerTopLevel("음료")
             coffee = categoryService.registerChild(RegisterChildCategoryCommand(beverage.id, "커피"))
         }
@@ -77,6 +69,19 @@ class ProductApplicationServiceTest : ApplicationTest() {
                 assertEquals(coffee.id, found.categoryId)
                 val sku = assertNotNull(found.sku)
                 assertTrue(sku.value.matches(Regex("""DZ-\d{8}""")), "SKU 형식이 다릅니다: ${sku.value}")
+            }
+
+        @Test
+        fun `등록하면 등록 이벤트가 아웃박스에 기록된다`() =
+            runTest {
+                val product = service.register(command(name = "아메리카노"))
+
+                val event = outboxEvents().single()
+                assertEquals("PRODUCT_REGISTERED", event["eventType"].asString())
+                assertEquals(product.id.value, event["data"]["productId"].asLong())
+                assertEquals("DRAFT", event["data"]["status"].asString())
+                assertEquals(0, event["data"]["sequence"].asInt())
+                assertEquals(product.sku?.value, event["data"]["sku"].asString())
             }
 
         @Test
@@ -207,11 +212,15 @@ class ProductApplicationServiceTest : ApplicationTest() {
         fun `활성화하면 Active가 되고 이벤트가 발행된다`() =
             runTest {
                 val product = service.register(command(name = "아메리카노"))
+                clearOutbox()
 
                 service.activate(product.id)
 
                 assertEquals(ProductStatus.ACTIVE, tx { productRepository.findById(product.id) }?.status)
-                assertIs<ProductActivated>(recorder().published.single())
+                val event = outboxEvents().single()
+                assertEquals("PRODUCT_ACTIVATED", event["eventType"].asString())
+                assertEquals("ACTIVE", event["data"]["status"].asString())
+                assertEquals(product.id.value, event["data"]["productId"].asLong())
             }
 
         @Test
@@ -219,12 +228,14 @@ class ProductApplicationServiceTest : ApplicationTest() {
             runTest {
                 val product = service.register(command(name = "아메리카노"))
                 service.activate(product.id)
-                recorder().clear()
+                clearOutbox()
 
                 service.discontinue(product.id)
 
                 assertEquals(ProductStatus.DISCONTINUED, tx { productRepository.findById(product.id) }?.status)
-                assertIs<ProductDiscontinued>(recorder().published.single())
+                val event = outboxEvents().single()
+                assertEquals("PRODUCT_DISCONTINUED", event["eventType"].asString())
+                assertEquals("DISCONTINUED", event["data"]["status"].asString())
             }
 
         @Test
@@ -244,11 +255,11 @@ class ProductApplicationServiceTest : ApplicationTest() {
             runTest {
                 val product = service.register(command(name = "아메리카노"))
                 service.activate(product.id)
-                recorder().clear()
+                clearOutbox()
 
                 assertFailsWith<InvalidProductStatusTransitionException> { service.activate(product.id) }
                 assertEquals(ProductStatus.ACTIVE, tx { productRepository.findById(product.id) }?.status)
-                assertTrue(recorder().published.isEmpty())
+                assertTrue(outboxEvents().isEmpty())
             }
 
         @Test
@@ -289,6 +300,21 @@ class ProductApplicationServiceTest : ApplicationTest() {
             }
 
         @Test
+        fun `삭제하면 삭제 이벤트가 아웃박스에 기록된다`() =
+            runTest {
+                val product = service.register(command(name = "아메리카노"))
+                clearOutbox()
+
+                service.delete(product.id)
+
+                val event = outboxEvents().single()
+                assertEquals("PRODUCT_DELETED", event["eventType"].asString())
+                assertEquals(product.id.value, event["data"]["productId"].asLong())
+                assertEquals(product.version + 1, event["data"]["sequence"].asLong())
+                assertTrue(event["data"]["deleted"].asBoolean())
+            }
+
+        @Test
         fun `Active와 Discontinued 상품은 삭제할 수 없다`() =
             runTest {
                 val product = service.register(command(name = "아메리카노"))
@@ -307,8 +333,6 @@ class ProductApplicationServiceTest : ApplicationTest() {
                 assertFailsWith<ProductNotFoundException> { service.delete(ProductId(999)) }
             }
     }
-
-    private fun recorder() = eventPublisher as RecordingProductEventPublisher
 
     private fun command(
         name: String,

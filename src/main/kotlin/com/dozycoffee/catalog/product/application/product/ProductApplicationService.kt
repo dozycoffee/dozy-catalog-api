@@ -43,7 +43,9 @@ class ProductApplicationService(
                     groupIds = command.groupIds,
                     optionGroupIds = command.optionGroupIds,
                 )
-            productRepository.insert(newProduct)
+            val inserted = productRepository.insert(newProduct)
+            eventPublisher.registered(inserted)
+            inserted
         }
 
     // 입력한 값 전체로 교체한다. 단종 상태에서도 상태 외 정보는 모두 바꿀 수 있다(요구사항 1.3).
@@ -78,7 +80,7 @@ class ProductApplicationService(
 
             product.changeStoreScope(command.scope)
             val saved = productRepository.save(product)
-            eventDispatcher.dispatch(saved.pullDomainEvents())
+            afterSave(saved)
             saved
         }
 
@@ -93,6 +95,7 @@ class ProductApplicationService(
             val product = productRepository.findByIdForUpdate(productId) ?: throw ProductNotFoundException(productId)
             product.delete()
             productRepository.delete(productId)
+            eventPublisher.deleted(product)
         }
     }
 
@@ -106,9 +109,17 @@ class ProductApplicationService(
             val product = productRepository.findByIdForUpdate(productId) ?: throw ProductNotFoundException(productId)
             transition(product)
             val saved = productRepository.save(product)
-            eventPublisher.publish(saved.pullDomainEvents())
+            afterSave(saved)
             saved
         }
+
+    // 저장한 직후, 같은 트랜잭션에서 한다. 내부 구독자(store 모듈 핸들러)에게 도메인 이벤트를 전달하고,
+    // 다른 서비스가 복제하는 상태는 아웃박스에 기록한다(ADR-0021). 한쪽이 실패하면 상품 변경도 롤백된다.
+    private suspend fun afterSave(saved: Product) {
+        val events = saved.pullDomainEvents()
+        eventDispatcher.dispatch(events)
+        eventPublisher.changed(saved, events)
+    }
 
     private suspend fun requireProduct(productId: ProductId): Product =
         productRepository.findById(productId) ?: throw ProductNotFoundException(productId)
