@@ -12,6 +12,7 @@ import com.dozycoffee.catalog.product.domain.category.exception.CategoryHasChild
 import com.dozycoffee.catalog.product.domain.category.exception.CategoryNotFoundException
 import com.dozycoffee.catalog.product.domain.category.exception.CategoryStillReferencedException
 import com.dozycoffee.catalog.product.domain.category.exception.CategoryWithChildrenNotDemotableException
+import com.dozycoffee.catalog.product.domain.category.exception.InvalidCategoryOrderException
 import com.dozycoffee.catalog.product.domain.category.exception.ReferencedCategoryNotPromotableException
 import com.dozycoffee.catalog.product.domain.category.exception.TopLevelCategoryNotFoundException
 import com.dozycoffee.catalog.support.ApplicationTest
@@ -262,6 +263,78 @@ class CategoryApplicationServiceTest : ApplicationTest() {
         }
 
         private suspend fun ids(filter: CategoryFilter) = service.list(filter).map { it.id.value }
+    }
+
+    @Nested
+    @DisplayName("노출 순서 변경 (시나리오: 카테고리 탭 순서)")
+    inner class Reordering {
+        @Test
+        fun `대분류의 순서를 정하면 그 순서대로 조회된다`() =
+            runTest {
+                val a = service.registerTopLevel("가")
+                val b = service.registerTopLevel("나")
+                val c = service.registerTopLevel("다")
+
+                val result = service.reorder(null, listOf(c.id, a.id, b.id))
+
+                assertEquals(listOf(c.id, a.id, b.id), result.map { it.id })
+                assertEquals(listOf(c.id, a.id, b.id), service.list(CategoryFilter(topLevelOnly = true)).map { it.id })
+            }
+
+        @Test
+        fun `소분류의 순서는 그 대분류 안에서만 바뀐다`() =
+            runTest {
+                val beverage = service.registerTopLevel("음료")
+                val food = service.registerTopLevel("푸드")
+                val coffee = service.registerChild(RegisterChildCategoryCommand(beverage.id, "커피"))
+                val tea = service.registerChild(RegisterChildCategoryCommand(beverage.id, "차"))
+                val dessert = service.registerChild(RegisterChildCategoryCommand(food.id, "디저트"))
+
+                service.reorder(beverage.id, listOf(tea.id, coffee.id))
+
+                assertEquals(listOf(tea.id, coffee.id), service.list(CategoryFilter(parentId = beverage.id)).map { it.id })
+                assertEquals(listOf(dessert.id), service.list(CategoryFilter(parentId = food.id)).map { it.id })
+                assertEquals(listOf(beverage.id, food.id), service.list(CategoryFilter(topLevelOnly = true)).map { it.id })
+            }
+
+        @Test
+        fun `형제 전체를 한 번씩 담지 않으면 거부하고 순서를 바꾸지 않는다`() =
+            runTest {
+                val a = service.registerTopLevel("가")
+                val b = service.registerTopLevel("나")
+                val c = service.registerTopLevel("다")
+                val beverageChild = service.registerChild(RegisterChildCategoryCommand(a.id, "커피"))
+
+                // 일부만, 중복, 모르는 ID, 다른 부모의 카테고리가 섞인 경우
+                listOf(
+                    listOf(b.id, a.id),
+                    listOf(a.id, a.id, b.id, c.id),
+                    listOf(a.id, b.id, c.id, CategoryId(999)),
+                    listOf(a.id, b.id, beverageChild.id),
+                    emptyList(),
+                ).forEach { requested ->
+                    assertFailsWith<InvalidCategoryOrderException> { service.reorder(null, requested) }
+                }
+                assertEquals(listOf(a.id, b.id, c.id), service.list(CategoryFilter(topLevelOnly = true)).map { it.id })
+            }
+
+        @Test
+        fun `없는 대분류나 소분류인 부모면 거부한다`() =
+            runTest {
+                val beverage = service.registerTopLevel("음료")
+                val coffee = service.registerChild(RegisterChildCategoryCommand(beverage.id, "커피"))
+
+                assertFailsWith<TopLevelCategoryNotFoundException> { service.reorder(CategoryId(999), emptyList()) }
+                assertFailsWith<TopLevelCategoryNotFoundException> { service.reorder(coffee.id, emptyList()) }
+            }
+
+        @Test
+        fun `소분류가 하나도 없는 대분류의 빈 순서는 허용한다`() =
+            runTest {
+                val beverage = service.registerTopLevel("음료")
+
+                assertEquals(emptyList(), service.reorder(beverage.id, emptyList()))
+            }
     }
 
     private suspend fun find(id: CategoryId) = tx { categoryRepository.findById(id) }

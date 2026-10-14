@@ -170,6 +170,25 @@ class InternalProductApiTest : ApiTest() {
         }
     }
 
+    @Test
+    fun `카테고리는 본사가 정한 노출 순서를 따른다`() =
+        runTest {
+            execute("UPDATE categories SET display_order = 1 WHERE id = 2")
+            execute("UPDATE categories SET display_order = 2 WHERE id = 1")
+            execute("UPDATE categories SET display_order = 2 WHERE id = 3")
+            execute("UPDATE categories SET display_order = 1 WHERE id = 5")
+
+            client
+                .get()
+                .uri("$base/categories")
+                .exchange()
+                .expectBody()
+                .jsonPath("$[*].name")
+                .isEqualTo(listOf("푸드", "음료"))
+                .jsonPath("$[1].children[*].name")
+                .isEqualTo(listOf("차", "커피"))
+        }
+
     @Nested
     @DisplayName("GET /products/{productId}/effective-options — 유효 옵션 구성")
     inner class EffectiveOptions {

@@ -13,6 +13,7 @@ import com.dozycoffee.catalog.product.domain.category.TopLevelCategory
 import com.dozycoffee.catalog.product.domain.category.exception.CategoryHasChildrenException
 import com.dozycoffee.catalog.product.domain.category.exception.CategoryNotFoundException
 import com.dozycoffee.catalog.product.domain.category.exception.CategoryStillReferencedException
+import com.dozycoffee.catalog.product.domain.category.exception.InvalidCategoryOrderException
 import com.dozycoffee.catalog.product.domain.category.exception.TopLevelCategoryNotFoundException
 import com.dozycoffee.catalog.product.domain.product.ProductRepository
 import org.springframework.stereotype.Service
@@ -29,6 +30,29 @@ class CategoryApplicationService(
     suspend fun list(filter: CategoryFilter = CategoryFilter()): List<Category> =
         transactionRunner.inTransaction {
             categoryRepository.findAll(filter.ids, filter.parentId, filter.topLevelOnly)
+        }
+
+    // 같은 부모를 가진 카테고리 전체의 노출 순서를 목록 순서대로 한 번에 정한다(요구사항 1.6). parentId가 null이면 대분류들이다.
+    // 목록은 그 형제 전체를 정확히 한 번씩 담아야 한다. 결과는 바뀐 순서대로의 형제 목록이다.
+    suspend fun reorder(
+        parentId: CategoryId?,
+        categoryIds: List<CategoryId>,
+    ): List<Category> =
+        transactionRunner.inTransaction {
+            parentId?.let { requireTopLevel(it) }
+            categoryRepository.lockSiblings(parentId)
+            val siblings =
+                if (parentId == null) {
+                    categoryRepository.findAll(topLevelOnly = true)
+                } else {
+                    categoryRepository.findAll(parentId = parentId)
+                }
+            if (categoryIds.size != siblings.size || categoryIds.toSet() != siblings.map { it.id }.toSet()) {
+                throw InvalidCategoryOrderException(parentId, siblings.map { it.id }, categoryIds)
+            }
+            categoryRepository.replaceOrder(categoryIds)
+            val byId = siblings.associateBy { it.id }
+            categoryIds.map { byId.getValue(it) }
         }
 
     suspend fun registerTopLevel(name: String): TopLevelCategory =

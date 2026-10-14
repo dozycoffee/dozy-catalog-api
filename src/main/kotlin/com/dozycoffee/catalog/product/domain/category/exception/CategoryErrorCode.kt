@@ -14,6 +14,7 @@ enum class CategoryErrorCode(
     CATEGORY_WITH_CHILDREN_NOT_DEMOTABLE(ErrorType.CONFLICT),
     CATEGORY_NOT_ASSIGNABLE(ErrorType.INVALID_INPUT),
     REFERENCED_CATEGORY_NOT_PROMOTABLE(ErrorType.CONFLICT),
+    INVALID_CATEGORY_ORDER(ErrorType.INVALID_INPUT),
     ;
 
     override val code: String get() = name
