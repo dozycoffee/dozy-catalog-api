@@ -1,5 +1,6 @@
 package com.dozycoffee.catalog.support
 
+import com.dozycoffee.catalog.common.outbox.OutboxEventsTable
 import com.dozycoffee.catalog.product.infrastructure.category.CategoriesTable
 import com.dozycoffee.catalog.product.infrastructure.optiongroup.OptionGroupsTable
 import com.dozycoffee.catalog.product.infrastructure.optiongroup.OptionsTable
@@ -35,5 +36,6 @@ object ExposedTables {
             StoreDisplaySettingsTable,
             StoreProductAvailabilitiesTable,
             ScheduledChangesTable,
+            OutboxEventsTable,
         )
 }

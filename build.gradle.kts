@@ -57,6 +57,9 @@ dependencies {
     implementation(libs.dozy.auth.starter)
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.micrometer.registry.prometheus)
+
+    // infrastructure/messaging — 상품 이벤트 발행(아웃박스 릴레이, docs/adr/0021)
+    implementation(libs.spring.boot.starter.kafka)
     implementation(libs.reactor.kotlin.extensions)
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines.reactor)
@@ -97,6 +100,7 @@ dependencies {
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.r2dbc)
+    testImplementation(libs.testcontainers.kafka)
     testImplementation(libs.exposed.migration.core)
     testImplementation(libs.exposed.migration.r2dbc)
 }

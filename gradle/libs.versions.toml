@@ -27,6 +27,10 @@ dozy-auth-starter = { module = "com.dozycoffee.auth:auth-spring-boot-starter", v
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 # /actuator/prometheus. 버전은 Boot BOM이 관리한다.
 micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
+
+# 서비스 간 이벤트 발행(docs/adr/0021). 버전은 Boot BOM이 관리한다. Reactor Kafka·리액티브 템플릿은 개발 중단·deprecated라
+# 쓰지 않고, 아웃박스 릴레이가 KafkaTemplate을 쓴다. 전송 결과(CompletableFuture)는 코루틴에서 기다린다.
+spring-boot-starter-kafka = { module = "org.springframework.boot:spring-boot-starter-kafka" }
 reactor-kotlin-extensions = { module = "io.projectreactor.kotlin:reactor-kotlin-extensions" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
 kotlinx-coroutines-reactor = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactor" }
@@ -72,6 +76,8 @@ testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgr
 testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainers" }
 # Spring Boot의 R2DBC @ServiceConnection이 내부적으로 org.testcontainers.r2dbc.R2DBCDatabaseContainer를 찾음 — 없으면 ClassNotFoundException
 testcontainers-r2dbc = { module = "org.testcontainers:testcontainers-r2dbc", version.ref = "testcontainers" }
+# 아웃박스 릴레이 통합 테스트: 실제 Kafka로 저장 → 발행 → 소비를 확인한다
+testcontainers-kafka = { module = "org.testcontainers:testcontainers-kafka", version.ref = "testcontainers" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
