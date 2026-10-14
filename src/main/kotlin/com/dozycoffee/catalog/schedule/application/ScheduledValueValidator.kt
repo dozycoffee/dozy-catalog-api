@@ -26,6 +26,12 @@ class ScheduledValueValidator(
     private val optionGroupService: OptionGroupApplicationService,
     private val productReferences: ProductReferenceValidator,
 ) {
+    // 외부 서비스를 부르는 확인. 느릴 수 있어 등록 트랜잭션을 열기 전에 부른다(ProductReferenceValidator.requireTargetStoresAssignable).
+    // 판매 범위가 아닌 값은 아무것도 하지 않는다.
+    suspend fun validateExternalReferences(newValue: ScheduledFieldValue) {
+        if (newValue is ProductFieldValue.Scope) productReferences.requireTargetStoresAssignable(newValue.storeScope)
+    }
+
     suspend fun validate(
         targetId: Long,
         newValue: ScheduledFieldValue,
@@ -53,7 +59,8 @@ class ScheduledValueValidator(
             is ProductFieldValue.Category -> productReferences.requireChildCategory(newValue.categoryId)
             is ProductFieldValue.Tags -> productReferences.requireTagsExist(newValue.tagIds)
             is ProductFieldValue.Groups -> productReferences.requireGroupsExist(newValue.groupIds)
-            is ProductFieldValue.Scope -> productReferences.requireTargetStoresExist(newValue.storeScope)
+            // 대상 매장은 Store 서비스를 부르는 외부 확인이라 트랜잭션 밖에서 하는 validateExternalReferences가 맡는다.
+            is ProductFieldValue.Scope -> Unit
             is ProductFieldValue.OptionGroupLinks -> {
                 Product.validateNoDuplicateOptionGroup(newValue.optionGroupIds)
                 productReferences.requireOptionGroupsExist(newValue.optionGroupIds)

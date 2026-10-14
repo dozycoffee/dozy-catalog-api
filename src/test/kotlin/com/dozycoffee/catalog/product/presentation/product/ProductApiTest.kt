@@ -1,12 +1,15 @@
 package com.dozycoffee.catalog.product.presentation.product
 
+import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.support.ApiTest
+import com.dozycoffee.catalog.support.FakeStoreAssignabilityChecker
 import com.dozycoffee.catalog.support.expectProblem
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
@@ -19,9 +22,13 @@ import kotlin.test.assertTrue
 // 검증 대상이 아닌 카테고리·태그·상품 그룹·옵션 그룹과 기존 상품은 SQL로 넣는다(docs/architecture/testing.md).
 @DisplayName("상품 API")
 class ProductApiTest : ApiTest() {
+    @Autowired
+    private lateinit var storeChecker: FakeStoreAssignabilityChecker
+
     @BeforeEach
     fun prepareReferences() =
         runTest {
+            storeChecker.reset()
             execute("INSERT INTO categories (name) VALUES ('음료')")
             execute("INSERT INTO categories (name, parent_category_id) VALUES ('커피', 1), ('차', 1)")
             execute("INSERT INTO categories (name) VALUES ('MD')")
@@ -428,6 +435,25 @@ class ProductApiTest : ApiTest() {
                     .isEqualTo("ALL")
                     .jsonPath("$.storeScope.targetStoreIds")
                     .isEmpty
+            }
+
+        @Test
+        fun `없는 매장이면 404, 폐점한 매장이면 422, Store 서비스를 확인하지 못하면 503`() =
+            runTest {
+                insertProduct("아메리카노", categoryId = 2, status = "ACTIVE")
+                val body = """{"kind": "LIMITED", "targetStoreIds": [101, 102]}"""
+
+                storeChecker.markMissing(StoreId(101))
+                putScope(1, "\"0\"", body).expectProblem(404, "TARGET_STORE_NOT_FOUND")
+
+                storeChecker.reset()
+                storeChecker.markClosed(StoreId(102))
+                putScope(1, "\"0\"", body).expectProblem(422, "TARGET_STORE_CLOSED")
+
+                storeChecker.reset()
+                storeChecker.markUnavailable()
+                putScope(1, "\"0\"", body).expectProblem(503, "STORE_SERVICE_UNAVAILABLE")
+                assertEquals(1, count("SELECT count(*) FROM products WHERE store_scope = 'ALL'"))
             }
 
         @Test

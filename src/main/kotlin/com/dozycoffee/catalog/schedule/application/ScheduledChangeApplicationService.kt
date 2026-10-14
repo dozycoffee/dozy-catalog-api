@@ -36,8 +36,10 @@ class ScheduledChangeApplicationService(
     //
     // 값 검증(ScheduledValueValidator)과 적용일 검증을 기존 예약을 잠그기 전에 끝내, 거부되는 요청이 기존 예약을
     // 건드리지 않게 한다. 태그 이름으로 만든 태그도 같은 트랜잭션이라 거부되면 함께 롤백되어 남지 않는다.
-    suspend fun register(command: RegisterScheduledChangeCommand): ScheduledChange =
-        transactionRunner.inTransaction {
+    suspend fun register(command: RegisterScheduledChangeCommand): ScheduledChange {
+        // Store 서비스를 부르는 확인(판매 범위의 대상 매장)은 트랜잭션을 열기 전에 끝낸다.
+        (command.input as? RegisterScheduledChangeCommand.Input.Value)?.let { valueValidator.validateExternalReferences(it.value) }
+        return transactionRunner.inTransaction {
             val newValue = resolve(command.input)
             valueValidator.validate(command.targetId, newValue)
             val newScheduledChange =
@@ -60,6 +62,7 @@ class ScheduledChangeApplicationService(
             }
             scheduledChangeRepository.insert(newScheduledChange)
         }
+    }
 
     // 대기 예약이 없으면 거부한다. 취소하는 사이 배치가 먼저 적용·실패로 기록했으면 대기 예약이 더는 없으므로
     // 같은 이유로 거부된다(요구사항 1.4 / S2 2b, 2c). 읽은 뒤에 처리된 드문 경우는 Repository가

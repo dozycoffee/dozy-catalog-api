@@ -149,6 +149,8 @@ git push origin v0.1.0
 | `SPRING_PROFILES_ACTIVE` | `prod` |
 | `DB_HOST`, `DB_PORT`(기본 5432), `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` | PostgreSQL. 앱 요청은 R2DBC로, 시작 시 마이그레이션은 Flyway(JDBC)로 같은 DB에 붙습니다 |
 | `KAFKA_BOOTSTRAP_SERVERS` | 상품 이벤트를 보낼 Kafka 주소(쉼표로 여러 개). 아웃박스 릴레이가 쓰며, Kafka가 잠시 닿지 않아도 앱은 뜨고 이벤트는 DB에 쌓였다가 복구되면 순서대로 나갑니다. 쌓인 양은 `dozy_catalog_outbox_*` 지표로 봅니다([이벤트 계약](docs/events/product.md)) |
+| `STORE_BASE_URL` | Store 서비스 주소. 판매 범위의 대상 매장(없는 매장·폐점 매장)을 확인할 때 부릅니다. 확인하지 못하면 변경을 거부하므로(`503 STORE_SERVICE_UNAVAILABLE`) 운영에서는 필수입니다 |
+| `DOZY_AUTH_CLIENT_SECRET`, `DOZY_AUTH_CLIENT_ID`(기본 `svc-catalog`) | Catalog가 Store 서비스를 부를 때 쓰는 system client. Auth에 `store:catalog_agent` 역할로 등록해야 합니다 |
 | `DOZY_AUTH_ISSUER_BASE_URI` | Auth 주소. 토큰 발급자 확인과 공개키(JWKS) 조회에 씁니다 |
 | `CATALOG_RELEASE_VERSION` | (선택) 배포하는 이미지 태그의 버전 `X.Y.Z`. 릴리스는 이미지를 다시 빌드하지 않으므로 배포가 알려 줍니다. 없으면 `sha-{커밋 7자리}`입니다. 기동 로그와 `dozy_catalog_build_info`의 `version`에 쓰입니다 |
 | `CATALOG_CORS_ALLOWED_ORIGINS` | 본사 API를 브라우저에서 부를 수 있는 출처(관리 콘솔 주소). 쉼표로 구분하고 와일드카드는 쓰지 않습니다. 예: `https://admin.dozycoffee.com` ([API 명세 CORS](docs/api/README.md#cors)) |

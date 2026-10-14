@@ -6,7 +6,7 @@
 
 ```kotlin
 // core
-enum class ErrorType { INVALID_INPUT, NOT_FOUND, CONFLICT, BUSINESS_RULE_VIOLATION }
+enum class ErrorType { INVALID_INPUT, NOT_FOUND, CONFLICT, BUSINESS_RULE_VIOLATION, UNAVAILABLE }
 
 interface ErrorCode {
     val code: String
@@ -52,3 +52,4 @@ enum class ProductErrorCode(override val type: ErrorType) : ErrorCode {
 | `NOT_FOUND` | 404 | 대상이 존재하지 않음 |
 | `CONFLICT` | 409 | 현재 리소스 상태와 충돌 (상태가 바뀌면 성공할 수 있음) |
 | `BUSINESS_RULE_VIOLATION` | 422 | 값은 유효하지만 도메인 불변식 위반 |
+| `UNAVAILABLE` | 503 | 요청은 올바르지만 필요한 외부 서비스에 닿지 못해 처리할 수 없음(잠시 뒤 다시 시도하면 성공할 수 있음). 확인 없이 통과시키면 안 되는 외부 확인이 실패한 경우다 |

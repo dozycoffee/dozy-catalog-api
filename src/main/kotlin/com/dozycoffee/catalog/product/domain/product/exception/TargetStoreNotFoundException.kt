@@ -3,7 +3,7 @@ package com.dozycoffee.catalog.product.domain.product.exception
 import com.dozycoffee.catalog.core.DomainException
 import com.dozycoffee.catalog.core.StoreId
 
-// 판매 범위의 대상 매장 중 Store BC에 없는 매장이 있어 변경을 거부한다(요구사항 1.5).
+// 판매 범위의 대상 매장 중 Store 서비스에 없는 매장이 있어 변경을 거부한다(요구사항 1.5).
 class TargetStoreNotFoundException(
     missingStoreIds: Set<StoreId>,
 ) : DomainException(

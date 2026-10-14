@@ -115,7 +115,15 @@ dozy:
   auth:
     # 운영은 기본값을 쓰지 않고 반드시 지정한다.
     issuer-base-uri: ${DOZY_AUTH_ISSUER_BASE_URI}
+    # Catalog가 Store 서비스를 부를 때 쓰는 system token 클라이언트(판매 범위의 대상 매장 확인). 토큰 발급·캐시는 스타터가 맡는다.
+    client:
+      enabled: true
+      client-id: ${DOZY_AUTH_CLIENT_ID:svc-catalog}
+      client-secret: ${DOZY_AUTH_CLIENT_SECRET}
 catalog:
   cors:
     # 운영은 기본값을 쓰지 않고 반드시 지정한다.
     allowed-origins: ${CATALOG_CORS_ALLOWED_ORIGINS}
+  store:
+    # Store 서비스 주소. 운영은 반드시 지정한다 — 없으면 판매 범위의 대상 매장을 확인하지 않는 로컬용 구현이 쓰이므로 기동하지 않게 한다.
+    base-url: ${STORE_BASE_URL}

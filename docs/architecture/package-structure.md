@@ -74,7 +74,7 @@ base package: `com.dozycoffee.catalog`
 
 | 연동 대상 | 방향 | 포트 위치 | 구현 위치 |
 |---|---|---|---|
-| Store BC — 매장 존재 검증 | outbound | `product.application.port.ValidateStoreExistsPort` | 지금은 모든 매장이 존재한다고 답하는 `product.infrastructure.acl.AlwaysExistingStoreAdapter`. 호출 방식이 정해지면 `StoreBcAdapter`(포트 구현) + `StoreBcClient`(호출, system token 클라이언트 `dozySystemWebClient` 사용)로 교체 |
+| Store 서비스 — 판매 범위 대상 매장 확인(없는 매장·폐점 매장) | outbound | `product.application.port.StoreAssignabilityPort` | `product.infrastructure.acl.StoreBcAdapter`가 Store의 `POST /api/v1/internal/stores/assignability-check`를 system token 클라이언트(`dozySystemWebClient`)로 부른다(1,000개씩 나눠, 시간 초과 3초, 재시도 없음, 확인하지 못하면 `StoreServiceUnavailableException`). `catalog.store.base-url`이 없으면 모든 매장을 지정할 수 있다고 답하는 `AlwaysAssignableStoreAdapter`를 쓴다(로컬·테스트용, prod는 주소가 없으면 기동하지 않는다). 호출은 트랜잭션 밖에서 한다 |
 | Store BC — 전체 매장 목록(노출 현황의 판매 가능 매장) | outbound | `exposure.application.port.StoreDirectoryPort` | 지금은 설정값(`catalog.exposure.store-ids`)을 돌려주는 `exposure.infrastructure.acl.ConfiguredStoreDirectory`. 호출 방식이 정해지면 실제 어댑터로 교체 |
 | 재고관리 서비스 — 입고/품절/재입고 이벤트 구독 | inbound | (`store.application`에서 직접 처리) | `store.infrastructure.messaging.InventoryEventConsumer` + `store.infrastructure.acl.InventoryServiceEventTranslator` |
 | POS/정산 등 — 상품 상태·정보 변경 이벤트 발행 | outbound | `product.application.port.ProductEventPublisherPort` | `product.infrastructure.eventing.OutboxProductEventPublisher`가 상품 변경과 같은 트랜잭션에서 아웃박스(`common.outbox`)에 기록하고, 릴레이(`OutboxRelay`)가 `KafkaOutboxPublisher`로 Kafka에 보낸다([ADR-0021](../adr/0021-kafka-outbox-for-product-events.md), [영속성](persistence.md#아웃박스)) |
@@ -124,12 +124,12 @@ com.dozycoffee.catalog
 │   │   │   └── query/                     # 상품 목록 검색: ProductQueryService(본사), SellableProductQueryService(점주) + 검색 조건,
 │   │   │                                  #   InternalProductQueryService(Store 서비스용: 기준 정보·유효 옵션·상태 목록)
 │   │   ├── optiongroup/ category/ tag/ productgroup/  # 애그리거트별 유스케이스 서비스 + command/
-│   │   └── port/                          # ProductEventPublisherPort, ValidateStoreExistsPort, ProductSearchQueryPort(조회)
+│   │   └── port/                          # ProductEventPublisherPort, StoreAssignabilityPort, ProductSearchQueryPort(조회)
 │   ├── infrastructure/                    # 애그리거트별 Exposed Table + Repository 구현
 │   │   ├── product/ optiongroup/ category/ tag/ productgroup/
 │   │   ├── query/                         # ExposedProductSearchQuery (조건 검색·페이징으로 상품 ID를 고름)
 │   │   ├── eventing/                      # 상품 이벤트의 아웃박스 기록, JSON 직렬화(ProductEventJson)
-│   │   └── acl/                           # AlwaysExistingStoreAdapter (StoreBcAdapter + StoreBcClient는 Store BC 연동 때)
+│   │   └── acl/                           # StoreBcAdapter(Store 서비스 호출), AlwaysAssignableStoreAdapter(로컬용)
 │   └── presentation/                      # 본사 API(/api/v1/admin/**). 애그리거트별 컨트롤러 + dto/
 │       ├── product/ optiongroup/ category/ tag/ productgroup/
 │       └── internal/                      # Store 서비스용 상품 조회(/api/v1/internal/products·categories·product-states, docs/api/store-service.md)

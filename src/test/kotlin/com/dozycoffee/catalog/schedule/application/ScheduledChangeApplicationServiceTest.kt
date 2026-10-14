@@ -3,7 +3,7 @@ package com.dozycoffee.catalog.schedule.application
 import com.dozycoffee.catalog.core.DomainException
 import com.dozycoffee.catalog.core.Money
 import com.dozycoffee.catalog.core.StoreId
-import com.dozycoffee.catalog.product.application.port.ValidateStoreExistsPort
+import com.dozycoffee.catalog.product.application.port.StoreAssignabilityPort
 import com.dozycoffee.catalog.product.domain.category.CategoryId
 import com.dozycoffee.catalog.product.domain.category.exception.CategoryNotAssignableException
 import com.dozycoffee.catalog.product.domain.category.exception.CategoryNotFoundException
@@ -20,6 +20,8 @@ import com.dozycoffee.catalog.product.domain.product.ProductStatus
 import com.dozycoffee.catalog.product.domain.product.StoreScope
 import com.dozycoffee.catalog.product.domain.product.exception.DuplicateOptionGroupLinkException
 import com.dozycoffee.catalog.product.domain.product.exception.ProductNotFoundException
+import com.dozycoffee.catalog.product.domain.product.exception.StoreServiceUnavailableException
+import com.dozycoffee.catalog.product.domain.product.exception.TargetStoreClosedException
 import com.dozycoffee.catalog.product.domain.product.exception.TargetStoreNotFoundException
 import com.dozycoffee.catalog.product.domain.productgroup.ProductGroupId
 import com.dozycoffee.catalog.product.domain.productgroup.exception.ProductGroupNotFoundException
@@ -33,7 +35,7 @@ import com.dozycoffee.catalog.schedule.domain.ScheduledChangeRepository
 import com.dozycoffee.catalog.schedule.domain.exception.InvalidEffectiveDateException
 import com.dozycoffee.catalog.schedule.domain.exception.NoPendingScheduleException
 import com.dozycoffee.catalog.support.ApplicationTest
-import com.dozycoffee.catalog.support.FakeStoreExistenceValidator
+import com.dozycoffee.catalog.support.FakeStoreAssignabilityChecker
 import com.dozycoffee.catalog.support.MutableClock
 import com.dozycoffee.catalog.support.MutableClockConfiguration
 import kotlinx.coroutines.reactor.awaitSingle
@@ -68,7 +70,7 @@ class ScheduledChangeApplicationServiceTest : ApplicationTest() {
     private lateinit var productRepository: ProductRepository
 
     @Autowired
-    private lateinit var storeValidator: ValidateStoreExistsPort
+    private lateinit var storeValidator: StoreAssignabilityPort
 
     private var beverage = CategoryId(0)
     private var coffee = CategoryId(0)
@@ -315,6 +317,36 @@ class ScheduledChangeApplicationServiceTest : ApplicationTest() {
             }
 
         @Test
+        fun `판매 범위의 대상 매장이 폐점했으면 거부한다`() =
+            runTest {
+                val pending = service.register(command(ProductFieldValue.Scope(StoreScope.All), tomorrow))
+                fakeStoreValidator().markClosed(StoreId(7))
+
+                assertRejectedKeeping<TargetStoreClosedException>(pending) {
+                    service.register(command(ProductFieldValue.Scope(StoreScope.Limited(setOf(StoreId(7)))), tomorrow))
+                }
+            }
+
+        @Test
+        fun `Store 서비스를 확인하지 못하면 등록하지 않고 기존 예약을 유지한다`() =
+            runTest {
+                val pending = service.register(command(ProductFieldValue.Scope(StoreScope.All), tomorrow))
+                fakeStoreValidator().markUnavailable()
+
+                assertRejectedKeeping<StoreServiceUnavailableException>(pending) {
+                    service.register(command(ProductFieldValue.Scope(StoreScope.Limited(setOf(StoreId(1)))), tomorrow))
+                }
+            }
+
+        @Test
+        fun `판매 범위가 아닌 필드를 예약해도 Store 서비스를 부르지 않는다`() =
+            runTest {
+                service.register(command(ProductFieldValue.Name("신메뉴"), tomorrow))
+
+                assertEquals(emptyList(), fakeStoreValidator().checked)
+            }
+
+        @Test
         fun `옵션 그룹 연결에 없는 옵션 그룹이 있거나 같은 옵션 그룹이 두 번 있으면 거부한다`() =
             runTest {
                 val pending = service.register(command(ProductFieldValue.OptionGroupLinks(listOf(sizeGroup)), tomorrow))
@@ -506,7 +538,7 @@ class ScheduledChangeApplicationServiceTest : ApplicationTest() {
 
     private fun options(vararg optionKeys: String) = OptionGroupFieldValue.Options(optionKeys.map { Option(OptionKey(it), it, Money(0)) })
 
-    private fun fakeStoreValidator() = storeValidator as FakeStoreExistenceValidator
+    private fun fakeStoreValidator() = storeValidator as FakeStoreAssignabilityChecker
 
     private suspend fun insertProduct(name: String): ProductId {
         execute(

@@ -5,7 +5,7 @@ import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.core.VersionConflictException
 import com.dozycoffee.catalog.product.application.category.CategoryApplicationService
 import com.dozycoffee.catalog.product.application.category.command.RegisterChildCategoryCommand
-import com.dozycoffee.catalog.product.application.port.ValidateStoreExistsPort
+import com.dozycoffee.catalog.product.application.port.StoreAssignabilityPort
 import com.dozycoffee.catalog.product.application.product.command.ChangeStoreScopeCommand
 import com.dozycoffee.catalog.product.application.product.command.RegisterProductCommand
 import com.dozycoffee.catalog.product.domain.category.ChildCategory
@@ -14,13 +14,15 @@ import com.dozycoffee.catalog.product.domain.product.ProductId
 import com.dozycoffee.catalog.product.domain.product.ProductRepository
 import com.dozycoffee.catalog.product.domain.product.StoreScope
 import com.dozycoffee.catalog.product.domain.product.exception.ProductNotFoundException
+import com.dozycoffee.catalog.product.domain.product.exception.StoreServiceUnavailableException
+import com.dozycoffee.catalog.product.domain.product.exception.TargetStoreClosedException
 import com.dozycoffee.catalog.product.domain.product.exception.TargetStoreNotFoundException
 import com.dozycoffee.catalog.store.domain.availability.StockStatus
 import com.dozycoffee.catalog.store.domain.availability.StoreProductAvailabilityRepository
 import com.dozycoffee.catalog.store.domain.display.StoreDisplaySettingRepository
 import com.dozycoffee.catalog.store.domain.display.Visibility
 import com.dozycoffee.catalog.support.ApplicationTest
-import com.dozycoffee.catalog.support.FakeStoreExistenceValidator
+import com.dozycoffee.catalog.support.FakeStoreAssignabilityChecker
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -51,7 +53,7 @@ class ChangeStoreScopeTest : ApplicationTest() {
     private lateinit var availabilityRepository: StoreProductAvailabilityRepository
 
     @Autowired
-    private lateinit var storeValidator: ValidateStoreExistsPort
+    private lateinit var storeValidator: StoreAssignabilityPort
 
     private lateinit var coffee: ChildCategory
 
@@ -191,6 +193,56 @@ class ChangeStoreScopeTest : ApplicationTest() {
             }
 
         @Test
+        fun `폐점한 매장이 있으면 거부하고 판매 범위가 그대로다`() =
+            runTest {
+                val product = registerProduct(tracksInventory = false)
+                validator().markClosed(StoreId(3))
+
+                assertFailsWith<TargetStoreClosedException> {
+                    service.changeStoreScope(command(product, limited(1, 3)))
+                }
+
+                assertEquals(StoreScope.All, tx { productRepository.findById(product.id) }?.storeScope)
+            }
+
+        @Test
+        fun `없는 매장과 폐점한 매장이 섞이면 없는 매장을 먼저 알린다`() =
+            runTest {
+                val product = registerProduct(tracksInventory = false)
+                validator().markClosed(StoreId(3))
+                validator().markMissing(StoreId(4))
+
+                assertFailsWith<TargetStoreNotFoundException> {
+                    service.changeStoreScope(command(product, limited(1, 3, 4)))
+                }
+            }
+
+        @Test
+        fun `Store 서비스를 확인하지 못하면 통과시키지 않고 거부한다`() =
+            runTest {
+                val product = registerProduct(tracksInventory = false)
+                validator().markUnavailable()
+
+                assertFailsWith<StoreServiceUnavailableException> {
+                    service.changeStoreScope(command(product, limited(1)))
+                }
+
+                assertEquals(StoreScope.All, tx { productRepository.findById(product.id) }?.storeScope)
+            }
+
+        @Test
+        fun `확인 없이 ALL로 바꾸거나 대상 매장을 비우는 변경은 Store 서비스를 부르지 않는다`() =
+            runTest {
+                val product = registerProduct(tracksInventory = false)
+                validator().markUnavailable()
+
+                val limitedEmpty = service.changeStoreScope(command(product, StoreScope.Limited(emptySet())))
+                service.changeStoreScope(ChangeStoreScopeCommand(product.id, limitedEmpty.version, StoreScope.All))
+
+                assertEquals(emptyList(), validator().checked)
+            }
+
+        @Test
         fun `오래된 버전으로 바꾸면 거부하고 판매 범위가 그대로다`() =
             runTest {
                 val product = registerProduct()
@@ -213,7 +265,7 @@ class ChangeStoreScopeTest : ApplicationTest() {
             }
     }
 
-    private fun validator() = storeValidator as FakeStoreExistenceValidator
+    private fun validator() = storeValidator as FakeStoreAssignabilityChecker
 
     private fun limited(vararg storeIds: Long) = StoreScope.Limited(storeIds.map { StoreId(it) }.toSet())
 
