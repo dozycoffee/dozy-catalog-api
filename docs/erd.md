@@ -56,6 +56,7 @@ erDiagram
         bigint id PK
         varchar name
         bigint parent_category_id FK
+        integer display_order
         timestamptz created_at
         timestamptz updated_at
     }
@@ -213,6 +214,7 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | id | BIGINT | PK | |
 | name | VARCHAR | NOT NULL | 즉시 반영 |
 | parent_category_id | BIGINT | FK → categories.id, NULL 허용 | NULL이면 대분류 |
+| display_order | INTEGER | NOT NULL, 기본 0 | 같은 부모를 가진 카테고리끼리의 노출 순서(대분류는 대분류끼리). 같은 값이면 id 순. 앱은 새 카테고리를 형제의 최댓값 + 1에 넣고, 순서 변경은 1부터 다시 매긴다. 삭제로 빈 번호가 생겨도 괜찮다 |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL | |
 
 ### tags — 태그 (Notion select 방식)
@@ -406,6 +408,7 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | `options` 최소 1개/0개 검증 | 검증-실행 사이 레이스 | 옵션 그룹 단위 비관적 락 |
 | `products.status` 전이 검증 | 동시 요청 시 중복 전이 | Product row 단위 비관적 락 |
 | `products`, `option_groups` 전체 교체·예외 지정 | 오래된 화면으로 저장해 다른 변경을 덮어씀 | 낙관적 잠금: `UPDATE … WHERE id = ? AND version = ?`, 바뀐 행이 0개면 충돌(409). 저장할 때마다 `version` + 1 ([ADR-0013](adr/0013-optimistic-locking-for-product-and-option-group.md)) |
+| `categories` 순서 변경 | 같은 형제의 순서 변경끼리, 또는 변경과 확인 사이에 형제가 바뀜 | 형제 묶음 단위 권고 잠금 `pg_advisory_xact_lock(3, parentId)`(대분류끼리는 0, `AdvisoryLockNamespace.CATEGORY_ORDER`)으로 직렬화하고 형제 목록이 요청과 같은지 확인한 뒤 번호를 다시 매긴다. 새 카테고리 등록이 겹쳐 같은 번호를 받아도 같은 값이면 id 순이라 결과가 틀리지 않는다 |
 | `categories` 부모 변경·소분류 추가 | 부모 후보가 동시에 소분류로 바뀌어 3단계가 됨 | 부모 후보 행 `SELECT … FOR UPDATE` |
 | `tags` 같은 이름 동시 등록 | 중복 태그 | `INSERT … ON CONFLICT (name) DO NOTHING` 뒤 조회 |
 | `tags` 이름 변경 | 확인과 저장 사이에 다른 요청이 같은 이름을 씀 | `tags_name_key` UNIQUE 위반(23505)을 `TagNameDuplicatedException`(409)으로 바꿈 |

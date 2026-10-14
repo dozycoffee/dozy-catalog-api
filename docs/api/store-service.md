@@ -62,7 +62,7 @@ GET /api/v1/internal/products?ids=1,2,3
 ```
 
 - 대분류마다 소분류를 담는다. 상품은 소분류만 참조한다(요구사항 1.6).
-- 순서는 노출 순서여야 하지만, 노출 순서([#135](https://github.com/dozycoffee/dozy-catalog-api/issues/135))가 생기기 전에는 등록 순이다. 순서가 생기면 같은 배열의 정렬이 바뀌고 필드가 추가된다(호환되는 변경).
+- 대분류 배열과 각 `children` 배열은 본사가 정한 **노출 순서**다(요구사항 1.6). 모든 매장과 채널에서 같고, 손님 메뉴의 카테고리 탭 순서로 쓴다. 순서 값 자체는 담지 않고 배열 순서가 곧 순서다.
 - 카테고리는 건수가 적어 페이징하지 않는다.
 
 ## GET `/internal/products/{productId}/effective-options` — 유효 옵션 구성

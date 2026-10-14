@@ -61,7 +61,7 @@ flowchart LR
 |---|---|---|---|
 | Product | 본사 | 상품 정의, 상태 전이(활성화·단종·삭제), 판매 범위, 옵션 그룹 연결 순서와 상품별 옵션 예외 | `ProductOptionGroupLink`(내부 엔티티), `OptionOverride`(VO), `StoreScope`(VO) |
 | OptionGroup | 본사 | 여러 상품이 공유하는 옵션 묶음. 옵션 목록의 유효성(최소 1개, 키 유일) | `Option`(VO) |
-| Category | 본사 | 2단계 카테고리 계층 | `TopLevelCategory` / `ChildCategory` |
+| Category | 본사 | 2단계 카테고리 계층. 같은 부모끼리의 노출 순서는 Repository가 관리한다(`display_order`, 새 카테고리·이동은 맨 뒤, 순서 변경은 형제 전체를 application이 확인한 뒤 일괄 반영) | `TopLevelCategory` / `ChildCategory` |
 | Tag | 본사 | 마케팅 라벨. 이름으로 재사용 | — |
 | ProductGroup | 본사 | 내부 관리용 단일 레벨 분류 | — |
 | ScheduledChange | 본사 (적용은 예약 배치) | 필드 단위 예약의 수명(대기 → 적용완료/실패/취소) | `ScheduledValue`(예약 값, 구현은 application) |
@@ -141,6 +141,7 @@ domain의 애그리거트끼리는 ID로만 참조하고, 여러 애그리거트
 | Category | 자기 자신을 부모로 지정할 수 없다 | `InvalidParentCategoryException` |
 | Category | 하위 카테고리를 가진 대분류는 소분류가 될 수 없다 (2단계 계층 유지) | `CategoryWithChildrenNotDemotableException` |
 | Category | 상품이 참조 중인 소분류는 대분류가 될 수 없다 | `ReferencedCategoryNotPromotableException` |
+| (application) | 카테고리 순서 변경은 같은 부모의 형제 전체를 정확히 한 번씩 담아야 한다 (형제 묶음을 잠그고 현재 형제와 비교) | `InvalidCategoryOrderException` |
 | ScheduledChange | 적용일은 업무 시간대 기준 내일 이후만 허용 (등록 경로 `NewScheduledChange.of`) | `InvalidEffectiveDateException` |
 | ScheduledChange | `PENDING` 상태에서만 취소/적용/실패 처리 가능 | `NoPendingScheduleException` / `InvalidScheduleStatusTransitionException` |
 | ScheduledChange | 상태 전이는 저장 시점에도 여전히 `PENDING`일 때만 반영된다 (관리자 취소와 배치 적용이 겹친 경우, Repository가 상태 조건 UPDATE로 확인) | `ScheduleAlreadyProcessedException` |

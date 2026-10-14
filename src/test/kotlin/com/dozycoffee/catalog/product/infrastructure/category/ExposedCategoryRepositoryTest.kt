@@ -26,6 +26,78 @@ class ExposedCategoryRepositoryTest : IntegrationTest() {
     private lateinit var repository: CategoryRepository
 
     @Nested
+    @DisplayName("노출 순서")
+    inner class DisplayOrder {
+        @Test
+        fun `새 카테고리는 같은 형제의 맨 뒤에 놓인다`() =
+            runTest {
+                val beverage = tx.inTransaction { repository.insertTopLevel("음료") }
+                val food = tx.inTransaction { repository.insertTopLevel("푸드") }
+                val coffee = tx.inTransaction { repository.insertChild("커피", beverage) }
+                val tea = tx.inTransaction { repository.insertChild("차", beverage) }
+                val dessert = tx.inTransaction { repository.insertChild("디저트", food) }
+
+                assertEquals(listOf(beverage.id, food.id), tx.inTransaction { repository.findAll(topLevelOnly = true) }.map { it.id })
+                assertEquals(listOf(coffee.id, tea.id), tx.inTransaction { repository.findAll(parentId = beverage.id) }.map { it.id })
+                assertEquals(listOf(dessert.id), tx.inTransaction { repository.findAll(parentId = food.id) }.map { it.id })
+            }
+
+        @Test
+        fun `순서를 바꾸면 그 순서대로 조회된다`() =
+            runTest {
+                val a = tx.inTransaction { repository.insertTopLevel("가") }
+                val b = tx.inTransaction { repository.insertTopLevel("나") }
+                val c = tx.inTransaction { repository.insertTopLevel("다") }
+
+                tx.inTransaction { repository.replaceOrder(listOf(c.id, a.id, b.id)) }
+
+                assertEquals(listOf(c.id, a.id, b.id), tx.inTransaction { repository.findAll(topLevelOnly = true) }.map { it.id })
+            }
+
+        @Test
+        fun `부모를 바꾸면 새 형제의 맨 뒤로 가고 이름만 바꾸면 순서를 유지한다`() =
+            runTest {
+                val beverage = tx.inTransaction { repository.insertTopLevel("음료") }
+                val food = tx.inTransaction { repository.insertTopLevel("푸드") }
+                val coffee = tx.inTransaction { repository.insertChild("커피", beverage) }
+                val tea = tx.inTransaction { repository.insertChild("차", beverage) }
+                val dessert = tx.inTransaction { repository.insertChild("디저트", food) }
+
+                coffee.rename("원두 커피")
+                tx.inTransaction { repository.save(coffee) }
+                assertEquals(listOf(coffee.id, tea.id), tx.inTransaction { repository.findAll(parentId = beverage.id) }.map { it.id })
+
+                tx.inTransaction { repository.save(coffee.changeParent(food)) }
+
+                assertEquals(listOf(dessert.id, coffee.id), tx.inTransaction { repository.findAll(parentId = food.id) }.map { it.id })
+                assertEquals(listOf(tea.id), tx.inTransaction { repository.findAll(parentId = beverage.id) }.map { it.id })
+            }
+
+        @Test
+        fun `승격하면 대분류의 맨 뒤로 간다`() =
+            runTest {
+                val beverage = tx.inTransaction { repository.insertTopLevel("음료") }
+                val coffee = tx.inTransaction { repository.insertChild("커피", beverage) }
+                val food = tx.inTransaction { repository.insertTopLevel("푸드") }
+
+                tx.inTransaction { repository.save(coffee.becomeTopLevel(hasProducts = false)) }
+
+                assertEquals(
+                    listOf(beverage.id, food.id, coffee.id),
+                    tx.inTransaction { repository.findAll(topLevelOnly = true) }.map { it.id },
+                )
+            }
+
+        @Test
+        fun `값이 같으면 id 순이다`() =
+            runTest {
+                execute("INSERT INTO categories (name) VALUES ('가'), ('나')")
+
+                assertEquals(listOf(1L, 2L), tx.inTransaction { repository.findAll() }.map { it.id.value })
+            }
+    }
+
+    @Nested
     @DisplayName("저장과 조회")
     inner class RoundTrip {
         @Test

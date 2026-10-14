@@ -17,6 +17,9 @@ enum class AdvisoryLockNamespace(
 
     // 아웃박스 릴레이의 단일 실행(docs/adr/0021). 인스턴스가 여러 대여도 한 번에 하나만 보내 같은 상품의 순서를 지킨다. 대상은 0.
     OUTBOX_RELAY(2),
+
+    // 카테고리 형제 사이의 순서 변경(요구사항 1.6). 대상은 부모 카테고리 ID, 대분류끼리는 0.
+    CATEGORY_ORDER(3),
 }
 
 // 현재 트랜잭션이 끝날 때까지 (namespace, targetId) 잠금을 잡는다. 같은 키를 잡으려는 다른 트랜잭션은 커밋·롤백까지 기다린다.

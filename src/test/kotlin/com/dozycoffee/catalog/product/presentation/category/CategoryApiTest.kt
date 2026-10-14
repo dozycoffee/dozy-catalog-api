@@ -250,6 +250,59 @@ class CategoryApiTest : ApiTest() {
                 .exchange()
     }
 
+    @Nested
+    @DisplayName("PUT /categories/order — 노출 순서")
+    inner class Reorder {
+        @Test
+        fun `형제 전체의 순서를 정하면 바뀐 순서대로의 목록을 돌려주고 목록 조회도 그 순서다`() {
+            put("/api/v1/admin/categories/order", """{"parentId": null, "categoryIds": [5, 3, 1]}""")
+                .expectStatus()
+                .isOk
+                .expectBody()
+                .jsonPath("$[*].id")
+                .isEqualTo(listOf(5, 3, 1))
+
+            client
+                .get()
+                .uri("/api/v1/admin/categories?topLevel=true")
+                .exchange()
+                .expectBody()
+                .jsonPath("$[*].name")
+                .isEqualTo(listOf("디저트", "MD", "음료"))
+        }
+
+        @Test
+        fun `소분류의 순서는 parentId로 정한다`() {
+            execute("INSERT INTO categories (name, parent_category_id) VALUES ('차', 1)")
+            put("/api/v1/admin/categories/order", """{"parentId": 1, "categoryIds": [6, 2]}""")
+                .expectStatus()
+                .isOk
+                .expectBody()
+                .jsonPath("$[*].name")
+                .isEqualTo(listOf("차", "커피"))
+        }
+
+        @Test
+        fun `형제 전체가 아니면 400 INVALID_CATEGORY_ORDER`() {
+            put("/api/v1/admin/categories/order", """{"parentId": null, "categoryIds": [1, 3]}""")
+                .expectProblem(400, "INVALID_CATEGORY_ORDER")
+        }
+
+        @Test
+        fun `없는 부모면 404 TOP_LEVEL_CATEGORY_NOT_FOUND`() {
+            put("/api/v1/admin/categories/order", """{"parentId": 999, "categoryIds": []}""")
+                .expectProblem(404, "TOP_LEVEL_CATEGORY_NOT_FOUND")
+        }
+
+        @Test
+        fun `parentId나 categoryIds를 빠뜨리면 400 INVALID_REQUEST`() {
+            put("/api/v1/admin/categories/order", """{"categoryIds": [1, 3, 5]}""").expectProblem(400, "INVALID_REQUEST")
+            put("/api/v1/admin/categories/order", """{"parentId": null}""").expectProblem(400, "INVALID_REQUEST")
+        }
+
+        private fun execute(sql: String) = runBlocking { this@CategoryApiTest.execute(sql) }
+    }
+
     private fun put(
         uri: String,
         json: String,

@@ -20,6 +20,9 @@ object CategoriesTable : Table("categories") {
                 fkName = "categories_parent_category_id_fkey",
             ).nullable()
             .index("categories_parent_idx")
+
+    // 같은 부모를 가진 카테고리끼리의 노출 순서(대분류는 대분류끼리). 같은 값이면 id 순이다.
+    val displayOrder = integer("display_order").default(0)
     val createdAt = auditTimestamp("created_at")
     val updatedAt = auditTimestamp("updated_at")
 

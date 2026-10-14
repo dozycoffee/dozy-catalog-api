@@ -34,6 +34,7 @@
 | DELETE | `/option-groups/{optionGroupId}` | 옵션 그룹 삭제 | | 1.9 |
 | GET | `/categories` | 카테고리 목록 | | 1.6 |
 | POST | `/categories` | 카테고리 등록 (대분류·소분류) | | 1.6 |
+| PUT | `/categories/order` | 카테고리 노출 순서 변경 (같은 부모의 형제 전체) | | 1.6 |
 | PUT | `/categories/{categoryId}` | 카테고리 이름 변경 | | 1.6 |
 | PUT | `/categories/{categoryId}/parent` | 부모 변경 (이동·강등·승격) | | 1.6 |
 | DELETE | `/categories/{categoryId}` | 카테고리 삭제 | | 1.6 |
@@ -392,7 +393,7 @@
 | `parentId` | 그 대분류의 소분류만 |
 | `topLevel` | `true`면 대분류만 |
 
-- 응답: `Category` 배열, 등록 순. 대분류·소분류를 평평한 목록으로 주고, 계층은 클라이언트가 `parentId`로 구성한다.
+- 응답: `Category` 배열, **노출 순서**. 대분류·소분류를 평평한 목록으로 주고, 계층은 클라이언트가 `parentId`로 구성한다. 순서는 같은 부모끼리만 의미가 있고, 섞인 목록에서도 같은 부모끼리의 상대 순서가 노출 순서다.
 
 ### POST `/categories` — 등록
 
@@ -437,6 +438,26 @@
 | `INVALID_PARENT_CATEGORY` | 400 | 자기 자신을 부모로 지정 |
 | `CATEGORY_WITH_CHILDREN_NOT_DEMOTABLE` | 409 | 소분류를 가진 대분류를 강등 |
 | `REFERENCED_CATEGORY_NOT_PROMOTABLE` | 409 | 상품이 참조 중인 소분류를 승격 |
+
+### PUT `/categories/order` — 노출 순서 변경 (요구사항 1.6)
+
+같은 부모를 가진 카테고리 전체의 노출 순서를 한 번에 정한다.
+
+```json
+{ "parentId": null, "categoryIds": [5, 1, 3] }
+```
+
+- `parentId`가 `null`이면 대분류들의 순서이고, 값이 있으면 그 대분류의 소분류들의 순서다. 빠뜨리면 `INVALID_REQUEST`(400)다(`null`이라도 필드는 보낸다). `categoryIds`도 필수다.
+- `categoryIds`는 그 형제 전체를 정확히 한 번씩 담아야 한다. 일부만 담거나 중복, 모르는 ID, 다른 부모의 카테고리가 섞이면 거부한다. 화면이 본 뒤 새로 생긴 카테고리가 있으면 이 오류가 나고, 클라이언트가 목록을 다시 불러와 정한다.
+- 응답: 바뀐 순서대로의 그 형제 목록(`Category` 배열)
+- 오류
+
+| 코드 | 상태 | 상황 |
+|---|---|---|
+| `TOP_LEVEL_CATEGORY_NOT_FOUND` | 404 | `parentId`가 없는 카테고리이거나 소분류임 |
+| `INVALID_CATEGORY_ORDER` | 400 | 형제 전체를 한 번씩 담지 않음 |
+
+- 새로 등록한 카테고리와 부모를 바꾼 카테고리는 새 형제의 맨 뒤에 놓인다.
 
 ### DELETE `/categories/{categoryId}` — 삭제
 

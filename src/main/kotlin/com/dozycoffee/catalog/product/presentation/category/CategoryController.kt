@@ -11,6 +11,7 @@ import com.dozycoffee.catalog.product.presentation.category.dto.CategoryResponse
 import com.dozycoffee.catalog.product.presentation.category.dto.ChangeCategoryParentRequest
 import com.dozycoffee.catalog.product.presentation.category.dto.RegisterCategoryRequest
 import com.dozycoffee.catalog.product.presentation.category.dto.RenameCategoryRequest
+import com.dozycoffee.catalog.product.presentation.category.dto.ReorderCategoriesRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -60,6 +61,15 @@ class CategoryController(
             .created(URI.create("$BASE_PATH/${category.id.value}"))
             .body(CategoryResponse.from(category))
     }
+
+    // 같은 부모를 가진 카테고리 전체의 노출 순서를 한 번에 정한다. 응답은 바뀐 순서대로의 그 형제 목록이다.
+    @PutMapping("/order")
+    suspend fun reorder(
+        @RequestBody request: ReorderCategoriesRequest,
+    ): List<CategoryResponse> =
+        categoryService
+            .reorder(request.parentId?.let(::CategoryId), request.categoryIds.map(::CategoryId))
+            .map(CategoryResponse::from)
 
     @PutMapping("/{categoryId}")
     suspend fun rename(
