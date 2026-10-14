@@ -152,6 +152,8 @@
 
 ## S6. 가맹점주의 매장 상품 관리
 
+> **제거 예정**: Store 서비스로 이전한다([ADR-0020](adr/0020-store-owns-store-product-state.md), [이행 계획](migration/store-separation.md)). 이행이 끝나기 전까지 유효하다.
+
 **참여자**: 가맹점주
 
 **기본 흐름**
@@ -169,6 +171,8 @@
 ---
 
 ## S7. 재고 추적 상품의 품절과 해제
+
+> **제거 예정**: Store 서비스로 이전한다([ADR-0020](adr/0020-store-owns-store-product-state.md), [이행 계획](migration/store-separation.md)). Catalog에는 재고 이벤트 소비가 구현된 적이 없다.
 
 **참여자**: 재고관리 서비스, 가맹점주
 
