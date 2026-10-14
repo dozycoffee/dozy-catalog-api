@@ -10,6 +10,10 @@ mkdir -p "$RUN_DIR"
 COMPOSE=(docker compose -f "$LOADTEST_DIR/compose.yaml")
 DB_PORT="${LOADTEST_DB_PORT:-55432}"
 AUTH_URL="${LOADTEST_AUTH_URL:-http://localhost:8080}"
+# Catalog 인스턴스의 호스트 포트. 다른 서비스가 8081, 8082를 쓰면 LOADTEST_CATALOG_1_PORT, LOADTEST_CATALOG_2_PORT로 바꾼다.
+CATALOG_PORT_1="${LOADTEST_CATALOG_1_PORT:-8081}"
+CATALOG_PORT_2="${LOADTEST_CATALOG_2_PORT:-8082}"
+DEFAULT_BASE_URLS="http://localhost:${CATALOG_PORT_1},http://localhost:${CATALOG_PORT_2}"
 
 psql_exec() {
   "${COMPOSE[@]}" exec -T postgres psql -U catalog -d catalog -v ON_ERROR_STOP=1 "$@"

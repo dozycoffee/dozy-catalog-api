@@ -5,7 +5,8 @@
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 wait_ready() {
-  local port=$((8080 + $1))
+  local var="CATALOG_PORT_$1"
+  local port="${!var}"
   for _ in $(seq 1 120); do
     if [ "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$port/actuator/health" || true)" = "200" ]; then
       echo "인스턴스 $1 준비됨 (포트 $port)"; return

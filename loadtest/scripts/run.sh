@@ -20,7 +20,7 @@ if cores="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null)"; then
   fi
 fi
 
-first_url="$(echo "${BASE_URLS:-http://localhost:8081}" | cut -d, -f1)"
+first_url="$(echo "${BASE_URLS:-$DEFAULT_BASE_URLS}" | cut -d, -f1)"
 revision="$(curl -s "$first_url/actuator/prometheus" | grep '^dozy_catalog_build_info' | sed -E 's/.*revision="([^"]*)".*/\1/' || true)"
 echo "측정 대상 revision: ${revision:-알 수 없음}"
 
@@ -34,7 +34,7 @@ summary="$results/$stamp-$profile-${revision:0:7}.json"
 
 k6 run \
   -e PROFILE="$profile" \
-  -e BASE_URLS="${BASE_URLS:-http://localhost:8081,http://localhost:8082}" \
+  -e BASE_URLS="${BASE_URLS:-$DEFAULT_BASE_URLS}" \
   -e AUTH_URL="$AUTH_URL" \
   -e PRODUCT_SCALE="${PRODUCT_SCALE:-1}" \
   --summary-export "$summary" \
