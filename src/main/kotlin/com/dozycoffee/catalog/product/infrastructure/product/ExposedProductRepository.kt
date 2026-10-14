@@ -24,6 +24,7 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.inSubQuery
 import org.jetbrains.exposed.v1.core.or
@@ -50,6 +51,19 @@ class ExposedProductRepository : ProductRepository {
         return toProducts(
             selectRoots { ProductsTable.id inList ids.map { it.value } }
                 .orderBy(ProductsTable.id to SortOrder.ASC)
+                .toList(),
+        )
+    }
+
+    override suspend fun findPageAfter(
+        after: ProductId?,
+        limit: Int,
+    ): List<Product> {
+        require(limit > 0) { "limit은 1 이상이어야 합니다: $limit" }
+        return toProducts(
+            selectRoots { if (after == null) Op.TRUE else ProductsTable.id greater after.value }
+                .orderBy(ProductsTable.id to SortOrder.ASC)
+                .limit(limit)
                 .toList(),
         )
     }

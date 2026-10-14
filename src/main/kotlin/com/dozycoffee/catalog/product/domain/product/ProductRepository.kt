@@ -17,6 +17,13 @@ interface ProductRepository {
     // 목록 조회가 조회 포트로 고른 ID 페이지를 애그리거트로 바꿀 때 쓴다.
     suspend fun findAllByIds(ids: Collection<ProductId>): List<Product>
 
+    // 상품을 id 순서로 한 페이지 가져온다. after가 있으면 그 id보다 큰 상품부터다(커서 방식, 잠그지 않는 읽기).
+    // 다른 서비스가 상품 상태 전체를 처음 채울 때 쓴다(docs/events/product.md 6절).
+    suspend fun findPageAfter(
+        after: ProductId?,
+        limit: Int,
+    ): List<Product>
+
     // 이 옵션 그룹을 연결한 상품 전체를 상태와 상관없이 잠그고 가져온다. 옵션 목록을 교체할 때
     // OptionReplacementPolicy.check에 넘기고, 사라진 옵션 키의 예외를 정리해 저장한다.
     suspend fun findAllLinkedToForUpdate(optionGroupId: OptionGroupId): List<Product>
