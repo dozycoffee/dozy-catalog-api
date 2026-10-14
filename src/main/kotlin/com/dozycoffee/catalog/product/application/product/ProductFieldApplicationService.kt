@@ -3,6 +3,7 @@ package com.dozycoffee.catalog.product.application.product
 import com.dozycoffee.catalog.common.TransactionRunner
 import com.dozycoffee.catalog.common.event.DomainEventDispatcher
 import com.dozycoffee.catalog.core.Money
+import com.dozycoffee.catalog.product.application.port.ProductEventPublisherPort
 import com.dozycoffee.catalog.product.domain.category.CategoryId
 import com.dozycoffee.catalog.product.domain.product.Product
 import com.dozycoffee.catalog.product.domain.product.ProductId
@@ -28,6 +29,7 @@ class ProductFieldApplicationService(
     private val productRepository: ProductRepository,
     private val referenceValidator: ProductReferenceValidator,
     private val eventDispatcher: DomainEventDispatcher,
+    private val eventPublisher: ProductEventPublisherPort,
     private val transactionRunner: TransactionRunner,
 ) {
     suspend fun changeName(
@@ -99,7 +101,10 @@ class ProductFieldApplicationService(
             val product = productRepository.findByIdForUpdate(productId) ?: throw ProductNotFoundException(productId)
             block(product)
             val saved = productRepository.save(product)
-            eventDispatcher.dispatch(saved.pullDomainEvents())
+            // 저장한 직후, 같은 트랜잭션에서 한다. 내부 구독자에게 전달하고 다른 서비스가 복제하는 상태는 아웃박스에 기록한다(ADR-0021).
+            val events = saved.pullDomainEvents()
+            eventDispatcher.dispatch(events)
+            eventPublisher.changed(saved, events)
             saved
         }
 }

@@ -4,6 +4,18 @@
 spring:
   application:
     name: dozy-catalog-api
+  kafka:
+    # 상품 이벤트를 보낼 Kafka(docs/adr/0021). 로컬은 spring-boot-docker-compose가 compose.yaml의 kafka 컨테이너를 연결한다.
+    # 프로듀서는 첫 전송 때 연결하므로 Kafka가 없어도 앱은 뜨고, 이벤트는 아웃박스에 쌓인다.
+    producer:
+      # 브로커 복제본이 모두 받았다고 확인한 뒤에야 전송 성공으로 본다. 멱등 전송으로 재시도 중복과 순서 역전을 막는다.
+      acks: all
+      properties:
+        enable.idempotence: true
+        # 전송 확인을 기다리는 시간의 상한. catalog.outbox.relay.send-timeout 안에 끝나도록 더 짧게 둔다.
+        max.block.ms: 5000
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 8000
   r2dbc:
     # 커넥션 풀(r2dbc-pool). Exposed 트랜잭션 하나가 연결 하나를 빌려 쓰고 끝나면 돌려준다.
     # 운영 규모가 정해지면 max-size를 다시 정한다. PostgreSQL max_connections를 인스턴스 수 × max-size보다 크게 둔다.
@@ -59,6 +71,21 @@ catalog:
       # 인스턴스마다 켜 둬도 된다(예약마다 잠그므로 두 번 적용되지 않는다). 통합 테스트에서는 끈다(IntegrationTest).
       enabled: true
       fixed-delay: PT1M
+  outbox:
+    relay:
+      # 아웃박스에 쌓인 상품 이벤트를 Kafka로 보낸다. 인스턴스마다 켜 둬도 한 번에 한 인스턴스만 보낸다. 통합 테스트에서는 끈다.
+      enabled: true
+      fixed-delay: PT1S
+      # 한 번에 읽는 건수. 전송을 기다리는 동안 DB 트랜잭션을 잡고 있으므로 작게 둔다.
+      batch-size: 100
+      # 한 이벤트가 이만큼 실패하면 격리한다(뒤의 이벤트를 막지 않기 위해). Kafka 장애 중의 실패는 세지 않는다.
+      max-attempts: 5
+      send-timeout: PT10S
+    cleanup:
+      # 전송이 끝난 이벤트의 보관 기간. 장애를 조사하거나 구독자가 요청할 때 다시 볼 수 있게 잠시 남긴다.
+      retention: P3D
+      fixed-delay: PT1H
+      batch-size: 1000
   exposure:
     # 전체 매장 목록. 매장의 원본은 Store BC지만 호출 방식이 정해지기 전이라, 노출 현황 조회가
     # 판매 범위 All인 상품의 판매 가능 매장으로 이 설정값을 쓴다(5단계에서 실제 호출로 교체).
@@ -72,6 +99,8 @@ spring:
   docker:
     compose:
       enabled: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
   r2dbc:
     url: r2dbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}
     username: ${DB_USERNAME}

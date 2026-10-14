@@ -1,5 +1,6 @@
 package com.dozycoffee.catalog.common.exposed
 
+import kotlinx.coroutines.flow.first
 import org.jetbrains.exposed.v1.core.statements.StatementType
 import org.jetbrains.exposed.v1.r2dbc.transactions.TransactionManager
 
@@ -13,6 +14,9 @@ enum class AdvisoryLockNamespace(
 ) {
     // 매장 단위 진열 순서 일괄 변경(요구사항 2.3). 대상은 storeId.
     STORE_DISPLAY_ORDER(1),
+
+    // 아웃박스 릴레이의 단일 실행(docs/adr/0021). 인스턴스가 여러 대여도 한 번에 하나만 보내 같은 상품의 순서를 지킨다. 대상은 0.
+    OUTBOX_RELAY(2),
 }
 
 // 현재 트랜잭션이 끝날 때까지 (namespace, targetId) 잠금을 잡는다. 같은 키를 잡으려는 다른 트랜잭션은 커밋·롤백까지 기다린다.
@@ -27,3 +31,17 @@ suspend fun lockForTransaction(
         explicitStatementType = StatementType.SELECT,
     )
 }
+
+// 기다리지 않고 잠금을 시도한다. 잡으면 현재 트랜잭션이 끝날 때까지 갖고, 이미 다른 트랜잭션이 갖고 있으면 false다.
+suspend fun tryLockForTransaction(
+    namespace: AdvisoryLockNamespace,
+    targetId: Long,
+): Boolean =
+    TransactionManager
+        .current()
+        .exec(
+            "SELECT pg_try_advisory_xact_lock(${namespace.key}, ${targetId.toInt()})",
+            explicitStatementType = StatementType.SELECT,
+        ) { row -> row.get(0, java.lang.Boolean::class.java)!!.booleanValue() }
+        ?.first()
+        ?: error("권고 잠금 시도의 결과를 받지 못했습니다: ${namespace.name}")

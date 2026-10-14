@@ -22,6 +22,9 @@ x-catalog: &catalog
     SPRING_R2DBC_POOL_MAX_SIZE: ${LOADTEST_POOL_SIZE:-10}
     SPRING_R2DBC_POOL_INITIAL_SIZE: ${LOADTEST_POOL_SIZE:-10}
     CATALOG_RELEASE_VERSION: loadtest
+    # 부하테스트는 Kafka를 띄우지 않는다. 릴레이를 꺼서 보낼 곳 없는 재시도가 측정에 끼지 않게 하고, 이벤트는 아웃박스에만 쌓는다.
+    KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+    CATALOG_OUTBOX_RELAY_ENABLED: "false"
   extra_hosts:
     - "host.docker.internal:host-gateway"
   cpus: ${LOADTEST_APP_CPUS:-2}

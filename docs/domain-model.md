@@ -249,6 +249,7 @@ stateDiagram-v2
 | `ProductDiscontinued` | `Product.discontinue()` | productId | 외부 서비스에 판매 중단 전파 |
 | `ProductStoreScopeChanged` | `Product.changeStoreScope()` | productId, newScope | `StoreScopeCleanupPolicy`로 대상에서 빠진 매장의 진열 설정과 `OWNER` 판매 가능 여부를 골라 삭제 (재포함되어도 복원하지 않음, `INVENTORY`는 유지) |
 
+- 위 표는 서비스 안에서 쓰는 도메인 이벤트다. 다른 서비스에 알리는 이벤트(등록·활성화·단종·판매 범위 변경·삭제의 상품 상태)는 별개로 아웃박스를 거쳐 Kafka로 나간다. 형식과 규칙은 [이벤트 계약](events/product.md)이 원본이다. 저장 한 번에 이벤트 하나를 내고, 한 저장에서 `ProductActivated`·`ProductStoreScopeChanged`가 겹치면 마지막 것의 종류로 최종 상태를 담는다.
 - 이벤트는 애그리거트가 `registerEvent()`로 쌓아 두고, 저장 후 application이 꺼내 같은 트랜잭션에서 동기로 처리한다([패키지 구조](architecture/package-structure.md#유스케이스-작성-관례)).
 - 태그·상품 그룹 삭제 시 참조하던 상품에서 자동으로 빠지는 것(요구사항 1.7, 1.8)은 이벤트가 아니라 연결 테이블의 FK CASCADE로 지킨다. 이벤트를 두면 DB가 이미 하는 일을 한 번 더 하게 된다.
 - `ProductStoreScopeChanged`가 "제외된 매장 목록" 대신 새 판매 범위만 담는 이유: domain은 전체 매장 목록을 모르므로 어떤 매장이 빠졌는지 계산할 수 없다.

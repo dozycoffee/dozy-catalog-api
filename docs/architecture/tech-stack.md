@@ -31,7 +31,7 @@
 | 전송 계층 | `spring-boot-starter-r2dbc` | Boot가 `spring.r2dbc.*`로 `ConnectionFactory`를 자동 구성하는 용도로만 쓴다. Exposed의 `R2dbcDatabase`가 이를 감싼다 |
 | 커넥션 풀 | `r2dbc-pool` | Boot 4의 R2DBC 스타터에 포함되지 않아 따로 둔다. 없으면 트랜잭션마다 연결을 새로 연다 |
 | 드라이버 | `org.postgresql:r2dbc-postgresql` | 구 groupId `io.r2dbc`에서 이관됨. Boot BOM의 1.1.1은 결과의 마지막 행이 빠질 수 있는 버그가 있어 1.1.2 이상으로 덮어쓴다(`libs.versions.toml` 참고) |
-| 로컬 DB | Docker Compose (`compose.yaml`) | `spring-boot-docker-compose`가 `bootRun` 시 자동 기동·연결 |
+| 로컬 DB | Docker Compose (`compose.yaml`) | `spring-boot-docker-compose`가 `bootRun` 시 자동 기동·연결. 로컬 Kafka도 같은 파일에 있고 호스트 포트 9092를 쓴다 |
 | 마이그레이션 | Flyway (`spring-boot-flyway` 모듈, JDBC) | 순수 SQL로 PostgreSQL 기능을 그대로 쓴다. R2DBC를 지원하지 않아 앱 시작 시 JDBC로 한 번 실행한다 ([ADR-0009](../adr/0009-flyway-with-exposed-schema-check.md)) |
 | Exposed 추가 모듈 | `exposed-java-time`, `exposed-migration-r2dbc`(테스트) | `TIMESTAMPTZ`·`DATE` 매핑, Table 정의와 스키마 불일치 검사 |
 | 시간 | `java.time` (`Instant`, `LocalDate`, `Clock`) | JDK 표준이라 Jackson·Spring·Exposed 지원이 가장 넓다. JVM 전용 서비스라 `kotlinx-datetime`의 멀티플랫폼 이점이 없다 ([ADR-0010](../adr/0010-schema-conventions-and-time.md)) |
@@ -49,7 +49,7 @@
 | 형식 | 공통 MSA 이벤트 형식(헤더 없이 JSON 값 하나). 토픽 `dozy.catalog.product`, 키 `productId` | 이벤트 계약은 `docs/events/`에 둔다. MSA 이벤트 형식이 서비스 공통 형식이다 |
 | 구독 | 하지 않는다 | 재고 이벤트 소비는 Store가 맡는다([ADR-0020](../adr/0020-store-owns-store-product-state.md)) |
 
-이벤트 발행은 아직 구현 전이다. 서비스 내부의 도메인 이벤트(`common.event.DomainEventDispatcher`)는 이 경로가 아니다.
+발행은 `common.outbox`(아웃박스, 릴레이, `KafkaOutboxPublisher`)와 `product.infrastructure.eventing`(상품 이벤트의 JSON 직렬화, 아웃박스 기록)이 맡는다. 운영 방법은 [영속성](persistence.md#아웃박스)에 있다. 서비스 내부의 도메인 이벤트(`common.event.DomainEventDispatcher`)는 이 경로가 아니다.
 
 ## 직렬화
 

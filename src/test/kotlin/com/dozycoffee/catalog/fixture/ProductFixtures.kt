@@ -9,6 +9,7 @@ import com.dozycoffee.catalog.product.domain.product.Product
 import com.dozycoffee.catalog.product.domain.product.ProductId
 import com.dozycoffee.catalog.product.domain.product.ProductOptionGroupLink
 import com.dozycoffee.catalog.product.domain.product.ProductStatus
+import com.dozycoffee.catalog.product.domain.product.Sku
 import com.dozycoffee.catalog.product.domain.product.StoreScope
 
 // 기본값은 등록 직후 상태(DRAFT)다. 다른 상태가 필요하면 테스트에서 명시한다.
@@ -21,9 +22,10 @@ fun product(
     storeScope: StoreScope = StoreScope.All,
     categoryId: Long = 10,
     version: Long = 0,
+    sku: String? = null,
 ) = Product(
     id = ProductId(id),
-    sku = null,
+    sku = sku?.let { Sku(it) },
     name = "아메리카노",
     categoryId = CategoryId(categoryId),
     description = null,

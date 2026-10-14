@@ -31,7 +31,7 @@ class SchemaMigrationTest : IntegrationTest() {
     }
 
     @Test
-    fun `V1 스키마의 테이블이 모두 만들어진다`() =
+    fun `마이그레이션이 만든 테이블이 모두 있다`() =
         runTest {
             val tables =
                 databaseClient
@@ -59,6 +59,7 @@ class SchemaMigrationTest : IntegrationTest() {
                     "scheduled_changes",
                     "store_display_settings",
                     "store_product_availabilities",
+                    "outbox_events",
                 ),
                 tables,
             )

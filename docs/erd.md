@@ -356,6 +356,24 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL | row 부재 = 출처별 기본값(`INVENTORY`는 품절, `OWNER`는 판매중) |
 | 제약 | | `CHECK (source = 'INVENTORY' OR last_event_at IS NULL)` | `OWNER` 출처에는 재고 이벤트 시각이 없다 |
  
+### outbox_events — 서비스 간 이벤트의 아웃박스 ([ADR-0021](adr/0021-kafka-outbox-for-product-events.md))
+
+업무 변경과 같은 트랜잭션에서 쓰고, 릴레이가 id 순서로 Kafka에 보낸다. 실제 DDL은 `V5__create_outbox_events.sql`이다.
+
+| 컬럼 | 타입 | 제약 | 설명 |
+|---|---|---|---|
+| id | BIGINT | PK, identity | 릴레이가 읽는 순서 |
+| event_id | UUID | UNIQUE, NOT NULL | UUID v7. 다시 발행해도 같은 값. 구독자의 중복 제거 키 |
+| topic / message_key | VARCHAR(255) | NOT NULL | 목적지 토픽과 메시지 키 |
+| payload | TEXT | NOT NULL | Kafka 값으로 나가는 JSON 그대로(JSONB는 키 순서를 바꾸므로 쓰지 않는다) |
+| traceparent | VARCHAR(64) | NULL 허용 | 지금은 비어 있다 |
+| created_at | TIMESTAMPTZ | NOT NULL | 이벤트의 `occurredAt`이 된다 |
+| published_at | TIMESTAMPTZ | NULL 허용 | 브로커가 받았다고 확인한 시각. 있으면 전송 완료 |
+| attempts / last_error | INTEGER / TEXT | attempts ≥ 0 | 실패 횟수와 마지막 오류 |
+| quarantined_at | TIMESTAMPTZ | NULL 허용 | 재시도 한도를 넘어 격리된 시각. `published_at`과 동시에 값을 가질 수 없다(CHECK) |
+
+대기 이벤트 조회와 정리 배치를 위한 부분 인덱스가 둘 있다(`outbox_events_pending_idx`, `outbox_events_published_idx`). 전송이 끝난 행은 보관 기간(기본 3일) 뒤 지운다.
+
 ---
 
 ## 삭제 시 동작 (FK)
@@ -379,6 +397,7 @@ PostgreSQL ENUM 타입을 쓰지 않는 이유는 [ADR-0010](adr/0010-schema-con
 | `scheduled_changes` 취소 후 재등록 | Pending 중복 생성 위험 | `SELECT ... FOR UPDATE`로 기존 row 잠그고 한 트랜잭션 처리 |
 | `scheduled_changes` 00시 배치 적용 | 여러 워커의 중복 처리 | `SELECT ... FOR UPDATE SKIP LOCKED` (`status = 'PENDING' AND effective_at <= now`, 적용 시각 순) |
 | `scheduled_changes` 상태 전이 저장 | 관리자 취소와 배치 적용·실패가 같은 예약을 동시에 처리 | `UPDATE … SET status = ? WHERE id = ? AND status = 'PENDING'`, 바뀐 행이 0개면 `ScheduleAlreadyProcessedException`(409) |
+| `outbox_events` 릴레이 | 여러 인스턴스가 같은 이벤트를 동시에 보내 순서가 섞임 | 릴레이 트랜잭션 시작에 `pg_try_advisory_xact_lock(2, 0)`(`AdvisoryLockNamespace.OUTBOX_RELAY`)을 잡고, 못 잡으면 그 실행을 건너뛴다. 잠금은 트랜잭션이 끝날 때 풀린다 |
 | `store_display_settings` Lazy 생성 | 동시 요청 시 중복 row | `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE` |
 | `store_display_settings` 노출·진열 순서 변경 | 다른 필드를 바꾸는 요청끼리 옛 값으로 덮어씀 | 바뀐 필드만 UPDATE. 같은 필드는 점주의 최신 의도가 이긴다 |
 | `store_display_settings` 진열 순서 일괄 변경 | 같은 매장의 일괄 변경끼리 한쪽이 순서를 비운 뒤 다른 쪽이 번호를 매겨 두 순서가 섞임 | 트랜잭션 시작 직후 매장 단위 권고 잠금 `pg_advisory_xact_lock(1, storeId)`로 직렬화한다. 첫 키는 용도별 네임스페이스(`AdvisoryLockNamespace`, 진열 순서 = 1), 둘째 키는 storeId의 하위 32비트다(하위 32비트가 같은 매장끼리는 불필요하게 줄을 설 뿐 결과는 같다). 그 뒤 목록 밖 설정의 순서를 한 문장으로 비우고, 목록의 상품은 `INSERT ... ON CONFLICT (store_id, product_id) DO UPDATE`로 번호를 넣는다 |
