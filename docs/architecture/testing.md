@@ -32,6 +32,7 @@
 - `IntegrationTest`에는 `integration` 태그가 붙는다. `./gradlew unitTest`는 이 태그를 빼고 돌려 Docker 없이 도메인·정책 테스트만 빠르게 확인한다. `./gradlew test`(그리고 CI의 `build`)는 전체를 돌린다.
 - PostgreSQL 컨테이너는 JVM 전체에서 하나만 띄워 공유한다. `@ServiceConnection`이 R2DBC와 JDBC(Flyway) 연결 정보를 함께 만들므로 설정 파일에 접속 정보를 두지 않는다.
 - 스키마는 실제 앱과 같이 Flyway가 만든다.
+- **아웃박스 릴레이도 꺼 둔다**(`catalog.outbox.relay.enabled=false`). 유스케이스 테스트는 `ApplicationTest.outboxEvents()`로 상품 변경이 아웃박스에 기록한 이벤트를 확인한다. 릴레이를 확인하는 테스트는 Kafka만 가짜로 바꾸거나(`OutboxRelayTest`, 외부 시스템 포트), Testcontainers Kafka로 실제 왕복을 본다(`KafkaOutboxRelayTest`). 릴레이를 켠 테스트는 `@DirtiesContext(AFTER_CLASS)`로 컨텍스트를 닫아, 캐시에 남은 컨텍스트가 다른 테스트의 아웃박스 행을 가져가지 않게 한다.
 - **데이터 정리**: 테스트마다 `flyway_schema_history`를 뺀 모든 테이블을 `TRUNCATE … RESTART IDENTITY CASCADE`로 비운다. R2DBC는 테스트 트랜잭션 롤백이 어렵기 때문이다. 그래서 테스트는 다른 테스트가 남긴 데이터에 기대지 않는다.
 - **예약 적용 스케줄러는 꺼 둔다**(`IntegrationTest`의 `catalog.schedule.batch.enabled=false`). 켜 두면 테스트가 만든 대기 예약을 백그라운드에서 적용해 결과가 흔들린다. 스케줄러를 확인하는 테스트만 `@TestPropertySource`로 켜고, `@DirtiesContext`로 끝나면 컨텍스트를 닫는다.
 - 테스트 JVM 시간대는 UTC로 고정된다(`build.gradle.kts`). 시간이 들어가는 테스트는 고정된 값이나 `Clock`을 쓴다.

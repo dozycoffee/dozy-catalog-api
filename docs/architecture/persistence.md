@@ -81,6 +81,30 @@
 - 잠금 조회는 Exposed `Query.forUpdate()`를 쓴다. 여러 워커가 나눠 처리하는 배치 조회는 `forUpdate(ForUpdateOption.PostgreSQL.ForUpdate(MODE.SKIP_LOCKED))`로 다른 트랜잭션이 잠근 행을 건너뛴다(예: `findDueForApplication`, [ERD 동시성 처리](../erd.md#동시성-처리)).
 - 잠글 행이 정해져 있지 않은 범위(예: 한 매장의 진열 순서 전체)를 직렬화할 때는 트랜잭션 단위 권고 잠금 `common.exposed.lockForTransaction`(`pg_advisory_xact_lock`)을 쓴다. 키는 두 정수 형태 (용도, 대상 ID)이고, 용도 번호는 `AdvisoryLockNamespace`에 모아 겹치지 않게 한다. 잠금은 트랜잭션이 끝날 때 풀린다.
 
+## 아웃박스
+
+다른 서비스에 알리는 이벤트는 상품 변경과 같은 트랜잭션에서 `outbox_events`에 쓰고, 릴레이가 Kafka로 보낸다([ADR-0021](../adr/0021-kafka-outbox-for-product-events.md), 테이블은 [ERD](../erd.md#outbox_events--서비스-간-이벤트의-아웃박스-adr-0021)). 코드는 `common.outbox`에 있다.
+
+- **기록**: `ProductEventPublisherPort`의 구현(`OutboxProductEventPublisher`)이 호출한 쪽의 트랜잭션 안에서 쓴다. 기록이 실패하면 상품 변경도 롤백된다. 이벤트 ID는 UUID v7(`UuidV7`)이다.
+- **릴레이**: `OutboxRelayScheduler`가 `catalog.outbox.relay.fixed-delay`(기본 1초)마다 `OutboxRelay`를 부른다. 한 트랜잭션에서 권고 잠금을 잡고 대기 이벤트를 `batch-size`(기본 100)건까지 id 순서로 보내며, 브로커가 확인하면 `published_at`을 기록한다. 보낸 뒤 기록 전에 죽으면 다시 보내므로 at-least-once이고 구독자가 `eventId`로 중복을 걸러낸다. 전송을 기다리는 동안 DB 트랜잭션을 잡고 있으므로 `batch-size`를 크게 키우지 않는다.
+- **실패와 격리**: 성공한 전송이 있던 실행에서 실패한 이벤트는 `attempts`를 올리고, `max-attempts`(기본 5)에 이르면 `quarantined_at`을 기록해 더는 읽지 않는다(뒤의 이벤트를 막지 않기 위해). 성공 없이 이어서 두 건이 실패하면 Kafka 장애로 보고 `attempts`를 올리지 않은 채 `last_error`만 기록하고 그 실행을 끝낸다. 그래서 Kafka가 멈춰도 이벤트는 격리되지 않고 쌓였다가 복구되면 순서대로 나간다. 앱은 Kafka 없이도 뜬다.
+- **정리**: 전송이 끝난 이벤트는 `catalog.outbox.cleanup.retention`(기본 3일) 뒤 지운다. 격리된 이벤트는 지우지 않는다.
+- **지표**: `dozy_catalog_outbox_pending`(대기 건수), `dozy_catalog_outbox_oldest_pending_age_seconds`(가장 오래 기다린 이벤트의 나이), `dozy_catalog_outbox_quarantined`(격리 건수), `dozy_catalog_outbox_relay_events_total{result}`. 릴레이가 멈추거나 Kafka가 닿지 않으면 첫 두 값이 커지므로 이 둘에 경보를 건다. 격리 건수가 0보다 크면 운영자가 확인한다.
+
+### 격리된 이벤트 되살리기
+
+원인(보통 이벤트 하나의 문제, 예: 너무 큰 메시지)을 고친 뒤 격리를 풀면 릴레이가 다시 보낸다. 먼저 `last_error`로 원인을 본다.
+
+```sql
+SELECT id, event_id, message_key, attempts, last_error, quarantined_at
+FROM outbox_events WHERE quarantined_at IS NOT NULL ORDER BY id;
+
+-- 격리를 풀어 다시 보내게 한다
+UPDATE outbox_events SET quarantined_at = NULL, attempts = 0 WHERE id = ANY (ARRAY[…]);
+```
+
+다시 보낸 이벤트는 그 사이에 나간 뒤의 이벤트보다 늦게 도착할 수 있다. 구독자가 `sequence`로 걸러내므로([이벤트 계약](../events/product.md#5-순번과-구독자의-처리)) 그대로 둔다. `event_id`와 `payload`는 고치지 않는다.
+
 ## 시간
 
 - 코드는 시스템 기본 시간대를 쓰지 않는다. 현재 시각은 `Clock` 빈(UTC)으로 구하고, 업무 날짜는 `BusinessTimeZone`(설정값 `catalog.business-zone`, 기본 `Asia/Seoul`)으로 해석한다.

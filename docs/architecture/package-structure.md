@@ -56,7 +56,7 @@ base package: `com.dozycoffee.catalog`
 
 - **BC 안의 구독자에게는 `common.event.DomainEventDispatcher`로 전달한다.** 저장한 애그리거트에서 `pullDomainEvents()`로 꺼낸 이벤트를 넘기면, 구독 모듈이 Spring 빈으로 등록한 `DomainEventHandler`가 발행 측의 트랜잭션·코루틴에서 동기로 실행된다. 별도 스레드나 큐를 쓰지 않으므로 정리가 끝나기 전의 중간 상태가 생기지 않고, 핸들러가 예외를 던지면 원래 변경까지 롤백된다.
 - **발행 측은 구독 측을 모른다.** `product`이 `ProductStoreScopeChanged`를 발행하고 `store`의 `StoreScopeCleanupHandler`가 구독해 매장 설정을 정리하므로, `product`이 `store`를 참조하지 않고도 정리가 일어난다. 모듈 간 의존은 `store → product` 한 방향으로 유지된다([ADR-0015](../adr/0015-domain-modules-as-top-level-packages.md)).
-- **외부 서비스(POS·정산 등)로 나가는 전파는 이 경로가 아니라 `ProductEventPublisherPort`가 맡는다.** 실패해도 원래 요청을 되돌리면 안 되는 처리라 트랜잭션과 수명이 다르기 때문이다. 같은 이벤트를 두 경로로 보내지 않는다.
+- **외부 서비스(POS·정산 등)로 나가는 전파는 이 경로가 아니라 `ProductEventPublisherPort`가 맡는다.** 상품 변경과 같은 트랜잭션에서 아웃박스에 기록하고(그래서 기록이 실패하면 변경도 롤백된다), Kafka로 보내는 일은 릴레이가 트랜잭션 밖에서 따로 한다. 같은 이벤트를 두 경로로 보내지 않는다.
 - 핸들러는 구독 모듈의 `application` 아래에 두고, 자기 모듈의 Repository와 정책만 쓴다. 이미 열린 트랜잭션을 이어 쓰도록 `TransactionRunner.inTransaction { … }` 안에서 작업해, 예약 적용처럼 다른 경로에서 불려도 같게 동작하게 한다.
 
 ## 인터페이스와 구현 배치
@@ -77,7 +77,7 @@ base package: `com.dozycoffee.catalog`
 | Store BC — 매장 존재 검증 | outbound | `product.application.port.ValidateStoreExistsPort` | 지금은 모든 매장이 존재한다고 답하는 `product.infrastructure.acl.AlwaysExistingStoreAdapter`. 호출 방식이 정해지면 `StoreBcAdapter`(포트 구현) + `StoreBcClient`(호출, system token 클라이언트 `dozySystemWebClient` 사용)로 교체 |
 | Store BC — 전체 매장 목록(노출 현황의 판매 가능 매장) | outbound | `exposure.application.port.StoreDirectoryPort` | 지금은 설정값(`catalog.exposure.store-ids`)을 돌려주는 `exposure.infrastructure.acl.ConfiguredStoreDirectory`. 호출 방식이 정해지면 실제 어댑터로 교체 |
 | 재고관리 서비스 — 입고/품절/재입고 이벤트 구독 | inbound | (`store.application`에서 직접 처리) | `store.infrastructure.messaging.InventoryEventConsumer` + `store.infrastructure.acl.InventoryServiceEventTranslator` |
-| POS/정산 등 — 상품 상태·정보 변경 이벤트 발행 | outbound | `product.application.port.ProductEventPublisherPort` | `common`의 이벤트 발행 구현 또는 `product.infrastructure.eventing.DomainEventPublisher` |
+| POS/정산 등 — 상품 상태·정보 변경 이벤트 발행 | outbound | `product.application.port.ProductEventPublisherPort` | `product.infrastructure.eventing.OutboxProductEventPublisher`가 상품 변경과 같은 트랜잭션에서 아웃박스(`common.outbox`)에 기록하고, 릴레이(`OutboxRelay`)가 `KafkaOutboxPublisher`로 Kafka에 보낸다([ADR-0021](../adr/0021-kafka-outbox-for-product-events.md), [영속성](persistence.md#아웃박스)) |
 
 ## 전체 트리
 
@@ -127,7 +127,7 @@ com.dozycoffee.catalog
 │   ├── infrastructure/                    # 애그리거트별 Exposed Table + Repository 구현
 │   │   ├── product/ optiongroup/ category/ tag/ productgroup/
 │   │   ├── query/                         # ExposedProductSearchQuery (조건 검색·페이징으로 상품 ID를 고름)
-│   │   ├── eventing/                      # 상품 이벤트 발행 구현 (지금은 로그)
+│   │   ├── eventing/                      # 상품 이벤트의 아웃박스 기록, JSON 직렬화(ProductEventJson)
 │   │   └── acl/                           # AlwaysExistingStoreAdapter (StoreBcAdapter + StoreBcClient는 Store BC 연동 때)
 │   └── presentation/                      # 본사 API(/api/v1/admin/**). 애그리거트별 컨트롤러 + dto/
 │       └── product/ optiongroup/ category/ tag/ productgroup/

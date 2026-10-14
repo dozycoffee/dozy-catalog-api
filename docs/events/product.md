@@ -1,6 +1,6 @@
 # 상품 이벤트 계약 (`dozy.catalog.product`)
 
-> 문서별 역할과 수정 순서는 [문서 안내](../README.md)를 참고한다. 상태: **초안**. 결정의 이유는 [ADR-0020](../adr/0020-store-owns-store-product-state.md)(Store가 매장 상태를 소유함), [ADR-0021](../adr/0021-kafka-outbox-for-product-events.md)(Kafka와 아웃박스)에 있다.
+> 문서별 역할과 수정 순서는 [문서 안내](../README.md)를 참고한다. 상태: **초안**(Catalog의 발행은 구현됨, Store의 구독 확인 전). 결정의 이유는 [ADR-0020](../adr/0020-store-owns-store-product-state.md)(Store가 매장 상태를 소유함), [ADR-0021](../adr/0021-kafka-outbox-for-product-events.md)(Kafka와 아웃박스)에 있다.
 
 Catalog가 다른 서비스에 알리는 **상품 상태**의 계약이다. 구독자(지금은 Store)는 이 이벤트로 판단에 필요한 상품 상태를 복제해 둔다. 이름·가격·옵션 같은 표시용 정보는 이 이벤트에 없고 조회 API로 받는다. 메시지 형식은 사내 공통 MSA 이벤트 형식을 따른다.
 
@@ -153,3 +153,4 @@ JSON 규칙은 공통 형식을 따른다. 필드 이름은 camelCase이고, 값
 | 날짜 | 변경 |
 |---|---|
 | 2026-10-14 | 초안 작성. 상태: 구현 전 |
+| 2026-10-14 | Catalog 발행 구현(아웃박스·릴레이). 계약 변경 없음 |
