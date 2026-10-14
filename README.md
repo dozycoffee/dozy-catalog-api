@@ -42,7 +42,7 @@ cp .env.example .env
 ./gradlew bootRun
 ```
 
-프로파일을 지정하지 않으면(local/default) `spring-boot-docker-compose`가 `compose.yaml`의 PostgreSQL 컨테이너를 자동으로 기동하고 연결까지 구성하므로, 별도로 DB 접속 정보를 설정할 필요가 없습니다.
+프로파일을 지정하지 않으면(local/default) `spring-boot-docker-compose`가 `compose.yaml`의 PostgreSQL 컨테이너를 자동으로 기동하고 연결까지 구성하므로, 별도로 DB 접속 정보를 설정할 필요가 없습니다. 상품 이벤트를 보낼 Kafka 컨테이너도 함께 뜨며, 호스트 포트 9092를 씁니다(Kafka는 클라이언트에게 자기 주소를 알려 주므로 포트를 임의로 바꿀 수 없습니다. 이미 9092를 쓰는 프로세스가 있으면 먼저 내립니다).
 
 `/actuator/health`와 `/actuator/prometheus`를 뺀 모든 API는 dozy-auth가 발급한 토큰이 필요합니다. 기본 Auth 주소는 `http://localhost:8080`(dozy-auth 로컬 실행 주소)이고, 바꾸려면 `DOZY_AUTH_ISSUER_BASE_URI`를 지정합니다. Auth의 JWKS는 첫 요청 때 받으므로 Auth를 띄우지 않아도 앱은 기동합니다. 운영(`prod`)은 이 값을 반드시 지정해야 합니다.
 
@@ -148,6 +148,7 @@ git push origin v0.1.0
 |---|---|
 | `SPRING_PROFILES_ACTIVE` | `prod` |
 | `DB_HOST`, `DB_PORT`(기본 5432), `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` | PostgreSQL. 앱 요청은 R2DBC로, 시작 시 마이그레이션은 Flyway(JDBC)로 같은 DB에 붙습니다 |
+| `KAFKA_BOOTSTRAP_SERVERS` | 상품 이벤트를 보낼 Kafka 주소(쉼표로 여러 개). 아웃박스 릴레이가 쓰며, Kafka가 잠시 닿지 않아도 앱은 뜨고 이벤트는 DB에 쌓였다가 복구되면 순서대로 나갑니다. 쌓인 양은 `dozy_catalog_outbox_*` 지표로 봅니다([이벤트 계약](docs/events/product.md)) |
 | `DOZY_AUTH_ISSUER_BASE_URI` | Auth 주소. 토큰 발급자 확인과 공개키(JWKS) 조회에 씁니다 |
 | `CATALOG_RELEASE_VERSION` | (선택) 배포하는 이미지 태그의 버전 `X.Y.Z`. 릴리스는 이미지를 다시 빌드하지 않으므로 배포가 알려 줍니다. 없으면 `sha-{커밋 7자리}`입니다. 기동 로그와 `dozy_catalog_build_info`의 `version`에 쓰입니다 |
 | `CATALOG_CORS_ALLOWED_ORIGINS` | 본사 API를 브라우저에서 부를 수 있는 출처(관리 콘솔 주소). 쉼표로 구분하고 와일드카드는 쓰지 않습니다. 예: `https://admin.dozycoffee.com` ([API 명세 CORS](docs/api/README.md#cors)) |
