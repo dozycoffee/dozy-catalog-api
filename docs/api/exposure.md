@@ -1,5 +1,7 @@
 # 노출 현황 API (본사관리자)
 
+> **제거 예정**: 매장 단위의 상품 상태는 Store 서비스로 이전한다([ADR-0020](../adr/0020-store-owns-store-product-state.md), [이행 계획](../migration/store-separation.md)). 이행이 끝나기 전까지는 유효하지만 더 키우지 않으며, Store 전환이 확인되면([#138](https://github.com/dozycoffee/dozy-catalog-api/issues/138)) 이 문서의 내용은 Store 문서로 옮기고 지운다.
+
 > 공통 규약은 [API 명세](README.md)를 따른다. 경로 앞에 `/api/v1/admin`이 붙고, 모두 본사 직원(`catalog:admin`)이 호출한다. 규칙은 [요구사항](../requirements.md) 1.10과 3장에 있다.
 
 상품별로 판매 가능 매장 수와 노출 중인 매장 수를 계산한 결과다. 매장마다 노출 판단(3장)을 돌려 세는 업무 계산이라 백엔드가 제공한다. 상품을 알아볼 최소 정보(SKU, 이름, 상태)만 함께 담고, 그 밖의 상품 정보는 `GET /admin/products?ids=…`로 받는다([설계 원칙](README.md#설계-원칙)). 매출·판매량은 다루지 않는다.

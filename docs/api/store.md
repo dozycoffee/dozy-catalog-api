@@ -1,5 +1,7 @@
 # 매장 API (내부 호출)
 
+> **제거 예정**: 매장 단위의 상품 상태는 Store 서비스로 이전한다([ADR-0020](../adr/0020-store-owns-store-product-state.md), [이행 계획](../migration/store-separation.md)). 이행이 끝나기 전까지는 유효하지만 더 키우지 않으며, Store 전환이 확인되면([#138](https://github.com/dozycoffee/dozy-catalog-api/issues/138)) 이 문서의 내용은 Store 문서로 옮기고 지운다.
+
 > 공통 규약은 [API 명세](README.md)를 따른다. 규칙은 [요구사항](../requirements.md) 2·3장과 [시나리오](../scenarios.md) S6, S7에 있다.
 
 가맹점주의 요청을 받은 **Store 서비스**가 system token으로 부르는 내부 API다. 경로 앞에 `/api/v1/internal`이 붙고, 역할은 `catalog:store_agent`다([ADR-0018](../adr/0018-partner-requests-through-store-service.md)).
