@@ -26,13 +26,13 @@ data class InternalProductResponse(
     companion object {
         fun from(view: ProductSummaryView): InternalProductResponse =
             InternalProductResponse(
-                productId = view.product.id.value,
-                sku = view.product.sku?.value,
-                name = view.product.name,
-                categoryId = view.product.categoryId.value,
-                imageUrl = view.product.imageUrl,
-                basePrice = view.product.basePrice.amount,
-                tracksInventory = view.product.tracksInventory,
+                productId = view.info.id.value,
+                sku = view.info.sku?.value,
+                name = view.info.name,
+                categoryId = view.info.categoryId.value,
+                imageUrl = view.info.imageUrl,
+                basePrice = view.info.basePrice.amount,
+                tracksInventory = view.info.tracksInventory,
                 displayStartingPrice = view.displayStartingPrice.amount,
                 tags = view.tags.map { InternalTagResponse(it.id.value, it.name) },
             )

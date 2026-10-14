@@ -6,7 +6,6 @@ import com.dozycoffee.catalog.core.StoreId
 import com.dozycoffee.catalog.core.VersionConflictException
 import com.dozycoffee.catalog.product.domain.category.CategoryId
 import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroupId
-import com.dozycoffee.catalog.product.domain.optiongroup.OptionKey
 import com.dozycoffee.catalog.product.domain.product.OptionOverride
 import com.dozycoffee.catalog.product.domain.product.Product
 import com.dozycoffee.catalog.product.domain.product.ProductId
@@ -16,7 +15,6 @@ import com.dozycoffee.catalog.product.domain.product.ProductStatus
 import com.dozycoffee.catalog.product.domain.product.Sku
 import com.dozycoffee.catalog.product.domain.product.StoreScope
 import com.dozycoffee.catalog.product.domain.productgroup.ProductGroupId
-import com.dozycoffee.catalog.product.domain.tag.TagId
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.toList
 import org.jetbrains.exposed.v1.core.Op
@@ -248,43 +246,14 @@ class ExposedProductRepository : ProductRepository {
                 .where { ProductTargetStoresTable.productId inList ids }
                 .toList()
                 .groupBy({ it[ProductTargetStoresTable.productId] }, { StoreId(it[ProductTargetStoresTable.storeId]) })
-        val tags =
-            ProductTagsTable
-                .selectAll()
-                .where { ProductTagsTable.productId inList ids }
-                .toList()
-                .groupBy({ it[ProductTagsTable.productId] }, { TagId(it[ProductTagsTable.tagId]) })
+        val tags = loadTagIds(ids)
         val groups =
             ProductGroupsMapTable
                 .selectAll()
                 .where { ProductGroupsMapTable.productId inList ids }
                 .toList()
                 .groupBy({ it[ProductGroupsMapTable.productId] }, { ProductGroupId(it[ProductGroupsMapTable.groupId]) })
-        val overrides =
-            ProductOptionOverridesTable
-                .selectAll()
-                .where { ProductOptionOverridesTable.productId inList ids }
-                .orderBy(ProductOptionOverridesTable.optionKey)
-                .toList()
-                .groupBy(
-                    { it[ProductOptionOverridesTable.productId] to it[ProductOptionOverridesTable.optionGroupId] },
-                    { it.toOptionOverride() },
-                )
-        val links =
-            ProductOptionGroupsTable
-                .selectAll()
-                .where { ProductOptionGroupsTable.productId inList ids }
-                .orderBy(ProductOptionGroupsTable.displayOrder to SortOrder.ASC, ProductOptionGroupsTable.optionGroupId to SortOrder.ASC)
-                .toList()
-                .groupBy({ it[ProductOptionGroupsTable.productId] }) { row ->
-                    val productId = row[ProductOptionGroupsTable.productId]
-                    val optionGroupId = row[ProductOptionGroupsTable.optionGroupId]
-                    ProductOptionGroupLink(
-                        OptionGroupId(optionGroupId),
-                        displayOrder = row[ProductOptionGroupsTable.displayOrder],
-                        overrides = overrides[productId to optionGroupId].orEmpty(),
-                    )
-                }
+        val links = loadOptionGroupLinks(ids)
         return roots.map { row ->
             val id = row[ProductsTable.id]
             Product(
@@ -311,19 +280,8 @@ class ExposedProductRepository : ProductRepository {
         }
     }
 
-    private fun ResultRow.toOptionOverride(): OptionOverride {
-        val optionKey = OptionKey(this[ProductOptionOverridesTable.optionKey])
-        return when (val type = this[ProductOptionOverridesTable.overrideType]) {
-            OVERRIDE_PRICE -> OptionOverride.Price(optionKey, Money(checkNotNull(this[ProductOptionOverridesTable.price])))
-            OVERRIDE_EXCLUDE -> OptionOverride.Exclude(optionKey)
-            else -> error("알 수 없는 옵션 예외 종류: $type")
-        }
-    }
-
     private companion object {
         const val STORE_SCOPE_ALL = "ALL"
         const val STORE_SCOPE_LIMITED = "LIMITED"
-        const val OVERRIDE_PRICE = "PRICE"
-        const val OVERRIDE_EXCLUDE = "EXCLUDE"
     }
 }

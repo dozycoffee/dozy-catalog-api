@@ -1,8 +1,10 @@
 package com.dozycoffee.catalog.product.application.policy
 
+import com.dozycoffee.catalog.core.Money
 import com.dozycoffee.catalog.product.domain.optiongroup.OptionGroup
 import com.dozycoffee.catalog.product.domain.product.OptionOverride
 import com.dozycoffee.catalog.product.domain.product.Product
+import com.dozycoffee.catalog.product.domain.product.ProductId
 import com.dozycoffee.catalog.product.domain.product.ProductOptionGroupLink
 
 // 상품의 유효 옵션 구성을 계산한다. Product(연결·예외)와 OptionGroup(옵션 목록)을 함께 봐야 해서
@@ -15,19 +17,27 @@ object EffectiveOptionResolver {
     fun resolve(
         product: Product,
         optionGroups: Collection<OptionGroup>,
+    ): EffectiveOptionConfig = resolve(product.id, product.basePrice, product.optionGroupLinks, optionGroups)
+
+    // 상품 애그리거트 없이 표시용 조회 모델(판매 범위를 읽지 않음)로도 같은 계산을 한다. 계산에 쓰는 값은 기준가와 옵션 그룹 연결뿐이다.
+    fun resolve(
+        productId: ProductId,
+        basePrice: Money,
+        optionGroupLinks: List<ProductOptionGroupLink>,
+        optionGroups: Collection<OptionGroup>,
     ): EffectiveOptionConfig {
         val optionGroupsById = optionGroups.associateBy { it.id }
-        val linkedIds = product.optionGroupLinks.map { it.id }.toSet()
+        val linkedIds = optionGroupLinks.map { it.id }.toSet()
         require(optionGroupsById.keys == linkedIds) {
-            "상품(${product.id.value})에 연결된 옵션 그룹과 넘긴 옵션 그룹이 다릅니다: " +
+            "상품(${productId.value})에 연결된 옵션 그룹과 넘긴 옵션 그룹이 다릅니다: " +
                 "연결 ${linkedIds.map { it.value }}, 전달 ${optionGroupsById.keys.map { it.value }}"
         }
 
         val groups =
-            product.optionGroupLinks
+            optionGroupLinks
                 .sortedBy { it.displayOrder }
                 .map { link -> resolveGroup(optionGroupsById.getValue(link.id), link) }
-        return EffectiveOptionConfig(product.id, product.basePrice, groups)
+        return EffectiveOptionConfig(productId, basePrice, groups)
     }
 
     private fun resolveGroup(

@@ -45,6 +45,7 @@ base package: `com.dozycoffee.catalog`
 - **여러 애그리거트를 한 트랜잭션에서 바꿀 때는 서비스가 잠금·검증·저장 순서를 정한다.** 잠그고 → 정책에 넘겨 판단하고 → 애그리거트 메서드로 바꾸고 → 저장한다. 이때 **실제로 바뀐 애그리거트만 저장한다.** 바뀐 것 없이 저장하면 낙관적 잠금 대상의 `version`만 올라가 다음 수정이 충돌로 거부된다([ADR-0013](../adr/0013-optimistic-locking-for-product-and-option-group.md)). 예: 옵션 목록 교체는 옵션 그룹과 연결 상품을 함께 잠그지만, 사라진 옵션 키의 예외를 실제로 갖고 있던 상품만 저장한다.
 - **여러 애그리거트를 묶어 보여 주는 조회**는 각 Repository로 불러와 application에서 합치고(`<모듈>/application/<화면 단위>/`의 `XxxQueryService`), 결과는 그 옆의 View 타입에 담는다. 전용 SQL이나 집계가 필요해지면 그때 조회 포트로 옮긴다.
 - **조건 검색과 페이징이 필요한 목록**은 조회 포트가 조건에 맞는 애그리거트 ID의 한 페이지(`common.paging.Page`)만 고르고, application이 그 ID로 Repository에서 애그리거트를 불러와 포트가 정한 순서대로 합친다(예: 상품 목록의 `ProductSearchQueryPort` → `ProductRepository.findAllByIds`). 애그리거트 복원은 Repository 한 곳에만 두고, 검색 조건은 여러 테이블을 볼 수 있게 하기 위해서다. 같은 목록을 호출자별로 다른 범위로 보여 줄 때(본사의 전체 상품, 점주의 판매 상품)는 같은 포트에 범위 조건만 달리 넘긴다.
+- **판매 범위를 쓰지 않는 읽기는 애그리거트로 복원하지 않는다.** `Product`를 복원하면 한정 판매 상품의 대상 매장 목록(상품당 수천 행)을 쓰지도 않으면서 함께 읽는다. 그런 조회(Store용 기준 정보·유효 옵션)는 조회 포트가 필요한 값만 읽는 모델(`ProductDisplayInfo`)을 돌려주고, 계산은 같은 정책(`EffectiveOptionResolver`)을 쓴다. 판매 범위가 응답의 내용인 곳(상태 목록, 이벤트 발행)과 본사 조회·수정은 애그리거트로 읽는다([#130](https://github.com/dozycoffee/dozy-catalog-api/issues/130)).
 - 페이지 크기·`ids` 개수 상한은 presentation이 요청 오류로 먼저 거르고(`common.web.ListParams`), application 타입(`PageRequest`, 검색 조건)은 `require`로 한 번 더 막는다([예외 구조](exception.md)).
 - **컨트롤러**는 모듈의 `presentation/`에 두고, 요청 DTO는 `presentation/dto`에서 Command로 바꾼다. 버전이 필요한 요청은 `@RequestHeader(HttpHeaders.IF_MATCH, required = false)`로 받아 `VersionHeaders.requireIfMatch`로 읽고, 단건 응답은 `VersionHeaders.okWithVersion`으로 `ETag`를 붙인다. 목록은 `ListParams`로 파라미터를 읽고 `Page.toResponse`로 페이지 응답을 만든다.
 - **예약 적용처럼 사람이 보던 화면이 없는 경로는 버전을 요구하지 않는다.** 즉시 반영(PUT)은 화면이 보던 버전을 받아 그 사이의 변경을 거부하지만(낙관적 잠금, [ADR-0013](../adr/0013-optimistic-locking-for-product-and-option-group.md)), 배치는 비교할 화면이 없으므로 대상 행을 잠그고(`findByIdForUpdate`) 최신 상태에 적용한다. 그래서 필드 하나만 바꾸는 유스케이스(`ProductFieldApplicationService`, 버전 없는 `replaceOptions`·`replaceOptionGroupLinks`·`replaceOptionOverrides`)를 즉시 반영과 나란히 둔다. 잠금·검증·이벤트 발행은 그대로 그 모듈의 유스케이스 안에서 일어난다.
@@ -124,10 +125,11 @@ com.dozycoffee.catalog
 │   │   │   └── query/                     # 상품 목록 검색: ProductQueryService(본사), SellableProductQueryService(점주) + 검색 조건,
 │   │   │                                  #   InternalProductQueryService(Store 서비스용: 기준 정보·유효 옵션·상태 목록)
 │   │   ├── optiongroup/ category/ tag/ productgroup/  # 애그리거트별 유스케이스 서비스 + command/
-│   │   └── port/                          # ProductEventPublisherPort, StoreAssignabilityPort, ProductSearchQueryPort(조회)
+│   │   └── port/                          # ProductEventPublisherPort, StoreAssignabilityPort, ProductSearchQueryPort·ProductDisplayQueryPort(조회)
 │   ├── infrastructure/                    # 애그리거트별 Exposed Table + Repository 구현
 │   │   ├── product/ optiongroup/ category/ tag/ productgroup/
-│   │   ├── query/                         # ExposedProductSearchQuery (조건 검색·페이징으로 상품 ID를 고름)
+│   │   ├── query/                         # ExposedProductSearchQuery (조건 검색·페이징으로 상품 ID를 고름),
+│   │   │                                  #   ExposedProductDisplayQuery (Store용 표시 정보: 판매 범위를 읽지 않고 필요한 값만)
 │   │   ├── eventing/                      # 상품 이벤트의 아웃박스 기록, JSON 직렬화(ProductEventJson)
 │   │   └── acl/                           # StoreBcAdapter(Store 서비스 호출), AlwaysAssignableStoreAdapter(로컬용)
 │   └── presentation/                      # 본사 API(/api/v1/admin/**). 애그리거트별 컨트롤러 + dto/
