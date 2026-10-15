@@ -50,6 +50,8 @@ GET /api/v1/internal/products?ids=1,2,3
 
 ## GET `/internal/categories` — 카테고리 트리
 
+> 같은 응답을 토큰 없이 읽는 공개 경로 [`/public/categories`](public.md)가 생겼다. Store가 이 경로의 호출을 걷어내면 이 항목을 지운다([ADR-0022](../adr/0022-public-read-only-reference-data.md)).
+
 ```json
 [
   {

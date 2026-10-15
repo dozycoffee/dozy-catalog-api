@@ -134,6 +134,7 @@ com.dozycoffee.catalog
 │   │   └── acl/                           # StoreBcAdapter(Store 서비스 호출), AlwaysAssignableStoreAdapter(로컬용)
 │   └── presentation/                      # 본사 API(/api/v1/admin/**). 애그리거트별 컨트롤러 + dto/
 │       ├── product/ optiongroup/ category/ tag/ productgroup/
+│       ├── publicapi/                     # 토큰 없이 읽는 참조 데이터(/api/v1/public/**, 카테고리, docs/api/public.md)
 │       └── internal/                      # Store 서비스용 상품 조회(/api/v1/internal/products·categories·product-states, docs/api/store-service.md)
 │
 ├── store/                                 # 가맹점 진열·판매 가능 여부 (요구사항 2·3장)
