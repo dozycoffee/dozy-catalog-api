@@ -58,6 +58,8 @@ catalog:
     # 본사 API를 브라우저에서 부를 수 있는 출처(관리 콘솔). 쉼표로 구분하고 와일드카드는 쓰지 않는다.
     # 로컬 기본값은 dozy-auth와 같은 관리 콘솔 주소다. prod는 기본값 없이 반드시 지정한다(아래 prod 프로필).
     allowed-origins: ${CATALOG_CORS_ALLOWED_ORIGINS:http://localhost:3000}
+    # 공개 경로(/api/v1/public/**)를 브라우저에서 직접 읽는 웹 채널의 출처. 본사 API 출처와 따로 둔다. 로컬 기본값은 채널 웹의 개발 서버 주소다.
+    public-allowed-origins: ${CATALOG_PUBLIC_CORS_ALLOWED_ORIGINS:http://localhost:3001}
   build:
     # 실행 중인 서버의 버전(dozy.catalog.build.info 지표, 기동 로그). 없으면 각각 unknown, local이다.
     # revision은 CI가 이미지를 만들 때 넣고, 릴리스 버전은 배포가 이미지 태그의 X.Y.Z로 알려 준다.
@@ -124,6 +126,8 @@ catalog:
   cors:
     # 운영은 기본값을 쓰지 않고 반드시 지정한다.
     allowed-origins: ${CATALOG_CORS_ALLOWED_ORIGINS}
+    # 웹 채널이 없으면 비워 둔다. 비어 있으면 공개 경로에 어떤 출처도 허용하지 않는다(네이티브 앱·서버 호출은 CORS와 무관하다).
+    public-allowed-origins: ${CATALOG_PUBLIC_CORS_ALLOWED_ORIGINS:}
   store:
     # Store 서비스 주소. 운영은 반드시 지정한다 — 없으면 판매 범위의 대상 매장을 확인하지 않는 로컬용 구현이 쓰이므로 기동하지 않게 한다.
     base-url: ${STORE_BASE_URL}
