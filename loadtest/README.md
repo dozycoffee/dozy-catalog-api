@@ -123,6 +123,7 @@ sum(rate(http_server_requests_seconds_count{status=~"5.."}[1m]))
 | 여유 규모 | `scripts/seed.sh x2` 후 `PRODUCT_SCALE=2 scripts/run.sh ramp` (판정 아님, 한계 확인) |
 | 한정 판매 분포 민감도 | `scripts/seed.sh fewstores`(대상 매장 50개), `nolimited`(한정 판매 없음)로 같은 프로필·`probe`를 다시 재서 비교 |
 | 사양 조정 | `LOADTEST_APP_CPUS`, `LOADTEST_APP_MEMORY`, `LOADTEST_POOL_SIZE`(앱), `LOADTEST_DB_CPUS`, `LOADTEST_DB_MEMORY`(DB). 바꾼 뒤 `scripts/app.sh start`로 다시 띄운다. 한 번에 하나만 바꿔 다시 잰다 |
+| 사양 매트릭스(CPU·메모리·풀) | `scripts/spec.sh <CPU수> <메모리> [프로필...]`(기본 `target spike`). 사양을 바꿔 앱을 다시 띄우고 프로필을 돌린 뒤 JVM 힙·힙 밖·GC(종류, 일시 정지)·프로세스 CPU·풀·5xx와 컨테이너 최대 메모리, `OOMKilled`를 `.run/spec-*.txt`에 요약한다. 예: `scripts/spec.sh 1 1536m`. 풀 크기는 `LOADTEST_POOL_SIZE` |
 | 점주·손님 요청, 재고 이벤트 | **이 도구의 범위 밖.** Store로 이전되었다(ADR-0020) |
 
 ## 이 도구의 한계
