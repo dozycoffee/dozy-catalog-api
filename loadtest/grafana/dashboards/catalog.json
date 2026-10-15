@@ -297,6 +297,95 @@
         "defaults": {},
         "overrides": []
       }
+    },
+    {
+      "type": "timeseries",
+      "title": "상품 이벤트 아웃박스: 대기·격리 건수",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "id": 11,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(dozy_catalog_outbox_pending{application=\"dozy-catalog-api\"})",
+          "legendFormat": "대기"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(dozy_catalog_outbox_quarantined{application=\"dozy-catalog-api\"})",
+          "legendFormat": "격리"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "가장 오래된 대기 이벤트의 나이",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "id": 12,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(dozy_catalog_outbox_oldest_pending_age_seconds{application=\"dozy-catalog-api\"})",
+          "legendFormat": "나이"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "릴레이 처리 (이벤트/초)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "id": 13,
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (result) (rate(dozy_catalog_outbox_relay_events_total{application=\"dozy-catalog-api\"}[1m]))",
+          "legendFormat": "{{result}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      }
     }
   ],
   "tags": [

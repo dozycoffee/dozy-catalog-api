@@ -19,11 +19,12 @@ APP = 'application="dozy-catalog-api"'
 
 # 요청 이름 -> 서버 URI 패턴(Prometheus 정규식, 전체 일치)
 URIS = {
-    "store_list": r"/api/v1/internal/stores/\{storeId\}/products",
-    "store_options": r"/api/v1/internal/stores/\{storeId\}/products/\{productId\}/effective-options",
-    "store_setting": r"/api/v1/internal/stores/\{storeId\}/products/\{productId\}/(visibility|stock-status)",
-    "store_display_order": r"/api/v1/internal/stores/\{storeId\}/products/display-order",
+    "catalog_info": r"/api/v1/internal/products",
+    "catalog_options": r"/api/v1/internal/products/\{productId\}/effective-options",
+    "catalog_categories": r"/api/v1/internal/categories",
+    "state_list": r"/api/v1/internal/product-states",
     "admin_search": r"/api/v1/admin/products",
+    "admin_toggle": r"/api/v1/admin/products/\{productId\}/(activate|discontinue)",
 }
 
 
