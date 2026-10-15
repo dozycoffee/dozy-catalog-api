@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 인스턴스 사양(CPU, 메모리, 풀 크기) 하나로 프로필을 돌리고 JVM·컨테이너 지표를 요약한다(요구사항 4.4 "사양 조정").
 #   scripts/spec.sh <CPU수> <메모리 예: 1536m> [프로필...]     기본 프로필: target spike
-# 환경 변수: LOADTEST_POOL_SIZE(풀 크기, 기본 10)는 그대로 쓴다. 사양을 바꾸려면 앱을 다시 띄우므로 이 스크립트가 start까지 한다.
+# 환경 변수: LOADTEST_POOL_SIZE(풀 크기, 기본 10), LOADTEST_INSTANCES(앱 인스턴스 수, 기본 2. 1이면 k6가 첫 인스턴스만 부른다). 사양을 바꾸려면 앱을 다시 띄우므로 이 스크립트가 start까지 한다.
 # 결과 요약은 .run/spec-<cpu>-<메모리>-풀<n>.txt에도 쌓는다. 한 번에 하나만 바꿔 가며 부른다.
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
@@ -12,14 +12,16 @@ profiles=("${@:-target spike}")
 if [ "$#" -eq 0 ]; then profiles=(target spike); fi
 
 pool="${LOADTEST_POOL_SIZE:-10}"
-out="$RUN_DIR/spec-${cpus}cpu-${memory}-pool${pool}.txt"
+instances="${LOADTEST_INSTANCES:-2}"
+out="$RUN_DIR/spec-${cpus}cpu-${memory}-pool${pool}-x${instances}.txt"
 
+if [ "$instances" = 1 ]; then export BASE_URLS="http://localhost:${CATALOG_PORT_1}"; fi
 export LOADTEST_APP_CPUS="$cpus" LOADTEST_APP_MEMORY="$memory" LOADTEST_POOL_SIZE="$pool"
 {
-  echo "== 사양: Catalog ×2, ${cpus} vCPU, ${memory}, 풀 ${pool} ($(date '+%Y-%m-%d %H:%M')) =="
+  echo "== 사양: Catalog ×${instances}, ${cpus} vCPU, ${memory}, 풀 ${pool} ($(date '+%Y-%m-%d %H:%M')) =="
 } | tee -a "$out"
 
-"$LOADTEST_DIR/scripts/app.sh" start 2 > /dev/null
+"$LOADTEST_DIR/scripts/app.sh" start "$instances" > /dev/null
 "$LOADTEST_DIR/scripts/seed.sh" > /dev/null
 
 # 프로필마다 시작 후 이 시간(초)까지는 워밍업이라 측정 구간에서 뺀다(k6/lib/profiles.js의 MEASURE_START와 같다)
@@ -29,12 +31,12 @@ measure_offset() {
 
 for profile in "${profiles[@]}"; do
   "$LOADTEST_DIR/scripts/seed.sh" > /dev/null
-  stats="$RUN_DIR/spec-stats-${cpus}cpu-${memory}-pool${pool}-$profile.log"
+  stats="$RUN_DIR/spec-stats-${cpus}cpu-${memory}-pool${pool}-x${instances}-$profile.log"
   : > "$stats"
   (
     while true; do
       now="$(date +%s)"
-      docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' loadtest-catalog-1-1 loadtest-catalog-2-1 2>/dev/null \
+      docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' $(for i in $(seq 1 "$instances"); do echo "loadtest-catalog-$i-1"; done) 2>/dev/null \
         | awk -v ts="$now" '{print ts, $0}' >> "$stats"
       sleep 3
     done
@@ -55,6 +57,6 @@ for profile in "${profiles[@]}"; do
   } | tee -a "$out"
 done
 
-for c in loadtest-catalog-1-1 loadtest-catalog-2-1; do
+for c in $(for i in $(seq 1 "$instances"); do echo "loadtest-catalog-$i-1"; done); do
   echo "$c: OOMKilled=$(docker inspect -f '{{.State.OOMKilled}}' "$c") 재시작=$(docker inspect -f '{{.RestartCount}}' "$c")" | tee -a "$out"
 done
