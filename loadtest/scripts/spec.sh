@@ -13,7 +13,6 @@ if [ "$#" -eq 0 ]; then profiles=(target spike); fi
 
 pool="${LOADTEST_POOL_SIZE:-10}"
 out="$RUN_DIR/spec-${cpus}cpu-${memory}-pool${pool}.txt"
-stats="$RUN_DIR/spec-stats.log"
 
 export LOADTEST_APP_CPUS="$cpus" LOADTEST_APP_MEMORY="$memory" LOADTEST_POOL_SIZE="$pool"
 {
@@ -23,8 +22,14 @@ export LOADTEST_APP_CPUS="$cpus" LOADTEST_APP_MEMORY="$memory" LOADTEST_POOL_SIZ
 "$LOADTEST_DIR/scripts/app.sh" start 2 > /dev/null
 "$LOADTEST_DIR/scripts/seed.sh" > /dev/null
 
+# 프로필마다 시작 후 이 시간(초)까지는 워밍업이라 측정 구간에서 뺀다(k6/lib/profiles.js의 MEASURE_START와 같다)
+measure_offset() {
+  case "$1" in target|spike|soak|n1|cold_start|replica_fill|events) echo 180 ;; baseline) echo 60 ;; *) echo 0 ;; esac
+}
+
 for profile in "${profiles[@]}"; do
   "$LOADTEST_DIR/scripts/seed.sh" > /dev/null
+  stats="$RUN_DIR/spec-stats-${cpus}cpu-${memory}-pool${pool}-$profile.log"
   : > "$stats"
   (
     while true; do
@@ -43,8 +48,8 @@ for profile in "${profiles[@]}"; do
   sleep 6  # 마지막 수집(5초 간격)이 반영될 때까지
   {
     echo "[$profile] k6 종료 코드 $status (임계값 위반이면 0이 아니다)"
-    # 시작·종료 직후의 워밍업을 포함한 전체 구간이다
-    python3 "$LOADTEST_DIR/scripts/spec-report.py" "$profile" "$start" "$end" "$stats"
+    # JVM·CPU·풀 지표는 워밍업을 뺀 측정 구간, 컨테이너 메모리는 워밍업을 포함한 전체 구간이다
+    python3 "$LOADTEST_DIR/scripts/spec-report.py" "$profile" "$start" "$((start + $(measure_offset "$profile")))" "$end" "$stats"
     n="$(grep -n '█ THRESHOLDS' "$RUN_DIR/spec-$profile.out" | tail -1 | cut -d: -f1)"
     [ -n "$n" ] && sed -n "${n},/█ TOTAL RESULTS/p" "$RUN_DIR/spec-$profile.out" | grep -E "✗" | sed 's/^/  위반: /' || true
   } | tee -a "$out"
