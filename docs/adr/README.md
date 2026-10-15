@@ -37,10 +37,11 @@
 | [0012](0012-cross-aggregate-judgment-in-application-policy.md) | 여러 애그리거트를 보는 판단은 application 정책에 두고, domain은 다른 애그리거트를 ID로만 참조한다 | 채택 | 2026-09-19 |
 | [0015](0015-domain-modules-as-top-level-packages.md) | 최상위 패키지를 도메인 모듈로 두고, 그 안에서 레이어를 나눈다 | 일부 대체됨 (store·exposure 모듈 → 0020) | 2026-09-20 |
 | [0017](0017-resource-oriented-api-split-by-caller.md) | API는 리소스 단위로 설계하고, 호출자별로 경로를 나눈다 | 일부 대체됨 (호출자 구분과 경로 → 0018) | 2026-09-21 |
-| [0018](0018-partner-requests-through-store-service.md) | 가맹점주의 요청은 Store 서비스가 받고, Catalog는 내부 API로 제공한다 | 일부 대체됨 (매장 대상 API → 0020) | 2026-10-01 |
+| [0018](0018-partner-requests-through-store-service.md) | 가맹점주의 요청은 Store 서비스가 받고, Catalog는 내부 API로 제공한다 | 일부 대체됨 (매장 대상 API → 0020, 참조 데이터 공개 → 0022) | 2026-10-01 |
 | [0019](0019-container-image-with-dockerfile-and-tag-release.md) | 서버 이미지는 Dockerfile로 만들어 main 병합마다 올리고, 버전 태그는 그 이미지에 덧붙인다 | 채택 | 2026-10-06 |
 | [0020](0020-store-owns-store-product-state.md) | 매장 단위의 상품 상태는 Store 서비스가 소유하고, Catalog는 상품 이벤트와 조회 API로 연동한다 | 채택 | 2026-10-14 |
 | [0021](0021-kafka-outbox-for-product-events.md) | 서비스 간 이벤트는 Kafka로 발행하고, 아웃박스와 폴링 릴레이로 보낸다 | 채택 | 2026-10-14 |
+| [0022](0022-public-read-only-reference-data.md) | 매장과 무관한 읽기 전용 참조 데이터는 토큰 없이 읽는 공개 경로로 제공한다 | 채택 | 2026-10-15 |
 
 ### 영속성
 | ADR | 제목 | 상태 | 날짜 |

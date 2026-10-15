@@ -102,7 +102,7 @@ com.dozycoffee.catalog
 │   ├── exposed/                           # ExposedConfiguration, ExposedTransactionRunner, AuditColumns, JsonbColumnType,
 │   │                                      #   ListQueryExpressions(목록 조회의 검색어·이름 순 정렬)
 │   ├── paging/                            # PageRequest, Page (목록 조회의 페이징), requireIdsWithinLimit(ids 개수 상한)
-│   ├── security/                          # SecurityConfiguration(호출자별 경로 인가, 본사 API CORS), CatalogRoles, CatalogCorsProperties
+│   ├── security/                          # SecurityConfiguration(호출자별 경로 인가, 본사·공개 경로 CORS), CatalogRoles, CatalogCorsProperties
 │   ├── time/                              # TimeConfiguration
 │   └── web/                               # GlobalExceptionHandler, ProblemResponses·TraceIds (RFC 9457 오류 응답),
 │                                          #   VersionHeaders(If-Match·ETag), ListParams·PageResponse(목록 파라미터·페이지 응답),
@@ -134,6 +134,7 @@ com.dozycoffee.catalog
 │   │   └── acl/                           # StoreBcAdapter(Store 서비스 호출), AlwaysAssignableStoreAdapter(로컬용)
 │   └── presentation/                      # 본사 API(/api/v1/admin/**). 애그리거트별 컨트롤러 + dto/
 │       ├── product/ optiongroup/ category/ tag/ productgroup/
+│       ├── publicapi/                     # 토큰 없이 읽는 참조 데이터(/api/v1/public/**, 카테고리, docs/api/public.md)
 │       └── internal/                      # Store 서비스용 상품 조회(/api/v1/internal/products·categories·product-states, docs/api/store-service.md)
 │
 ├── store/                                 # 가맹점 진열·판매 가능 여부 (요구사항 2·3장)

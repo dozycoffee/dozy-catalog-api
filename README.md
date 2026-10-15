@@ -154,6 +154,7 @@ git push origin v0.1.0
 | `DOZY_AUTH_ISSUER_BASE_URI` | Auth 주소. 토큰 발급자 확인과 공개키(JWKS) 조회에 씁니다 |
 | `CATALOG_RELEASE_VERSION` | (선택) 배포하는 이미지 태그의 버전 `X.Y.Z`. 릴리스는 이미지를 다시 빌드하지 않으므로 배포가 알려 줍니다. 없으면 `sha-{커밋 7자리}`입니다. 기동 로그와 `dozy_catalog_build_info`의 `version`에 쓰입니다 |
 | `CATALOG_CORS_ALLOWED_ORIGINS` | 본사 API를 브라우저에서 부를 수 있는 출처(관리 콘솔 주소). 쉼표로 구분하고 와일드카드는 쓰지 않습니다. 예: `https://admin.dozycoffee.com` ([API 명세 CORS](docs/api/README.md#cors)) |
+| `CATALOG_PUBLIC_CORS_ALLOWED_ORIGINS` | (선택) 공개 경로(`/api/v1/public/**`)를 브라우저에서 직접 읽는 웹 채널의 출처. 쉼표로 구분하고 와일드카드는 쓰지 않습니다. 비워 두면 어떤 출처도 허용하지 않습니다(웹 채널이 없으면 비워 둡니다) |
 
 - root가 아닌 UID·GID `10001`로 실행됩니다.
 - 힙은 컨테이너 메모리 한도의 75%입니다(`JAVA_TOOL_OPTIONS`). 바꾸려면 이 환경 변수를 다시 지정합니다.

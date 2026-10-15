@@ -17,8 +17,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-// 관리 콘솔(브라우저)이 본사 API를 부를 수 있게 하는 CORS(docs/api/README.md CORS).
-// 허용 출처는 테스트에서도 로컬 기본값(http://localhost:3000)을 쓴다.
+// 관리 콘솔(브라우저)이 본사 API를, 웹 채널이 공개 경로를 부를 수 있게 하는 CORS(docs/api/README.md CORS, docs/api/public.md).
+// 허용 출처는 테스트에서도 로컬 기본값을 쓴다(본사 http://localhost:3000, 공개 경로 http://localhost:3001).
 // 요청은 호스트가 있는 절대 URL로 보낸다. 서버 없이 붙는 WebTestClient는 상대 경로를 그대로 넘기는데,
 // 호스트가 없는 요청은 CORS 처리기가 출처를 비교하지 못해 거부한다(실제 서버의 요청에는 항상 호스트가 있다).
 @DisplayName("CORS")
@@ -102,6 +102,72 @@ class CorsTest : IntegrationTest() {
         }
     }
 
+    @Nested
+    @DisplayName("공개 경로")
+    inner class PublicApi {
+        private fun publicPreflight(
+            origin: String,
+            method: HttpMethod = HttpMethod.GET,
+        ): WebTestClient.ResponseSpec =
+            client
+                .options()
+                .uri("$BASE/api/v1/public/categories")
+                .header(HttpHeaders.ORIGIN, origin)
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, method.name())
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization")
+                .exchange()
+
+        @Test
+        fun `허용한 채널 출처의 사전 요청은 토큰 없이 통과하고 GET만 허용한다`() {
+            val headers =
+                publicPreflight(PUBLIC_ALLOWED)
+                    .expectStatus()
+                    .isOk
+                    .returnResult(Void::class.java)
+                    .responseHeaders
+
+            assertEquals(PUBLIC_ALLOWED, headers.accessControlAllowOrigin)
+            assertEquals(listOf(HttpMethod.GET), headers.accessControlAllowMethods)
+            assertNull(headers.getFirst(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS))
+        }
+
+        @Test
+        fun `본사 콘솔 출처는 공개 경로에 허용되지 않는다`() {
+            publicPreflight(ALLOWED).expectStatus().isForbidden
+        }
+
+        @Test
+        fun `허용하지 않은 출처의 사전 요청은 거부한다`() {
+            publicPreflight("https://evil.example.com").expectStatus().isForbidden
+        }
+
+        @Test
+        fun `GET 외의 메서드는 사전 요청에서 거부한다`() {
+            publicPreflight(PUBLIC_ALLOWED, HttpMethod.POST).expectStatus().isForbidden
+        }
+
+        @Test
+        fun `실제 요청의 응답에 허용 출처가 담긴다`() {
+            val headers =
+                client
+                    .get()
+                    .uri("$BASE/api/v1/public/categories")
+                    .header(HttpHeaders.ORIGIN, PUBLIC_ALLOWED)
+                    .exchange()
+                    .expectStatus()
+                    .isOk
+                    .returnResult(Void::class.java)
+                    .responseHeaders
+
+            assertEquals(PUBLIC_ALLOWED, headers.accessControlAllowOrigin)
+        }
+
+        @Test
+        fun `채널 출처는 본사 API에 허용되지 않는다`() {
+            preflight("/api/v1/admin/probe/versioned", PUBLIC_ALLOWED).expectStatus().isForbidden
+        }
+    }
+
     @Test
     fun `내부 API에는 CORS를 열지 않는다`() {
         // Store 서비스가 서버에서 부르는 API라 CORS 설정이 없다. 사전 요청에 허용 헤더가 없으므로 브라우저가 실제 요청을 보내지 않는다.
@@ -116,5 +182,6 @@ class CorsTest : IntegrationTest() {
     private companion object {
         const val BASE = "http://catalog.local"
         const val ALLOWED = "http://localhost:3000"
+        const val PUBLIC_ALLOWED = "http://localhost:3001"
     }
 }

@@ -15,6 +15,18 @@ class CatalogCorsPropertiesTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = ["http://localhost:3001", "https://app.dozycoffee.com"])
+    fun `공개 경로의 출처도 같은 형식으로 받는다`(origin: String) {
+        assertEquals(listOf(origin), CatalogCorsProperties(publicAllowedOrigins = listOf(origin)).publicAllowedOrigins)
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["*", "https://*.dozycoffee.com", "https://app.dozycoffee.com/"])
+    fun `공개 경로의 출처가 와일드카드나 경로면 기동을 막는다`(origin: String) {
+        assertFailsWith<IllegalArgumentException> { CatalogCorsProperties(publicAllowedOrigins = listOf(origin)) }
+    }
+
+    @ParameterizedTest
     @ValueSource(
         strings = ["*", "https://*.dozycoffee.com", "http://localhost:3000/", "https://admin.dozycoffee.com/app", "localhost:3000", ""],
     )
